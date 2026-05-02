@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "BeautyApp",
+    "slug": "beautyapp",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "beautyapp",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F1724"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.beautyapp.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BeautyApp usa tu ubicación para mostrarte profesionales cercanas."
+      }
+    },
+    "android": {
+      "package": "com.beautyapp.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#B84968"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "BeautyApp usa tu ubicación para mostrarte profesionales cercanas."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://api.beautyapp.local"
+    }
+  }
+}
