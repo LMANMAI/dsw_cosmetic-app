@@ -12,7 +12,9 @@ module.exports = function (api) {
           },
         },
       ],
-      'react-native-reanimated/plugin',
+      // En Expo SDK 54 / Reanimated 4, el plugin se llama 'react-native-worklets/plugin'.
+      // Debe ir SIEMPRE último.
+      'react-native-worklets/plugin',
     ],
   };
 };
