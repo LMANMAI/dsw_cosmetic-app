@@ -1,54 +1,277 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Usuario, UserRole } from '@/types/models';
-import { fakeDelay } from './api-client';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as fbSignOut,
+  sendPasswordResetEmail,
+  signInWithCredential,
+  GoogleAuthProvider,
+  updateProfile,
+  onAuthStateChanged,
+  type User as FirebaseUser,
+  type AuthCredential,
+} from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { auth, db } from './firebase';
+import {
+  DEMO_PASSWORD,
+  DEMO_USERS,
+  getDemoUser,
+  isDemoEmail,
+} from './demo-users';
+import type {
+  Usuario,
+  UserRole,
+  PerfilCliente,
+  PerfilProfesionalSignup,
+  PerfilProveedor,
+} from '@/types/models';
 
-const STORAGE_KEY = 'beautyapp.session';
+const USERS_COLLECTION = 'usuarios';
+const DEMO_SESSION_KEY = 'beautyapp.demoSession';
 
-const DEMO_USERS: Record<UserRole, Usuario> = {
-  cliente: {
-    id: 'u-cli-demo',
-    nombre: 'Lucía B.',
-    email: 'cliente@beautyapp.demo',
-    telefono: '+54 11 5555-1111',
+async function getDemoSession(): Promise<Usuario | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DEMO_SESSION_KEY);
+    return raw ? (JSON.parse(raw) as Usuario) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setDemoSession(u: Usuario): Promise<void> {
+  await AsyncStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(u));
+}
+
+async function clearDemoSession(): Promise<void> {
+  await AsyncStorage.removeItem(DEMO_SESSION_KEY);
+}
+
+export interface SignupPayload {
+  email: string;
+  password: string;
+  nombre: string;
+  telefono: string;
+  rol: Exclude<UserRole, 'admin'>;
+  perfil: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
+}
+
+interface UsuarioDoc {
+  nombre: string;
+  email: string;
+  telefono: string;
+  rol: UserRole;
+  avatarUrl?: string;
+  perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
+  return {
+    id: uid,
+    nombre: d.nombre,
+    email: d.email,
+    telefono: d.telefono ?? '',
+    rol: d.rol,
+    avatarUrl: d.avatarUrl,
+    perfil: d.perfil,
+  };
+}
+
+async function fetchUsuario(uid: string): Promise<Usuario | null> {
+  const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
+  if (!snap.exists()) return null;
+  return buildUsuario(uid, snap.data() as UsuarioDoc);
+}
+
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((v) => v !== undefined)
+      .map((v) => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+async function upsertUsuario(
+  uid: string,
+  data: Partial<UsuarioDoc> & Pick<UsuarioDoc, 'email' | 'rol' | 'nombre'>,
+): Promise<Usuario> {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  const cleanData = stripUndefined(data);
+  const existing = await getDoc(ref);
+  if (existing.exists()) {
+    await updateDoc(ref, { ...cleanData, updatedAt: serverTimestamp() });
+  } else {
+    await setDoc(ref, {
+      telefono: '',
+      ...cleanData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  const fresh = await getDoc(ref);
+  return buildUsuario(uid, fresh.data() as UsuarioDoc);
+}
+
+async function loginWithGoogleCredential(credential: AuthCredential): Promise<Usuario> {
+  const cred = await signInWithCredential(auth, credential);
+  const fbUser = cred.user;
+  const existing = await fetchUsuario(fbUser.uid);
+  if (existing) return existing;
+  return upsertUsuario(fbUser.uid, {
+    email: fbUser.email ?? '',
+    nombre: fbUser.displayName ?? 'Usuaria BeautyApp',
+    telefono: fbUser.phoneNumber ?? '',
     rol: 'cliente',
-  },
-  profesional: {
-    id: 'u-pro-1',
-    nombre: 'Carla Méndez',
-    email: 'profesional@beautyapp.demo',
-    telefono: '+54 11 5555-2222',
-    rol: 'profesional',
-  },
-  admin: {
-    id: 'u-admin',
-    nombre: 'Admin BeautyApp',
-    email: 'admin@beautyapp.demo',
-    telefono: '+54 11 5555-9999',
-    rol: 'admin',
-  },
-};
+    avatarUrl: fbUser.photoURL ?? undefined,
+  });
+}
 
 export const authService = {
-  async login(_email: string, _password: string, rol: UserRole = 'cliente'): Promise<Usuario> {
-    await fakeDelay();
-    // TODO: cuando exista backend → POST /auth/login
-    const user = DEMO_USERS[rol];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    return user;
+  async loginWithEmail(email: string, password: string): Promise<Usuario> {
+    if (isDemoEmail(email)) {
+      if (password !== DEMO_PASSWORD) {
+        const err: any = new Error('Contrasena demo incorrecta.');
+        err.code = 'auth/wrong-password';
+        throw err;
+      }
+      const u = getDemoUser(email)!;
+      await setDemoSession(u);
+      return u;
+    }
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    let usuario = await fetchUsuario(cred.user.uid);
+    if (!usuario) {
+      usuario = await upsertUsuario(cred.user.uid, {
+        email: cred.user.email ?? email.trim(),
+        nombre: cred.user.displayName ?? 'Usuaria BeautyApp',
+        telefono: cred.user.phoneNumber ?? '',
+        rol: 'cliente',
+        avatarUrl: cred.user.photoURL ?? undefined,
+      });
+    }
+    return usuario;
+  },
+
+  async signupWithEmail(payload: SignupPayload): Promise<Usuario> {
+    if (isDemoEmail(payload.email)) {
+      const u = getDemoUser(payload.email)!;
+      await setDemoSession(u);
+      return u;
+    }
+    const cred = await createUserWithEmailAndPassword(
+      auth,
+      payload.email.trim(),
+      payload.password,
+    );
+    if (payload.nombre) {
+      await updateProfile(cred.user, { displayName: payload.nombre });
+    }
+    return upsertUsuario(cred.user.uid, {
+      email: payload.email.trim(),
+      nombre: payload.nombre,
+      telefono: payload.telefono,
+      rol: payload.rol,
+      perfil: payload.perfil,
+    });
+  },
+
+  async loginWithGoogleIdToken(idToken: string): Promise<Usuario> {
+    return loginWithGoogleCredential(GoogleAuthProvider.credential(idToken));
+  },
+
+  async loginWithGoogleAccessToken(accessToken: string): Promise<Usuario> {
+    return loginWithGoogleCredential(
+      GoogleAuthProvider.credential(null, accessToken),
+    );
+  },
+
+  async sendPasswordReset(email: string): Promise<void> {
+    if (isDemoEmail(email)) return;
+    await sendPasswordResetEmail(auth, email.trim());
   },
 
   async logout(): Promise<void> {
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    await clearDemoSession();
+    try {
+      await fbSignOut(auth);
+    } catch {
+      // Si Firebase no esta configurado, solo limpiamos la demo.
+    }
   },
 
-  async getSession(): Promise<Usuario | null> {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Usuario) : null;
+  subscribe(cb: (user: Usuario | null) => void): () => void {
+    let cancelled = false;
+    let firstFirebaseEmit = true;
+
+    getDemoSession().then((u) => {
+      if (cancelled) return;
+      if (u) cb(u);
+    });
+
+    const unsub = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+      if (cancelled) return;
+      if (!fbUser) {
+        const demo = await getDemoSession();
+        if (firstFirebaseEmit && demo) {
+          firstFirebaseEmit = false;
+          return;
+        }
+        firstFirebaseEmit = false;
+        cb(demo);
+        return;
+      }
+      firstFirebaseEmit = false;
+      try {
+        let u = await fetchUsuario(fbUser.uid);
+        if (!u) {
+          u = await upsertUsuario(fbUser.uid, {
+            email: fbUser.email ?? '',
+            nombre: fbUser.displayName ?? 'Usuaria BeautyApp',
+            telefono: fbUser.phoneNumber ?? '',
+            rol: 'cliente',
+            avatarUrl: fbUser.photoURL ?? undefined,
+          });
+        }
+        cb(u);
+      } catch {
+        cb(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   },
 
-  async switchRole(rol: UserRole): Promise<Usuario> {
-    const user = DEMO_USERS[rol];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    return user;
+  async updateRol(uid: string, rol: UserRole): Promise<void> {
+    const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
+    if (demoMatch) {
+      const updated: Usuario = { ...demoMatch, rol };
+      await setDemoSession(updated);
+      return;
+    }
+    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+      rol,
+      updatedAt: serverTimestamp(),
+    });
   },
 };

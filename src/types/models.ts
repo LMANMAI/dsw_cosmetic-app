@@ -1,10 +1,30 @@
-/**
- * Tipos de dominio — alineados con las entidades del informe.
- * Usuario, Perfil_Profesional, Servicio, Categoría, Turno,
- * Disponibilidad, Producto, Pedido, Item_Pedido.
- */
 
-export type UserRole = 'cliente' | 'profesional' | 'admin';
+export type UserRole = 'cliente' | 'profesional' | 'proveedor' | 'admin';
+
+export interface PerfilCliente {
+  ciudad?: string;
+  fechaNacimiento?: string; // ISO YYYY-MM-DD
+}
+
+export interface PerfilProfesionalSignup {
+  especialidad: string; // p. ej. "Manicura", "Pestañas"
+  ciudad: string;
+  aniosExperiencia: number;
+  matricula?: string;
+}
+
+export interface PerfilProveedor {
+  razonSocial: string;
+  cuit: string;
+  rubro: string; // p. ej. "Insumos para uñas"
+  ciudad: string;
+}
+
+export type PerfilPorRol =
+  | { rol: 'cliente'; perfil: PerfilCliente }
+  | { rol: 'profesional'; perfil: PerfilProfesionalSignup }
+  | { rol: 'proveedor'; perfil: PerfilProveedor }
+  | { rol: 'admin'; perfil: Record<string, never> };
 
 export type CategoriaSlug =
   | 'unas'
@@ -27,6 +47,7 @@ export interface Usuario {
   telefono: string;
   rol: UserRole;
   avatarUrl?: string;
+  perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
 }
 
 export interface PerfilProfesional {
