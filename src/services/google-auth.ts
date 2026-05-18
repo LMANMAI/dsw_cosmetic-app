@@ -8,7 +8,8 @@ WebBrowser.maybeCompleteAuthSession();
 export const GOOGLE_CLIENT_IDS = {
   webClientId: '883387668629-qcc0h7q4ha6drnuoa5tbtjrjj7l1b8lo.apps.googleusercontent.com',
   iosClientId: 'REEMPLAZAR.apps.googleusercontent.com',
-  androidClientId: '883387668629-s344h1dhpanjmk6sd8cglrb0ka9mmnvm.apps.googleusercontent.com',
+  // expo-auth-session usa flujo web con custom scheme, por eso se usa el Web Client ID
+  androidClientId: '883387668629-qcc0h7q4ha6drnuoa5tbtjrjj7l1b8lo.apps.googleusercontent.com',
 };
 
 interface UseGoogleSignInOptions {
