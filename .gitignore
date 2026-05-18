@@ -29,3 +29,4 @@ tsconfig.check.json
 
 expo-env.d.ts
 # @end expo-cli
+FIREBASE_SETUP.md

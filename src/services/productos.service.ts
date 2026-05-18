@@ -24,7 +24,6 @@ export const productosService = {
 
   async confirmarPedido(pedido: Omit<Pedido, 'id' | 'fecha' | 'estado'>): Promise<Pedido> {
     await fakeDelay(450);
-    // descuenta stock automáticamente
     pedido.items.forEach((item) => {
       _productos = _productos.map((p) =>
         p.id === item.productoId
@@ -45,5 +44,38 @@ export const productosService = {
   async pedidosDe(usuarioId: string): Promise<Pedido[]> {
     await fakeDelay();
     return _pedidos.filter((p) => p.compradorId === usuarioId);
+  },
+
+  async listarDelProveedor(proveedorNombre: string): Promise<Producto[]> {
+    await fakeDelay(120);
+    return _productos.filter(
+      (p) => (p.proveedor ?? '').toLowerCase() === proveedorNombre.toLowerCase(),
+    );
+  },
+
+  async crear(input: Omit<Producto, 'id'>): Promise<Producto> {
+    await fakeDelay(200);
+    const nuevo: Producto = { ...input, id: `pr-${Date.now()}` };
+    _productos = [..._productos, nuevo];
+    return nuevo;
+  },
+
+  async actualizar(id: string, patch: Partial<Producto>): Promise<Producto> {
+    await fakeDelay(150);
+    _productos = _productos.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    return _productos.find((p) => p.id === id)!;
+  },
+
+  async eliminar(id: string): Promise<void> {
+    await fakeDelay(150);
+    _productos = _productos.filter((p) => p.id !== id);
+  },
+
+  async ajustarStock(id: string, delta: number): Promise<Producto> {
+    await fakeDelay(80);
+    _productos = _productos.map((p) =>
+      p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p,
+    );
+    return _productos.find((p) => p.id === id)!;
   },
 };

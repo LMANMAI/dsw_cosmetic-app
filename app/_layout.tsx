@@ -17,14 +17,23 @@ function AuthGate() {
     if (loading) return;
     SplashScreen.hideAsync().catch(() => {});
 
-    const inAuthRoute = segments[0] === 'login' || segments.length === 0;
+    const inAuthRoute = segments[0] === '(auth)';
 
     if (!user && !inAuthRoute) {
-      router.replace('/login');
+      router.replace('/(auth)/login');
       return;
     }
     if (user && inAuthRoute) {
-      router.replace(user.rol === 'profesional' ? '/(profesional)/agenda' : '/(cliente)/buscar');
+      switch (user.rol) {
+        case 'profesional':
+          router.replace('/(profesional)/agenda');
+          break;
+        case 'proveedor':
+          router.replace('/(proveedor)/inicio');
+          break;
+        default:
+          router.replace('/(cliente)/buscar');
+      }
     }
   }, [user, loading, segments, router]);
 
