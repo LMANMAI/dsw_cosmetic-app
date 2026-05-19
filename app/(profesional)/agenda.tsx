@@ -28,7 +28,7 @@ const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info'
 
 export default function AgendaScreen() {
   const { user } = useSession();
-  const profesionalId = user?.id === 'u-pro-1' ? 'pro-1' : 'pro-1'; // demo
+  const profesionalId = user?.id ?? '';
   const [items, setItems] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
   const todayISO = new Date().toISOString().slice(0, 10);

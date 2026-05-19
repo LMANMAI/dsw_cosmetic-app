@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { Button } from '@/components/Button';
 import {
   AuthCard,
@@ -23,6 +25,7 @@ import {
 } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
 import { useGoogleSignIn } from '@/services/google-auth';
+import { uploadImage } from '@/services/upload.service';
 import { colors, radius, spacing } from '@/theme';
 import type {
   PerfilCliente,
@@ -54,8 +57,12 @@ export default function SignupScreen() {
 
   const [especialidad, setEspecialidad] = useState('');
   const [ciudadPro, setCiudadPro] = useState('');
+  const [direccionPro, setDireccionPro] = useState('');
   const [aniosExp, setAniosExp] = useState('');
   const [matricula, setMatricula] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [modalidad, setModalidad] = useState<'salon' | 'domicilio' | 'ambos'>('domicilio');
+  const [fotoSalonUri, setFotoSalonUri] = useState<string | null>(null);
 
   const [razonSocial, setRazonSocial] = useState('');
   const [cuit, setCuit] = useState('');
@@ -63,6 +70,25 @@ export default function SignupScreen() {
   const [ciudadProv, setCiudadProv] = useState('');
 
   const [loading, setLoading] = useState(false);
+
+  const elegirFotoSalon = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para subir la foto.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setFotoSalonUri(result.assets[0].uri);
+    }
+  };
+
+  const necesitaFotoSalon = modalidad === 'salon' || modalidad === 'ambos';
 
   const { request: googleRequest, promptAsync: promptGoogle } = useGoogleSignIn({
     onError: () =>
@@ -76,8 +102,12 @@ export default function SignupScreen() {
           return {
             especialidad: especialidad.trim(),
             ciudad: ciudadPro.trim(),
+            direccion: direccionPro.trim(),
             aniosExperiencia: Number(aniosExp) || 0,
             matricula: matricula.trim() || undefined,
+            instagram: instagram.trim() || undefined,
+            modalidad,
+            fotoSalonUrl: undefined, // se sube después en handleSignup
           };
         case 'proveedor':
           return {
@@ -89,7 +119,7 @@ export default function SignupScreen() {
         default:
           return { ciudad: ciudadCli.trim() || undefined };
       }
-    }, [rol, especialidad, ciudadPro, aniosExp, matricula, razonSocial, cuit, rubro, ciudadProv, ciudadCli]);
+    }, [rol, especialidad, ciudadPro, direccionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ciudadProv, ciudadCli]);
 
   const validate = (): string | null => {
     if (!nombre.trim()) return 'Ingresá tu nombre.';
@@ -100,6 +130,10 @@ export default function SignupScreen() {
       const p = perfilExtra as PerfilProfesionalSignup;
       if (!p.especialidad) return 'Ingresá tu especialidad.';
       if (!p.ciudad) return 'Ingresá tu ciudad.';
+      if (!p.direccion) return 'Ingresá tu dirección.';
+      if ((modalidad === 'salon' || modalidad === 'ambos') && !fotoSalonUri) {
+        return 'Subí una foto de tu salón.';
+      }
     }
     if (rol === 'proveedor') {
       const p = perfilExtra as PerfilProveedor;
@@ -119,13 +153,21 @@ export default function SignupScreen() {
     }
     setLoading(true);
     try {
+      let finalPerfil = perfilExtra;
+
+      // Si es profesional con salón, subir la foto primero
+      if (rol === 'profesional' && fotoSalonUri && necesitaFotoSalon) {
+        const fotoUrl = await uploadImage(fotoSalonUri, 'salones');
+        finalPerfil = { ...perfilExtra, fotoSalonUrl: fotoUrl } as PerfilProfesionalSignup;
+      }
+
       await signupWithEmail({
         email: email.trim(),
         password,
         nombre: nombre.trim(),
         telefono: telefono.trim(),
         rol,
-        perfil: perfilExtra,
+        perfil: finalPerfil,
       });
     } catch (e: any) {
       console.warn('[auth] signup error', e);
@@ -228,6 +270,12 @@ export default function SignupScreen() {
                   onChangeText={setCiudadPro}
                 />
                 <AuthInput
+                  icon="navigate-outline"
+                  placeholder="Dirección (calle y número)"
+                  value={direccionPro}
+                  onChangeText={setDireccionPro}
+                />
+                <AuthInput
                   icon="time-outline"
                   placeholder="Años de experiencia"
                   keyboardType="number-pad"
@@ -240,6 +288,58 @@ export default function SignupScreen() {
                   value={matricula}
                   onChangeText={setMatricula}
                 />
+                <AuthInput
+                  icon="logo-instagram"
+                  placeholder="Instagram (opcional, sin @)"
+                  autoCapitalize="none"
+                  value={instagram}
+                  onChangeText={setInstagram}
+                />
+
+                <Text style={styles.sectionLabel}>Modalidad de trabajo</Text>
+                <View style={styles.roleRow}>
+                  {([
+                    { id: 'salon' as const, label: 'Salón', emoji: '🏠' },
+                    { id: 'domicilio' as const, label: 'A domicilio', emoji: '🚗' },
+                    { id: 'ambos' as const, label: 'Ambos', emoji: '✨' },
+                  ]).map((m) => {
+                    const active = modalidad === m.id;
+                    return (
+                      <Pressable
+                        key={m.id}
+                        style={[styles.roleCard, active && styles.roleCardActive]}
+                        onPress={() => setModalidad(m.id)}
+                      >
+                        <Text style={styles.roleEmoji}>{m.emoji}</Text>
+                        <Text style={[styles.roleLabel, active && styles.roleLabelActive]}>
+                          {m.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {necesitaFotoSalon ? (
+                  <>
+                    <Text style={styles.sectionLabel}>Foto del salón</Text>
+                    <Pressable style={styles.fotoPicker} onPress={elegirFotoSalon}>
+                      {fotoSalonUri ? (
+                        <Image
+                          source={{ uri: fotoSalonUri }}
+                          style={styles.fotoPreview}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.fotoPlaceholder}>
+                          <Ionicons name="camera-outline" size={32} color={colors.muted} />
+                          <Text style={styles.fotoPlaceholderText}>
+                            Tocá para elegir una foto
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  </>
+                ) : null}
               </>
             ) : null}
 
@@ -413,4 +513,29 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: 14, color: colors.muted },
   footerLink: { fontSize: 14, color: colors.rose, fontWeight: '700' },
+  fotoPicker: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.bone3,
+    borderStyle: 'dashed',
+    marginBottom: spacing.md,
+  },
+  fotoPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: radius.lg,
+  },
+  fotoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    backgroundColor: colors.bone,
+    gap: spacing.sm,
+  },
+  fotoPlaceholderText: {
+    fontSize: 13,
+    color: colors.muted,
+    fontWeight: '500',
+  },
 });

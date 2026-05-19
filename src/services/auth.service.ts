@@ -37,6 +37,10 @@ import type {
 const USERS_COLLECTION = 'usuarios';
 const DEMO_SESSION_KEY = 'beautyapp.demoSession';
 
+// Flag para evitar que el listener de onAuthStateChanged cree un doc
+// con rol 'cliente' mientras signupWithEmail esta guardando el rol correcto.
+let _signupInProgress = false;
+
 async function getDemoSession(): Promise<Usuario | null> {
   try {
     const raw = await AsyncStorage.getItem(DEMO_SESSION_KEY);
@@ -176,21 +180,29 @@ export const authService = {
       await setDemoSession(u);
       return u;
     }
-    const cred = await createUserWithEmailAndPassword(
-      auth,
-      payload.email.trim(),
-      payload.password,
-    );
-    if (payload.nombre) {
-      await updateProfile(cred.user, { displayName: payload.nombre });
+    // Evitamos que onAuthStateChanged cree el doc con rol 'cliente'
+    // antes de que nosotros lo creemos con el rol correcto.
+    _signupInProgress = true;
+    try {
+      const cred = await createUserWithEmailAndPassword(
+        auth,
+        payload.email.trim(),
+        payload.password,
+      );
+      if (payload.nombre) {
+        await updateProfile(cred.user, { displayName: payload.nombre });
+      }
+      const usuario = await upsertUsuario(cred.user.uid, {
+        email: payload.email.trim(),
+        nombre: payload.nombre,
+        telefono: payload.telefono,
+        rol: payload.rol,
+        perfil: payload.perfil,
+      });
+      return usuario;
+    } finally {
+      _signupInProgress = false;
     }
-    return upsertUsuario(cred.user.uid, {
-      email: payload.email.trim(),
-      nombre: payload.nombre,
-      telefono: payload.telefono,
-      rol: payload.rol,
-      perfil: payload.perfil,
-    });
   },
 
   async loginWithGoogleIdToken(idToken: string): Promise<Usuario> {
@@ -240,6 +252,12 @@ export const authService = {
       }
       firstFirebaseEmit = false;
       try {
+        // Si hay un signup en curso, no creamos el doc con rol por defecto.
+        // El signupWithEmail se encarga de crearlo con el rol correcto.
+        if (_signupInProgress) {
+          console.log('[auth] subscribe: signup en curso, esperando...');
+          return;
+        }
         let u = await fetchUsuario(fbUser.uid);
         if (!u) {
           u = await upsertUsuario(fbUser.uid, {

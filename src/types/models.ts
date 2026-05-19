@@ -9,8 +9,12 @@ export interface PerfilCliente {
 export interface PerfilProfesionalSignup {
   especialidad: string; // p. ej. "Manicura", "Pestañas"
   ciudad: string;
+  direccion: string;
   aniosExperiencia: number;
   matricula?: string;
+  instagram?: string;
+  modalidad: 'salon' | 'domicilio' | 'ambos';
+  fotoSalonUrl?: string; // URL en Firebase Storage (obligatoria si modalidad incluye salon)
 }
 
 export interface PerfilProveedor {
@@ -50,14 +54,22 @@ export interface Usuario {
   perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
 }
 
+export type ModalidadTrabajo = 'salon' | 'domicilio' | 'ambos';
+
 export interface PerfilProfesional {
   id: string;
   usuarioId: string;
   nombre: string;
   descripcion: string;
   zona: string;
+  direccion: string;
+  ciudad: string;
   latitud: number;
   longitud: number;
+  telefono: string;
+  instagram: string;
+  modalidad: ModalidadTrabajo;
+  fotoSalon?: string; // requerida si modalidad es 'salon' o 'ambos'
   rating: number;
   reviews: number;
   activa: boolean;

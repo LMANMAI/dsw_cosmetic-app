@@ -18,6 +18,7 @@ import type { CategoriaSlug, PerfilProfesional } from '@/types/models';
 import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { MapaProfesionales } from '@/components/MapaProfesionales';
 import { colors, radius, spacing, shadow } from '@/theme';
 
 export default function BuscarScreen() {
@@ -39,6 +40,10 @@ export default function BuscarScreen() {
     () => CATEGORIAS.find((c) => c.slug === categoria),
     [categoria],
   );
+
+  const badgeText = seleccionada
+    ? `Filtrando: ${seleccionada.nombre}`
+    : `${items.length} profesionales cercanas`;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -65,37 +70,12 @@ export default function BuscarScreen() {
           </View>
         </View>
 
-        {/* Mapa placeholder */}
-        <View style={styles.mapBox}>
-          <View style={styles.mapGrid}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <View key={i} style={styles.mapCell} />
-            ))}
-          </View>
-          <View style={styles.mapPinUser}>
-            <Ionicons name="locate" size={20} color={colors.white} />
-          </View>
-          {items.slice(0, 4).map((p, i) => {
-            const positions = [
-              { top: 24, left: 56 },
-              { top: 48, right: 40 },
-              { bottom: 32, left: 88 },
-              { bottom: 18, right: 70 },
-            ];
-            return (
-              <View key={p.id} style={[styles.mapPin, positions[i] as any]}>
-                <Ionicons name="location" size={22} color={colors.rose} />
-                <Text style={styles.mapPinLabel}>{p.distanciaKm}km</Text>
-              </View>
-            );
-          })}
-          <View style={styles.mapBadge}>
-            <Ionicons name="map-outline" size={14} color={colors.muted} />
-            <Text style={styles.mapBadgeText}>
-              {seleccionada ? `Filtrando: ${seleccionada.nombre}` : 'Mostrando profesionales cercanas'}
-            </Text>
-          </View>
-        </View>
+        {/* Mapa — nativo en dev build, estático en Expo Go */}
+        <MapaProfesionales
+          items={items}
+          badgeText={badgeText}
+          onMarkerPress={(p) => router.push(`/(cliente)/profesional/${p.id}`)}
+        />
 
         {/* Categorías */}
         <Text style={styles.sectionTitle}>Categorías</Text>
@@ -144,8 +124,8 @@ export default function BuscarScreen() {
                   {item.descripcion}
                 </Text>
                 <View style={styles.proMeta}>
-                  <Text style={styles.metaPill}>📍 {item.zona}</Text>
-                  <Text style={styles.metaPill}>⭐ {item.rating}</Text>
+                  <Text style={styles.metaPill}>{'📍'} {item.zona}</Text>
+                  <Text style={styles.metaPill}>{'⭐'} {item.rating}</Text>
                   <Text style={styles.metaPill}>{item.distanciaKm}km</Text>
                 </View>
               </View>
@@ -193,68 +173,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.ink,
   },
-  mapBox: {
-    marginHorizontal: spacing.xxl,
-    height: 220,
-    borderRadius: radius.xl,
-    backgroundColor: '#E8DED4',
-    overflow: 'hidden',
-    position: 'relative',
-    ...shadow.card,
-  },
-  mapGrid: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  mapCell: {
-    width: '25%',
-    height: '33.33%',
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  mapPinUser: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -16 }, { translateY: -16 }],
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.navy,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.white,
-  },
-  mapPin: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  mapPinLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.rose,
-    backgroundColor: colors.white,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: -4,
-  },
-  mapBadge: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-  },
-  mapBadgeText: { fontSize: 12, color: colors.muted, fontWeight: '500' },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',

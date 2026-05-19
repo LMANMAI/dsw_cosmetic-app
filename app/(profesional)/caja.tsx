@@ -11,7 +11,7 @@ import { formatARS, nombreMes } from '@/utils/format';
 
 export default function CierreCajaScreen() {
   const { user } = useSession();
-  const profesionalId = 'pro-1';
+  const profesionalId = user?.id ?? '';
   const [data, setData] = useState<CierreCaja | null>(null);
   const [loading, setLoading] = useState(true);
   const [mes, setMes] = useState(new Date().getMonth());
@@ -21,24 +21,6 @@ export default function CierreCajaScreen() {
     setLoading(true);
     turnosService
       .cierreCajaMensual(profesionalId, mes, anio)
-      .then((d) =>
-        // datos demo: si el mes actual no tiene cierres aún, usamos un escenario realista
-        d.cantidadTurnos > 0
-          ? d
-          : {
-              ...d,
-              totalCobrado: 387500,
-              cantidadTurnos: 34,
-              insumosComprados: 45200,
-              gananciaNeta: 342300,
-              porMetodo: {
-                efectivo: 152000,
-                transferencia: 128500,
-                mercado_pago: 95000,
-                mixto: 12000,
-              },
-            },
-      )
       .then(setData)
       .finally(() => setLoading(false));
   }, [mes]);

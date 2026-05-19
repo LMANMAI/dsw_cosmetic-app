@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -7,11 +7,22 @@ import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
 import { colors, radius, spacing } from '@/theme';
 import { confirm } from '@/utils/confirm';
+import type { PerfilProfesionalSignup } from '@/types/models';
 
 const ANTICIPO_OPTIONS = ['Sin anticipo', '20% del monto', '50% del monto', '100% del monto'];
 
 export default function PerfilProfesionalScreen() {
   const { user, logout, switchRole } = useSession();
+  const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
+
+  const modalidadLabel =
+    perfil?.modalidad === 'salon'
+      ? 'Salón'
+      : perfil?.modalidad === 'domicilio'
+        ? 'A domicilio'
+        : perfil?.modalidad === 'ambos'
+          ? 'Salón y domicilio'
+          : 'Sin definir';
 
   const [perfilPublico, setPerfilPublico] = useState(true);
   const [anticipo, setAnticipo] = useState('20% del monto');
@@ -61,42 +72,66 @@ export default function PerfilProfesionalScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{user?.nombre}</Text>
             <Text style={styles.email}>{user?.email}</Text>
-            <Text style={styles.tel}>Villa Urquiza - Activa</Text>
+            <Text style={styles.tel}>
+            {(user?.perfil as any)?.ciudad ?? 'Sin ubicación'} - Activa
+          </Text>
           </View>
         </View>
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>87</Text>
+            <Text style={styles.statVal}>0</Text>
             <Text style={styles.statLbl}>Resenas</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>4.9</Text>
+            <Text style={styles.statVal}>—</Text>
             <Text style={styles.statLbl}>Rating</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>3</Text>
+            <Text style={styles.statVal}>0</Text>
             <Text style={styles.statLbl}>Servicios</Text>
           </View>
         </View>
+
+        {perfil?.fotoSalonUrl ? (
+          <Image
+            source={{ uri: perfil.fotoSalonUrl }}
+            style={styles.fotoSalon}
+            resizeMode="cover"
+          />
+        ) : null}
 
         <SettingsGroup title="Mi negocio">
           <SettingsRow
             icon="storefront-outline"
             label="Datos del negocio"
-            description="Nombre, descripcion, fotos"
+            description={`${perfil?.especialidad ?? 'Sin especialidad'} · ${modalidadLabel}`}
             onPress={() => Alert.alert('Proximamente', 'Editor de negocio.')}
           />
           <SettingsRow
+            icon="navigate-outline"
+            label="Dirección"
+            description={perfil?.direccion || 'Sin dirección'}
+            onPress={() => Alert.alert('Proximamente', 'Editar dirección.')}
+          />
+          {perfil?.instagram ? (
+            <SettingsRow
+              icon="logo-instagram"
+              label="Instagram"
+              description={`@${perfil.instagram}`}
+              onPress={() => Alert.alert('Proximamente', 'Editar Instagram.')}
+            />
+          ) : null}
+          <SettingsRow
             icon="cut-outline"
             label="Servicios y precios"
-            description="3 activos"
+            description="0 activos"
             onPress={() => Alert.alert('Proximamente', 'Gestion de servicios.')}
           />
           <SettingsRow
             icon="time-outline"
             label="Horarios laborales"
-            description="Lun a Sab - 9 a 19hs"
+            description="Sin configurar"
             isLast
             onPress={() => Alert.alert('Proximamente', 'Horarios laborales.')}
           />
@@ -194,4 +229,10 @@ const styles = StyleSheet.create({
   },
   statVal: { fontSize: 24, fontWeight: '700', color: colors.rose },
   statLbl: { fontSize: 11, color: colors.muted, marginTop: 4 },
+  fotoSalon: {
+    width: '100%',
+    height: 180,
+    borderRadius: radius.xl,
+    marginTop: spacing.xl,
+  },
 });
