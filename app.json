@@ -19,20 +19,28 @@
       "bundleIdentifier": "com.beautyapp.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "BeautyApp usa tu ubicacion para mostrarte profesionales cercanas."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyAgOCvjEyoaORimtnp_liqc2xzuAVGjj78"
       }
     },
     "android": {
       "package": "com.beautyapp.mobile",
       "adaptiveIcon": {
-  "foregroundImage": "./assets/adaptive-icon.png",
-  "backgroundColor": "#B84968"
-},
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#B84968"
+      },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAgOCvjEyoaORimtnp_liqc2xzuAVGjj78"
+        }
+      }
     },
     "web": {
       "bundler": "metro"

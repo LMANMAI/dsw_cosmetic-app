@@ -26,6 +26,7 @@ import {
 import { useSession } from '@/context/SessionContext';
 import { useGoogleSignIn } from '@/services/google-auth';
 import { uploadImage } from '@/services/upload.service';
+import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
 import { colors, radius, spacing } from '@/theme';
 import type {
   PerfilCliente,
@@ -56,8 +57,7 @@ export default function SignupScreen() {
   const [ciudadCli, setCiudadCli] = useState('');
 
   const [especialidad, setEspecialidad] = useState('');
-  const [ciudadPro, setCiudadPro] = useState('');
-  const [direccionPro, setDireccionPro] = useState('');
+  const [ubicacionPro, setUbicacionPro] = useState<DireccionSeleccionada | null>(null);
   const [aniosExp, setAniosExp] = useState('');
   const [matricula, setMatricula] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -101,13 +101,15 @@ export default function SignupScreen() {
         case 'profesional':
           return {
             especialidad: especialidad.trim(),
-            ciudad: ciudadPro.trim(),
-            direccion: direccionPro.trim(),
+            ciudad: ubicacionPro?.ciudad ?? '',
+            direccion: ubicacionPro?.direccion ?? '',
             aniosExperiencia: Number(aniosExp) || 0,
             matricula: matricula.trim() || undefined,
             instagram: instagram.trim() || undefined,
             modalidad,
-            fotoSalonUrl: undefined, // se sube después en handleSignup
+            fotoSalonUrl: undefined,
+            latitud: ubicacionPro?.latitud,
+            longitud: ubicacionPro?.longitud,
           };
         case 'proveedor':
           return {
@@ -119,7 +121,7 @@ export default function SignupScreen() {
         default:
           return { ciudad: ciudadCli.trim() || undefined };
       }
-    }, [rol, especialidad, ciudadPro, direccionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ciudadProv, ciudadCli]);
+    }, [rol, especialidad, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ciudadProv, ciudadCli]);
 
   const validate = (): string | null => {
     if (!nombre.trim()) return 'Ingresá tu nombre.';
@@ -129,8 +131,7 @@ export default function SignupScreen() {
     if (rol === 'profesional') {
       const p = perfilExtra as PerfilProfesionalSignup;
       if (!p.especialidad) return 'Ingresá tu especialidad.';
-      if (!p.ciudad) return 'Ingresá tu ciudad.';
-      if (!p.direccion) return 'Ingresá tu dirección.';
+      if (!ubicacionPro) return 'Seleccioná tu dirección en el buscador.';
       if ((modalidad === 'salon' || modalidad === 'ambos') && !fotoSalonUri) {
         return 'Subí una foto de tu salón.';
       }
@@ -155,10 +156,13 @@ export default function SignupScreen() {
     try {
       let finalPerfil = perfilExtra;
 
-      // Si es profesional con salón, subir la foto primero
-      if (rol === 'profesional' && fotoSalonUri && necesitaFotoSalon) {
-        const fotoUrl = await uploadImage(fotoSalonUri, 'salones');
-        finalPerfil = { ...perfilExtra, fotoSalonUrl: fotoUrl } as PerfilProfesionalSignup;
+      if (rol === 'profesional') {
+        // Subir foto del salón si corresponde
+        if (fotoSalonUri && necesitaFotoSalon) {
+          const fotoUrl = await uploadImage(fotoSalonUri, 'salones');
+          finalPerfil = { ...finalPerfil, fotoSalonUrl: fotoUrl } as PerfilProfesionalSignup;
+        }
+        // Las coordenadas ya vienen del DireccionAutocomplete, no hace falta geocodificar
       }
 
       await signupWithEmail({
@@ -263,17 +267,10 @@ export default function SignupScreen() {
                   value={especialidad}
                   onChangeText={setEspecialidad}
                 />
-                <AuthInput
-                  icon="location-outline"
-                  placeholder="Ciudad donde trabajás"
-                  value={ciudadPro}
-                  onChangeText={setCiudadPro}
-                />
-                <AuthInput
-                  icon="navigate-outline"
-                  placeholder="Dirección (calle y número)"
-                  value={direccionPro}
-                  onChangeText={setDireccionPro}
+                <Text style={styles.sectionLabel}>Dirección de trabajo</Text>
+                <DireccionAutocomplete
+                  onSelect={setUbicacionPro}
+                  placeholder="Buscá tu dirección..."
                 />
                 <AuthInput
                   icon="time-outline"

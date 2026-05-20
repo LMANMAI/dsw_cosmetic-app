@@ -1,6 +1,6 @@
-import React, { useMemo, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { WebView } from 'react-native-webview';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker, type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, shadow } from '@/theme';
 import type { PerfilProfesional } from '@/types/models';
@@ -9,143 +9,174 @@ interface MapaProfesionalesProps {
   items: PerfilProfesional[];
   badgeText: string;
   onMarkerPress?: (profesional: PerfilProfesional) => void;
+  userLat?: number;
+  userLng?: number;
+  onRecenterPress?: () => void;
+  onSearchArea?: (lat: number, lng: number) => void;
 }
 
-type MapRegion = {
-  latitude: number;
-  longitude: number;
-  latitudeDelta: number;
-  longitudeDelta: number;
-};
-
-function calcRegion(items: PerfilProfesional[]): MapRegion {
+function calcRegion(items: PerfilProfesional[], userLat?: number, userLng?: number): Region {
   if (items.length === 0) {
-    return { latitude: -34.5759, longitude: -58.4892, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+    return {
+      latitude: userLat ?? -34.5759,
+      longitude: userLng ?? -58.4892,
+      latitudeDelta: 0.015,
+      longitudeDelta: 0.015,
+    };
   }
   const lats = items.map((p) => p.latitud);
   const lngs = items.map((p) => p.longitud);
+  // Incluir ubicación del usuario en el cálculo de bounds
+  if (userLat != null && userLng != null) {
+    lats.push(userLat);
+    lngs.push(userLng);
+  }
   const minLat = Math.min(...lats);
   const maxLat = Math.max(...lats);
   const minLng = Math.min(...lngs);
   const maxLng = Math.max(...lngs);
   const centerLat = (minLat + maxLat) / 2;
   const centerLng = (minLng + maxLng) / 2;
-  const deltaLat = Math.max((maxLat - minLat) * 1.5, 0.02);
-  const deltaLng = Math.max((maxLng - minLng) * 1.5, 0.02);
+  const deltaLat = Math.max((maxLat - minLat) * 1.4, 0.015);
+  const deltaLng = Math.max((maxLng - minLng) * 1.4, 0.015);
   return { latitude: centerLat, longitude: centerLng, latitudeDelta: deltaLat, longitudeDelta: deltaLng };
 }
 
-function calcZoom(latitudeDelta: number): number {
-  const zoom = Math.round(Math.log2(360 / latitudeDelta)) - 1;
-  return Math.min(Math.max(zoom, 10), 16);
-}
+export function MapaProfesionales({ items, badgeText, onMarkerPress, userLat, userLng, onRecenterPress, onSearchArea }: MapaProfesionalesProps) {
+  const mapRef = useRef<MapView>(null);
+  const itemsConUbicacion = useMemo(
+    () => items.filter((p) => p.latitud !== 0 && p.longitud !== 0),
+    [items],
+  );
+  const region = useMemo(() => calcRegion(itemsConUbicacion, userLat, userLng), [itemsConUbicacion, userLat, userLng]);
+  const [showSearchHere, setShowSearchHere] = useState(false);
+  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  // Guardar la región "base" para detectar movimiento
+  const baseRegionRef = useRef<{ lat: number; lng: number }>({ lat: region.latitude, lng: region.longitude });
+  const pendingRecenterRef = useRef(false);
 
-function buildLeafletHtml(items: PerfilProfesional[], region: MapRegion): string {
-  const zoom = calcZoom(region.latitudeDelta);
-  const markersJs = items
-    .map(
-      (p) => `
-      L.marker([${p.latitud}, ${p.longitud}], { icon: pinIcon })
-        .addTo(map)
-        .bindPopup('<b>${p.nombre.replace(/'/g, "\\'")}</b><br>${p.zona.replace(/'/g, "\\'")} · ${p.distanciaKm}km · ⭐ ${p.rating}')
-        .on('click', function() {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'marker', id: '${p.id}' }));
-        });`,
-    )
-    .join('\n');
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    * { margin: 0; padding: 0; }
-    html, body, #map { width: 100%; height: 100%; }
-    .custom-pin {
-      width: 28px;
-      height: 28px;
-      background: #B84968;
-      border: 3px solid #fff;
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  // Cuando las coordenadas del usuario cambian y hay un recentrado pendiente, animar el mapa
+  useEffect(() => {
+    if (pendingRecenterRef.current && userLat != null && userLng != null && mapRef.current) {
+      const newRegion: Region = {
+        latitude: userLat,
+        longitude: userLng,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
+      };
+      mapRef.current.animateToRegion(newRegion, 500);
+      baseRegionRef.current = { lat: userLat, lng: userLng };
+      setShowSearchHere(false);
+      pendingRecenterRef.current = false;
     }
-    .leaflet-popup-content-wrapper {
-      border-radius: 12px;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }, [userLat, userLng]);
+
+  const handleRegionChangeComplete = useCallback(
+    (newRegion: Region) => {
+      const base = baseRegionRef.current;
+      const moved =
+        Math.abs(newRegion.latitude - base.lat) > 0.005 ||
+        Math.abs(newRegion.longitude - base.lng) > 0.005;
+      lastCenterRef.current = { lat: newRegion.latitude, lng: newRegion.longitude };
+      setShowSearchHere(moved);
+    },
+    [],
+  );
+
+  const handleSearchHere = useCallback(() => {
+    if (lastCenterRef.current && onSearchArea) {
+      onSearchArea(lastCenterRef.current.lat, lastCenterRef.current.lng);
+      // Actualizar la base para que el botón desaparezca
+      baseRegionRef.current = { lat: lastCenterRef.current.lat, lng: lastCenterRef.current.lng };
+      setShowSearchHere(false);
     }
-    .leaflet-popup-content { margin: 10px 14px; font-size: 13px; line-height: 1.4; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    var map = L.map('map', {
-      zoomControl: false,
-      attributionControl: false,
-    }).setView([${region.latitude}, ${region.longitude}], ${zoom});
+  }, [onSearchArea]);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
-
-    var pinIcon = L.divIcon({
-      className: '',
-      html: '<div class="custom-pin"></div>',
-      iconSize: [28, 28],
-      iconAnchor: [14, 28],
-      popupAnchor: [0, -28],
-    });
-
-    ${markersJs}
-  </script>
-</body>
-</html>`;
-}
-
-export function MapaProfesionales({ items, badgeText, onMarkerPress }: MapaProfesionalesProps) {
-  const region = useMemo(() => calcRegion(items), [items]);
-  const html = useMemo(() => buildLeafletHtml(items, region), [items, region]);
-  const webViewRef = useRef<WebView>(null);
-
-  const handleMessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'marker' && onMarkerPress) {
-        const pro = items.find((p) => p.id === data.id);
-        if (pro) onMarkerPress(pro);
-      }
-    } catch {
-      // ignore
+  const handleRecenter = useCallback(() => {
+    pendingRecenterRef.current = true;
+    // Pedir nueva ubicación al padre (fetchLocation)
+    if (onRecenterPress) onRecenterPress();
+    // Si ya tenemos coordenadas, animar inmediatamente
+    if (userLat != null && userLng != null && mapRef.current) {
+      const newRegion: Region = {
+        latitude: userLat,
+        longitude: userLng,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
+      };
+      mapRef.current.animateToRegion(newRegion, 500);
+      baseRegionRef.current = { lat: userLat, lng: userLng };
+      setShowSearchHere(false);
+      pendingRecenterRef.current = false;
     }
-  };
+  }, [onRecenterPress, userLat, userLng]);
 
   return (
     <View style={styles.mapBox}>
-      <WebView
-        ref={webViewRef}
-        source={{ html }}
+      <MapView
+        ref={mapRef}
         style={styles.map}
-        scrollEnabled={false}
-        nestedScrollEnabled
-        onMessage={handleMessage}
-        javaScriptEnabled
-        domStorageEnabled
-        originWhitelist={['*']}
-      />
-      <Badge text={badgeText} />
-    </View>
-  );
-}
+        initialRegion={region}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        toolbarEnabled={false}
+        mapPadding={{ top: 0, right: 0, bottom: 40, left: 0 }}
+        onRegionChangeComplete={handleRegionChangeComplete}
+      >
+        {/* Marker del usuario */}
+        {userLat != null && userLng != null ? (
+          <Marker
+            coordinate={{ latitude: userLat, longitude: userLng }}
+            title="Tu ubicación"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.userMarker}>
+              <View style={styles.userDot} />
+            </View>
+          </Marker>
+        ) : null}
 
-function Badge({ text }: { text: string }) {
-  return (
-    <View style={styles.mapBadge} pointerEvents="none">
-      <Ionicons name="map-outline" size={14} color={colors.muted} />
-      <Text style={styles.mapBadgeText}>{text}</Text>
+        {/* Markers de profesionales (pines) */}
+        {itemsConUbicacion.map((p) => (
+          <Marker
+            key={p.id}
+            coordinate={{ latitude: p.latitud, longitude: p.longitud }}
+            title={p.nombre}
+            description={`${p.zona} · ${p.distanciaKm ?? '?'}km · ⭐ ${p.rating}`}
+            onCalloutPress={() => onMarkerPress?.(p)}
+            anchor={{ x: 0.5, y: 1 }}
+          >
+            <View style={styles.pinWrap}>
+              <View style={styles.pinHead}>
+                <Ionicons name="cut" size={12} color={colors.white} />
+              </View>
+              <View style={styles.pinTail} />
+              {p.distanciaKm != null ? (
+                <Text style={styles.markerLabel}>{p.distanciaKm}km</Text>
+              ) : null}
+            </View>
+          </Marker>
+        ))}
+      </MapView>
+      {/* Botón "Buscar en esta zona" */}
+      {showSearchHere ? (
+        <Pressable style={styles.searchHereBtn} onPress={handleSearchHere}>
+          <Ionicons name="refresh-outline" size={14} color={colors.white} />
+          <Text style={styles.searchHereTxt}>Buscar en esta zona</Text>
+        </Pressable>
+      ) : null}
+
+      {/* Botón recentrar ubicación */}
+      {onRecenterPress ? (
+        <Pressable style={styles.recenterBtn} onPress={handleRecenter}>
+          <Ionicons name="locate-outline" size={18} color={colors.rose} />
+        </Pressable>
+      ) : null}
+
+      <View style={styles.mapBadge} pointerEvents="none">
+        <Ionicons name="map-outline" size={14} color={colors.muted} />
+        <Text style={styles.mapBadgeText}>{badgeText}</Text>
+      </View>
     </View>
   );
 }
@@ -161,6 +192,101 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  userMarker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#4A90D9',
+    borderWidth: 3,
+    borderColor: colors.white,
+    shadowColor: '#4A90D9',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  pinWrap: {
+    alignItems: 'center',
+  },
+  pinHead: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.rose,
+    borderWidth: 2.5,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  pinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: colors.rose,
+    marginTop: -1,
+  },
+  markerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.rose,
+    backgroundColor: colors.white,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+    marginTop: 2,
+    overflow: 'hidden',
+  },
+  searchHereBtn: {
+    position: 'absolute',
+    top: spacing.md,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.rose,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  searchHereTxt: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  recenterBtn: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
   mapBadge: {
     position: 'absolute',

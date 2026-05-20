@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { CATEGORIAS } from '@/data/categorias';
 import { profesionalesService } from '@/services';
 import type { CategoriaSlug, PerfilProfesional } from '@/types/models';
@@ -27,14 +28,42 @@ export default function BuscarScreen() {
   const [categoria, setCategoria] = useState<CategoriaSlug | null>(null);
   const [items, setItems] = useState<PerfilProfesional[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userLat, setUserLat] = useState<number | undefined>();
+  const [userLng, setUserLng] = useState<number | undefined>();
+
+  // Función para obtener / actualizar ubicación del usuario
+  const fetchLocation = useCallback(async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLat(loc.coords.latitude);
+      setUserLng(loc.coords.longitude);
+    }
+  }, []);
+
+  // Obtener ubicación al montar
+  useEffect(() => {
+    fetchLocation();
+  }, [fetchLocation]);
+
+  // Buscar en otra zona (cuando el usuario mueve el mapa)
+  const handleSearchArea = useCallback((lat: number, lng: number) => {
+    setUserLat(lat);
+    setUserLng(lng);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     profesionalesService
-      .listar({ categoria: categoria ?? undefined, textoLibre: query || undefined })
+      .listar({
+        categoria: categoria ?? undefined,
+        textoLibre: query || undefined,
+        userLat,
+        userLng,
+      })
       .then(setItems)
       .finally(() => setLoading(false));
-  }, [categoria, query]);
+  }, [categoria, query, userLat, userLng]);
 
   const seleccionada = useMemo(
     () => CATEGORIAS.find((c) => c.slug === categoria),
@@ -75,6 +104,10 @@ export default function BuscarScreen() {
           items={items}
           badgeText={badgeText}
           onMarkerPress={(p) => router.push(`/(cliente)/profesional/${p.id}`)}
+          userLat={userLat}
+          userLng={userLng}
+          onRecenterPress={fetchLocation}
+          onSearchArea={handleSearchArea}
         />
 
         {/* Categorías */}
@@ -126,7 +159,9 @@ export default function BuscarScreen() {
                 <View style={styles.proMeta}>
                   <Text style={styles.metaPill}>{'📍'} {item.zona}</Text>
                   <Text style={styles.metaPill}>{'⭐'} {item.rating}</Text>
-                  <Text style={styles.metaPill}>{item.distanciaKm}km</Text>
+                  {item.distanciaKm != null ? (
+                    <Text style={styles.metaPill}>{item.distanciaKm}km</Text>
+                  ) : null}
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.muted} />

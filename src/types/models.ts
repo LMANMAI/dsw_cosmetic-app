@@ -14,7 +14,9 @@ export interface PerfilProfesionalSignup {
   matricula?: string;
   instagram?: string;
   modalidad: 'salon' | 'domicilio' | 'ambos';
-  fotoSalonUrl?: string; // URL en Firebase Storage (obligatoria si modalidad incluye salon)
+  fotoSalonUrl?: string; // URL en Cloudinary (obligatoria si modalidad incluye salon)
+  latitud?: number;  // geocodificado automáticamente desde dirección + ciudad
+  longitud?: number;
 }
 
 export interface PerfilProveedor {
