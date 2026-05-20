@@ -85,7 +85,7 @@ export default function LoginScreen() {
           >
             <Text style={styles.title}>
               Ingresa a tu{'\n'}
-              <Text style={{ color: colors.rose }}>BeautyApp</Text>
+              <Text style={{ color: colors.rose }}>Yopi</Text>
             </Text>
             <Text style={styles.subtitle}>
               Reserva turnos, gestiona tu agenda o vende insumos. Todo en un solo lugar.
