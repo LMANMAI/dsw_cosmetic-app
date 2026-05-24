@@ -1,22 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
 
 const RECORDATORIO_OPTIONS = ['1h antes', '2h antes', '24h antes', 'Sin recordatorio'];
 
 export default function PerfilClienteScreen() {
   const { user, logout, switchRole } = useSession();
+  const { colors, isDark, setMode } = useTheme();
 
   const [recordatorio, setRecordatorio] = useState<string>('24h antes');
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailNoticias, setEmailNoticias] = useState(false);
-  const [modoOscuro, setModoOscuro] = useState(false);
+
+  const handleToggleDark = (value: boolean) => {
+    setMode(value ? 'dark' : 'light');
+  };
 
   const elegirRecordatorio = () => {
     Alert.alert(
@@ -38,6 +43,8 @@ export default function PerfilClienteScreen() {
     });
     if (ok) await logout();
   };
+
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -100,8 +107,8 @@ export default function PerfilClienteScreen() {
           <SettingsRow
             icon="moon-outline"
             label="Modo oscuro"
-            toggle={modoOscuro}
-            onToggle={setModoOscuro}
+            toggle={isDark}
+            onToggle={handleToggleDark}
             isLast
           />
         </SettingsGroup>
@@ -140,20 +147,21 @@ export default function PerfilClienteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
-  userBox: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: spacing.md,
-  },
-  name: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  email: { fontSize: 14, color: colors.muted, marginTop: 2 },
-  tel: { fontSize: 14, color: colors.muted, marginTop: 2 },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
+    userBox: {
+      flexDirection: 'row',
+      gap: spacing.lg,
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      padding: spacing.xl,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginTop: spacing.md,
+    },
+    name: { fontSize: 18, fontWeight: '700', color: c.ink },
+    email: { fontSize: 14, color: c.muted, marginTop: 2 },
+    tel: { fontSize: 14, color: c.muted, marginTop: 2 },
+  });

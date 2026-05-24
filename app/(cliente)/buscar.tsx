@@ -20,9 +20,11 @@ import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { MapaProfesionales } from '@/components/MapaProfesionales';
-import { colors, radius, spacing, shadow } from '@/theme';
+import { useTheme, radius, spacing, shadow } from '@/theme';
+import type { ThemeColors } from '@/theme';
 
 export default function BuscarScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [categoria, setCategoria] = useState<CategoriaSlug | null>(null);
@@ -73,6 +75,8 @@ export default function BuscarScreen() {
   const badgeText = seleccionada
     ? `Filtrando: ${seleccionada.nombre}`
     : `${items.length} profesionales cercanas`;
+
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -137,7 +141,7 @@ export default function BuscarScreen() {
           <Text style={styles.sectionTitle}>
             {loading ? 'Buscando…' : `${items.length} profesionales`}
           </Text>
-          {loading ? <ActivityIndicator color={colors.rose} /> : null}
+          {loading ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
 
         <FlatList
@@ -183,11 +187,11 @@ export default function BuscarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   container: { paddingBottom: spacing.huge },
   headerWrap: {
-    backgroundColor: colors.bone,
+    backgroundColor: c.background,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
@@ -196,22 +200,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   searchInput: {
     flex: 1,
     paddingVertical: spacing.lg,
     fontSize: 15,
-    color: colors.ink,
+    color: c.ink,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.ink,
+    color: c.ink,
     marginTop: spacing.xxl,
     marginBottom: spacing.md,
     paddingHorizontal: spacing.xxl,
@@ -230,21 +234,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     padding: spacing.lg,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginHorizontal: spacing.xxl,
   },
   proName: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.ink,
+    color: c.ink,
   },
   proDesc: {
     fontSize: 13,
-    color: colors.muted,
+    color: c.muted,
     marginTop: 2,
     lineHeight: 18,
   },
@@ -256,8 +260,8 @@ const styles = StyleSheet.create({
   },
   metaPill: {
     fontSize: 12,
-    color: colors.muted,
-    backgroundColor: colors.bone2,
+    color: c.muted,
+    backgroundColor: c.bone2,
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
     borderRadius: radius.pill,
@@ -268,6 +272,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.huge,
     paddingHorizontal: spacing.xxl,
   },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  emptyText: { fontSize: 14, color: colors.muted, marginTop: 6, textAlign: 'center' },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: c.ink },
+  emptyText: { fontSize: 14, color: c.muted, marginTop: 6, textAlign: 'center' },
 });

@@ -27,7 +27,7 @@ import { useSession } from '@/context/SessionContext';
 import { useGoogleSignIn } from '@/services/google-auth';
 import { uploadImage } from '@/services/upload.service';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
 import type {
   PerfilCliente,
   PerfilProfesionalSignup,
@@ -37,12 +37,14 @@ import type {
 type SignupRole = 'cliente' | 'profesional' | 'proveedor';
 
 const ROLES: { id: SignupRole; label: string; emoji: string; desc: string }[] = [
-  { id: 'cliente', label: 'Cliente', emoji: '💆‍♀️', desc: 'Reservar turnos y comprar productos' },
-  { id: 'profesional', label: 'Profesional', emoji: '💅', desc: 'Manejar agenda y atender clientes' },
-  { id: 'proveedor', label: 'Proveedor', emoji: '📦', desc: 'Vender insumos a profesionales' },
+  { id: 'cliente', label: 'Cliente', emoji: '\u{1F486}‍♀️', desc: 'Reservar turnos y comprar productos' },
+  { id: 'profesional', label: 'Profesional', emoji: '\u{1F485}', desc: 'Manejar agenda y atender clientes' },
+  { id: 'proveedor', label: 'Proveedor', emoji: '\u{1F4E6}', desc: 'Vender insumos a profesionales' },
 ];
 
 export default function SignupScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { signupWithEmail } = useSession();
 
@@ -200,11 +202,11 @@ export default function SignupScreen() {
           >
             <Text style={styles.title}>
               Sumate a{'\n'}
-              <Text style={{ color: colors.rose }}>BeautyApp</Text>
+              <Text style={{ color: colors.primary }}>BeautyApp</Text>
             </Text>
             <Text style={styles.subtitle}>Elegí cómo querés usar la app y completá tus datos.</Text>
 
-          
+
             <Text style={styles.sectionLabel}>Soy</Text>
             <View style={styles.roleRow}>
               {ROLES.map((r) => {
@@ -296,8 +298,8 @@ export default function SignupScreen() {
                 <Text style={styles.sectionLabel}>Modalidad de trabajo</Text>
                 <View style={styles.roleRow}>
                   {([
-                    { id: 'salon' as const, label: 'Salón', emoji: '🏠' },
-                    { id: 'domicilio' as const, label: 'A domicilio', emoji: '🚗' },
+                    { id: 'salon' as const, label: 'Salón', emoji: '\u{1F3E0}' },
+                    { id: 'domicilio' as const, label: 'A domicilio', emoji: '\u{1F697}' },
                     { id: 'ambos' as const, label: 'Ambos', emoji: '✨' },
                   ]).map((m) => {
                     const active = modalidad === m.id;
@@ -440,99 +442,100 @@ function mapSignupError(code?: string): string | null {
   }
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -0.4,
-    lineHeight: 32,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.muted,
-    lineHeight: 20,
-    marginBottom: spacing.xl,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.muted,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  roleCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.bone3,
-    backgroundColor: colors.bone,
-    gap: 4,
-  },
-  roleCardActive: {
-    borderColor: colors.rose,
-    backgroundColor: colors.roseTint,
-  },
-  roleEmoji: { fontSize: 22 },
-  roleLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
-  roleLabelActive: { color: colors.rose },
-  roleDesc: {
-    fontSize: 12,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  googleHint: {
-    fontSize: 11,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    lineHeight: 16,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  footerText: { fontSize: 14, color: colors.muted },
-  footerLink: { fontSize: 14, color: colors.rose, fontWeight: '700' },
-  fotoPicker: {
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: colors.bone3,
-    borderStyle: 'dashed',
-    marginBottom: spacing.md,
-  },
-  fotoPreview: {
-    width: '100%',
-    height: 180,
-    borderRadius: radius.lg,
-  },
-  fotoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xxl,
-    backgroundColor: colors.bone,
-    gap: spacing.sm,
-  },
-  fotoPlaceholderText: {
-    fontSize: 13,
-    color: colors.muted,
-    fontWeight: '500',
-  },
-});
+const createStyles = (colors: ReturnType<typeof import('@/theme').useTheme>['colors']) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bone },
+    title: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: colors.ink,
+      letterSpacing: -0.4,
+      lineHeight: 32,
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.muted,
+      lineHeight: 20,
+      marginBottom: spacing.xl,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.muted,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    roleRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    roleCard: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xs,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: colors.bone3,
+      backgroundColor: colors.bone,
+      gap: 4,
+    },
+    roleCardActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryTint,
+    },
+    roleEmoji: { fontSize: 22 },
+    roleLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
+    roleLabelActive: { color: colors.primary },
+    roleDesc: {
+      fontSize: 12,
+      color: colors.muted,
+      textAlign: 'center',
+      marginTop: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    googleHint: {
+      fontSize: 11,
+      color: colors.muted,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+      lineHeight: 16,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: spacing.xl,
+    },
+    footerText: { fontSize: 14, color: colors.muted },
+    footerLink: { fontSize: 14, color: colors.primary, fontWeight: '700' },
+    fotoPicker: {
+      borderRadius: radius.lg,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: colors.bone3,
+      borderStyle: 'dashed',
+      marginBottom: spacing.md,
+    },
+    fotoPreview: {
+      width: '100%',
+      height: 180,
+      borderRadius: radius.lg,
+    },
+    fotoPlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xxl,
+      backgroundColor: colors.bone,
+      gap: spacing.sm,
+    },
+    fotoPlaceholderText: {
+      fontSize: 13,
+      color: colors.muted,
+      fontWeight: '500',
+    },
+  });

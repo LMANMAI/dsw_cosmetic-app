@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
 import type { PerfilProfesionalSignup } from '@/types/models';
 
@@ -13,6 +14,7 @@ const ANTICIPO_OPTIONS = ['Sin anticipo', '20% del monto', '50% del monto', '100
 
 export default function PerfilProfesionalScreen() {
   const { user, logout, switchRole } = useSession();
+  const { colors } = useTheme();
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
 
   const modalidadLabel =
@@ -61,6 +63,8 @@ export default function PerfilProfesionalScreen() {
     });
     if (ok) await logout();
   };
+
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -197,22 +201,22 @@ export default function PerfilProfesionalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   userBox: {
     flexDirection: 'row',
     gap: spacing.lg,
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginTop: spacing.md,
   },
-  name: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  email: { fontSize: 14, color: colors.muted, marginTop: 2 },
-  tel: { fontSize: 14, color: colors.success, marginTop: 4, fontWeight: '500' },
+  name: { fontSize: 18, fontWeight: '700', color: c.ink },
+  email: { fontSize: 14, color: c.muted, marginTop: 2 },
+  tel: { fontSize: 14, color: c.success, marginTop: 4, fontWeight: '500' },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -220,15 +224,15 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
-  statVal: { fontSize: 24, fontWeight: '700', color: colors.rose },
-  statLbl: { fontSize: 11, color: colors.muted, marginTop: 4 },
+  statVal: { fontSize: 24, fontWeight: '700', color: c.primary },
+  statLbl: { fontSize: 11, color: c.muted, marginTop: 4 },
   fotoSalon: {
     width: '100%',
     height: 180,

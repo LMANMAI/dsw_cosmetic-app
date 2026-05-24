@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable as RNPressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,10 +6,12 @@ import { turnosService } from '@/services';
 import type { CierreCaja } from '@/types/models';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing, shadow } from '@/theme';
+import { useTheme, radius, spacing, shadow } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { formatARS, nombreMes } from '@/utils/format';
 
 export default function CierreCajaScreen() {
+  const { colors } = useTheme();
   const { user } = useSession();
   const profesionalId = user?.id ?? '';
   const [data, setData] = useState<CierreCaja | null>(null);
@@ -29,10 +31,12 @@ export default function CierreCajaScreen() {
     setMes((m) => Math.max(0, Math.min(11, m + delta)));
   };
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   if (loading || !data) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={colors.rose} style={{ marginTop: 60 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 60 }} />
       </SafeAreaView>
     );
   }
@@ -142,24 +146,24 @@ export default function CierreCajaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: spacing.xl,
   },
   monthName: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.ink,
+    color: c.ink,
     letterSpacing: 1.6,
   },
   monthBtn: {
@@ -168,11 +172,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bone2,
+    backgroundColor: c.surfaceAlt,
   },
-  monthBtnText: { fontSize: 18, fontWeight: '700', color: colors.ink },
+  monthBtnText: { fontSize: 18, fontWeight: '700', color: c.ink },
   heroCard: {
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
     borderRadius: radius.xxl,
     padding: spacing.xxl,
     ...shadow.raised,
@@ -185,7 +189,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroValue: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 40,
     fontWeight: '700',
     letterSpacing: -1,
@@ -198,20 +202,20 @@ const styles = StyleSheet.create({
   },
   heroFooter: { flexDirection: 'row', justifyContent: 'space-between' },
   heroFooterLbl: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
-  heroFooterVal: { color: colors.roseLight, fontSize: 18, fontWeight: '700', marginTop: 2 },
+  heroFooterVal: { color: c.primaryLight, fontSize: 18, fontWeight: '700', marginTop: 2 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.ink,
+    color: c.ink,
     marginTop: spacing.xxxl,
     marginBottom: spacing.lg,
   },
   metodoCard: {
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: spacing.sm,
   },
   metodoHead: {
@@ -222,36 +226,36 @@ const styles = StyleSheet.create({
   },
   metodoTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   metodoEmoji: { fontSize: 18 },
-  metodoLabel: { fontSize: 14, fontWeight: '600', color: colors.ink },
-  metodoMonto: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  metodoLabel: { fontSize: 14, fontWeight: '600', color: c.ink },
+  metodoMonto: { fontSize: 15, fontWeight: '700', color: c.ink },
   barTrack: {
     height: 6,
-    backgroundColor: colors.bone2,
+    backgroundColor: c.surfaceAlt,
     borderRadius: 3,
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: 3 },
   metodoPct: {
     fontSize: 11,
-    color: colors.muted,
+    color: c.muted,
     marginTop: 6,
     fontWeight: '500',
   },
   netCard: {
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginTop: spacing.xxl,
     gap: spacing.md,
   },
   netRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  netLbl: { fontSize: 14, color: colors.muted },
-  netVal: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  netDivider: { height: 1, backgroundColor: colors.border },
-  netLblBold: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  netValBold: { fontSize: 22, fontWeight: '700', color: colors.rose },
+  netLbl: { fontSize: 14, color: c.muted },
+  netVal: { fontSize: 15, fontWeight: '600', color: c.ink },
+  netDivider: { height: 1, backgroundColor: c.border },
+  netLblBold: { fontSize: 15, fontWeight: '700', color: c.ink },
+  netValBold: { fontSize: 22, fontWeight: '700', color: c.primary },
   tip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -259,5 +263,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     paddingHorizontal: spacing.md,
   },
-  tipText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 18 },
+  tipText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 18 },
 });

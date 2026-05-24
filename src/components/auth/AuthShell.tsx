@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radius, spacing, shadow } from '@/theme';
+import { useTheme, radius, spacing, shadow } from '@/theme';
 
 
 interface AuthHeroProps {
@@ -20,31 +20,33 @@ interface AuthHeroProps {
 }
 
 export function AuthHero({ onBack, icon = 'sparkles', height = 220 }: AuthHeroProps) {
+  const { colors } = useTheme();
   return (
     <LinearGradient
-      colors={[colors.roseTint, colors.bone]}
+      colors={[colors.primaryTint, colors.bone]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.hero, { height }]}
     >
       {onBack ? (
-        <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
+        <Pressable onPress={onBack} hitSlop={12} style={[styles.backBtn, { backgroundColor: colors.surface }]}>
           <Ionicons name="chevron-back" size={22} color={colors.ink} />
         </Pressable>
       ) : null}
 
-      <View style={[styles.bubble, { top: 30, right: -20, width: 90, height: 90 }]} />
-      <View style={[styles.bubble, { bottom: -10, left: 30, width: 60, height: 60, opacity: 0.5 }]} />
+      <View style={[styles.bubble, { top: 30, right: -20, width: 90, height: 90, backgroundColor: colors.surface }]} />
+      <View style={[styles.bubble, { bottom: -10, left: 30, width: 60, height: 60, opacity: 0.5, backgroundColor: colors.surface }]} />
 
-      <View style={styles.heroIconWrap}>
-        <Ionicons name={icon} size={44} color={colors.rose} />
+      <View style={[styles.heroIconWrap, { backgroundColor: colors.surface }]}>
+        <Ionicons name={icon} size={44} color={colors.primary} />
       </View>
     </LinearGradient>
   );
 }
 
 export function AuthCard({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const { colors } = useTheme();
+  return <View style={[styles.card, { backgroundColor: colors.surface }, style]}>{children}</View>;
 }
 
 interface AuthInputProps extends TextInputProps {
@@ -62,11 +64,12 @@ export function AuthInput({
   style,
   ...rest
 }: AuthInputProps) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.inputWrap}>
+    <View style={[styles.inputWrap, { backgroundColor: colors.bone }]}>
       <Ionicons name={icon} size={18} color={colors.muted} style={{ marginRight: spacing.sm }} />
       <TextInput
-        style={[styles.input, style]}
+        style={[styles.input, { color: colors.ink }, style]}
         placeholderTextColor={colors.muted}
         {...rest}
       />
@@ -84,11 +87,12 @@ export function AuthInput({
 }
 
 export function AuthDivider({ label = 'o continuá con' }: { label?: string }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.dividerRow}>
-      <View style={styles.dividerLine} />
-      <Text style={styles.dividerLabel}>{label}</Text>
-      <View style={styles.dividerLine} />
+      <View style={[styles.dividerLine, { backgroundColor: colors.bone3 }]} />
+      <Text style={[styles.dividerLabel, { color: colors.muted }]}>{label}</Text>
+      <View style={[styles.dividerLine, { backgroundColor: colors.bone3 }]} />
     </View>
   );
 }
@@ -102,24 +106,27 @@ interface SocialButtonProps {
 }
 
 export function SocialButton({ label, onPress, disabled, iconRender }: SocialButtonProps) {
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
         styles.socialBtn,
+        { backgroundColor: colors.surface, borderColor: colors.bone3 },
         disabled && { opacity: 0.5 },
         pressed && { opacity: 0.85 },
       ]}
     >
       {iconRender}
-      <Text style={styles.socialLabel}>{label}</Text>
+      <Text style={[styles.socialLabel, { color: colors.ink }]}>{label}</Text>
     </Pressable>
   );
 }
 
 export function GoogleGlyph() {
+  const { colors } = useTheme();
   return (
-    <View style={styles.googleGlyph}>
+    <View style={[styles.googleGlyph, { backgroundColor: colors.surface }]}>
       <Text style={{ fontSize: 16, fontWeight: '700', color: '#4285F4' }}>G</Text>
     </View>
   );
@@ -140,14 +147,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.card,
   },
   bubble: {
     position: 'absolute',
-    backgroundColor: colors.white,
     borderRadius: 999,
     opacity: 0.7,
   },
@@ -155,13 +160,11 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.card,
   },
   card: {
-    backgroundColor: colors.white,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: spacing.xxl,
@@ -174,7 +177,6 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bone,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: 4,
@@ -186,7 +188,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: colors.ink,
     paddingVertical: spacing.md,
   },
   dividerRow: {
@@ -198,20 +199,16 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.bone3,
   },
   dividerLabel: {
     fontSize: 12,
-    color: colors.muted,
   },
   socialBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.bone3,
     borderRadius: radius.pill,
     paddingVertical: spacing.md + 2,
     paddingHorizontal: spacing.xl,
@@ -220,13 +217,11 @@ const styles = StyleSheet.create({
   socialLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.ink,
   },
   googleGlyph: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },

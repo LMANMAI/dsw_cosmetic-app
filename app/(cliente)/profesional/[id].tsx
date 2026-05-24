@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,8 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
 
 const HORARIOS = ['09:00', '10:30', '12:00', '14:30', '16:00', '17:30', '19:00'];
@@ -26,6 +27,7 @@ export default function PerfilProfesionalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useSession();
+  const { colors } = useTheme();
   const [profesional, setProfesional] = useState<PerfilProfesional | null>(null);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [servicioElegido, setServicioElegido] = useState<Servicio | null>(null);
@@ -74,10 +76,12 @@ export default function PerfilProfesionalScreen() {
     }
   };
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   if (loading || !profesional) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={colors.rose} style={{ marginTop: 60 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 60 }} />
       </SafeAreaView>
     );
   }
@@ -88,7 +92,7 @@ export default function PerfilProfesionalScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={colors.white} />
+            <Ionicons name="chevron-back" size={22} color={'#FFFFFF'} />
           </Pressable>
           <View style={styles.heroBg} />
           <View style={styles.heroContent}>
@@ -175,10 +179,10 @@ export default function PerfilProfesionalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   header: {
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxxl,
     paddingHorizontal: spacing.xxl,
@@ -199,7 +203,7 @@ const styles = StyleSheet.create({
   heroName: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.white,
+    color: '#FFFFFF',
     marginTop: spacing.md,
   },
   heroZona: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
@@ -214,7 +218,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   statBox: { alignItems: 'center' },
-  statValue: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  statValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   statLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 },
   statDivider: { width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.15)' },
   backBtn: {
@@ -232,31 +236,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.ink,
+    color: c.ink,
     marginBottom: spacing.lg,
   },
   descripcion: {
     fontSize: 15,
-    color: colors.muted,
+    color: c.muted,
     lineHeight: 22,
   },
   servicio: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: spacing.sm,
   },
   servicioActivo: {
-    borderColor: colors.rose,
-    backgroundColor: colors.roseTint,
+    borderColor: c.primary,
+    backgroundColor: c.primaryTint,
   },
-  servicioNombre: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  servicioMeta: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  servicioPrecio: { fontSize: 16, fontWeight: '700', color: colors.rose },
+  servicioNombre: { fontSize: 15, fontWeight: '600', color: c.ink },
+  servicioMeta: { fontSize: 12, color: c.muted, marginTop: 2 },
+  servicioPrecio: { fontSize: 16, fontWeight: '700', color: c.primary },
   horariosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -266,18 +270,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radius.md,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     minWidth: 84,
     alignItems: 'center',
   },
   horaActiva: {
-    backgroundColor: colors.rose,
-    borderColor: colors.rose,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
-  horaTxt: { fontSize: 14, fontWeight: '600', color: colors.ink },
-  horaTxtActiva: { color: colors.white },
+  horaTxt: { fontSize: 14, fontWeight: '600', color: c.ink },
+  horaTxtActiva: { color: '#FFFFFF' },
   footer: {
     position: 'absolute',
     left: 0,
@@ -286,13 +290,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: c.border,
   },
-  footerLabel: { fontSize: 12, color: colors.muted, fontWeight: '500' },
-  footerTotal: { fontSize: 22, fontWeight: '700', color: colors.ink },
+  footerLabel: { fontSize: 12, color: c.muted, fontWeight: '500' },
+  footerTotal: { fontSize: 22, fontWeight: '700', color: c.ink },
 });

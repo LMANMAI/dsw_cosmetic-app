@@ -15,7 +15,8 @@ import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 import { Badge } from '@/components/Badge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing, shadow } from '@/theme';
+import { useTheme, radius, spacing, shadow } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { formatARS, metodoPagoLabel } from '@/utils/format';
 
 const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
@@ -27,6 +28,7 @@ const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info'
 };
 
 export default function AgendaScreen() {
+  const { colors } = useTheme();
   const { user } = useSession();
   const profesionalId = user?.id ?? '';
   const [items, setItems] = useState<Turno[]>([]);
@@ -88,6 +90,8 @@ export default function AgendaScreen() {
     cargar();
   };
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.huge }}>
@@ -104,7 +108,7 @@ export default function AgendaScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.rose }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
             <Text style={styles.statLabelLight}>Ingresos del día</Text>
             <Text style={styles.statValueLight}>{formatARS(ingresos)}</Text>
           </View>
@@ -129,7 +133,7 @@ export default function AgendaScreen() {
           </View>
 
           {loading ? (
-            <ActivityIndicator color={colors.rose} style={{ marginTop: spacing.xxl }} />
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
           ) : items.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>Sin turnos para hoy</Text>
@@ -166,7 +170,7 @@ export default function AgendaScreen() {
         </View>
 
         <View style={styles.tip}>
-          <Ionicons name="bulb-outline" size={18} color={colors.rose} />
+          <Ionicons name="bulb-outline" size={18} color={colors.primary} />
           <Text style={styles.tipText}>
             Tocá un turno para confirmarlo o registrar el cobro al finalizar.
           </Text>
@@ -176,8 +180,8 @@ export default function AgendaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   headerWrap: { paddingHorizontal: spacing.xxl, paddingTop: spacing.lg },
   statsRow: {
     flexDirection: 'row',
@@ -195,22 +199,22 @@ const styles = StyleSheet.create({
   statSmallCol: { flex: 1, gap: spacing.md },
   statSmall: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     justifyContent: 'center',
   },
   statLabelLight: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '500' },
   statValueLight: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.5,
   },
-  statSmallVal: { fontSize: 22, fontWeight: '700', color: colors.ink },
-  statSmallLbl: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  statSmallVal: { fontSize: 22, fontWeight: '700', color: c.ink },
+  statSmallLbl: { fontSize: 11, color: c.muted, marginTop: 2 },
   section: { paddingHorizontal: spacing.xxl, marginTop: spacing.xxl },
   sectionHead: {
     flexDirection: 'row',
@@ -218,26 +222,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  sectionMeta: { fontSize: 12, color: colors.muted },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: c.ink },
+  sectionMeta: { fontSize: 12, color: c.muted },
   turnoCard: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: spacing.sm,
   },
   horaCol: {
     width: 56,
     alignItems: 'flex-start',
   },
-  hora: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  dur: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  hora: { fontSize: 18, fontWeight: '700', color: c.ink },
+  dur: { fontSize: 11, color: c.muted, marginTop: 2 },
   divider: {
     width: 1,
-    backgroundColor: colors.border,
+    backgroundColor: c.border,
     marginHorizontal: spacing.md,
   },
   rowSpace: {
@@ -245,25 +249,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cliente: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  servicio: { fontSize: 13, color: colors.muted },
-  monto: { fontSize: 14, fontWeight: '700', color: colors.rose },
-  pago: { fontSize: 12, color: colors.muted },
+  cliente: { fontSize: 15, fontWeight: '600', color: c.ink },
+  servicio: { fontSize: 13, color: c.muted },
+  monto: { fontSize: 14, fontWeight: '700', color: c.primary },
+  pago: { fontSize: 12, color: c.muted },
   empty: {
     alignItems: 'center',
     paddingVertical: spacing.xxxl,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  emptyText: { fontSize: 14, color: colors.muted, marginTop: 6 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: c.ink },
+  emptyText: { fontSize: 14, color: c.muted, marginTop: 6 },
   tip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.roseTint,
+    backgroundColor: c.primaryTint,
     padding: spacing.lg,
     borderRadius: radius.lg,
     marginTop: spacing.xxl,
     marginHorizontal: spacing.xxl,
   },
-  tipText: { fontSize: 13, color: colors.rose, fontWeight: '500', flex: 1 },
+  tipText: { fontSize: 13, color: c.primary, fontWeight: '500', flex: 1 },
 });

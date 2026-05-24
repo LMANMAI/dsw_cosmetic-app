@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,10 +20,12 @@ import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useCart } from '@/context/CartContext';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
 
 export default function TiendaScreen() {
+  const { colors } = useTheme();
   const { user } = useSession();
   const cart = useCart();
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -58,6 +60,8 @@ export default function TiendaScreen() {
     Alert.alert('Pedido confirmado', 'Tu compra fue registrada y descontada del stock.');
   };
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerWrap}>
@@ -70,7 +74,7 @@ export default function TiendaScreen() {
               onPress={() => setCarritoVisible((v) => !v)}
               style={styles.cartBtn}
             >
-              <Ionicons name="bag" size={20} color={colors.white} />
+              <Ionicons name="bag" size={20} color="#FFFFFF" />
               {cart.items.length > 0 ? (
                 <View style={styles.cartBadge}>
                   <Text style={styles.cartBadgeText}>{cart.items.length}</Text>
@@ -144,7 +148,7 @@ export default function TiendaScreen() {
       ) : null}
 
       {loading ? (
-        <ActivityIndicator color={colors.rose} style={{ marginTop: spacing.xxl }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
       ) : (
         <FlatList
           data={productos}
@@ -171,7 +175,7 @@ export default function TiendaScreen() {
                   onPress={() => cart.add(item)}
                   style={[styles.addBtn, item.stock === 0 && { opacity: 0.4 }]}
                 >
-                  <Ionicons name="add" size={20} color={colors.white} />
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
                 </Pressable>
               </View>
             </View>
@@ -182,18 +186,18 @@ export default function TiendaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   headerWrap: {
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
-    backgroundColor: colors.bone,
+    backgroundColor: c.background,
   },
   cartBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.rose,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -204,27 +208,27 @@ const styles = StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
     paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cartBadgeText: { color: colors.white, fontSize: 11, fontWeight: '700' },
+  cartBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   searchInput: {
     flex: 1,
     paddingVertical: spacing.lg,
     fontSize: 15,
-    color: colors.ink,
+    color: c.ink,
   },
   chipsRow: {
     paddingHorizontal: spacing.xxl,
@@ -234,13 +238,13 @@ const styles = StyleSheet.create({
   },
   cartPanel: {
     marginHorizontal: spacing.xxl,
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
     borderRadius: radius.xl,
     padding: spacing.xl,
     marginBottom: spacing.lg,
   },
   cartTitle: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: spacing.md,
@@ -250,7 +254,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  cartItemName: { color: colors.white, fontSize: 14, fontWeight: '500' },
+  cartItemName: { color: '#FFFFFF', fontSize: 14, fontWeight: '500' },
   qtyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,16 +269,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qtySign: { color: colors.white, fontSize: 18, fontWeight: '600' },
+  qtySign: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
   qtyText: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     minWidth: 20,
     textAlign: 'center',
   },
   cartItemPrice: {
-    color: colors.roseLight,
+    color: c.primaryLight,
     fontSize: 14,
     fontWeight: '700',
     marginLeft: 'auto',
@@ -286,39 +290,39 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   cartTotalLbl: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
-  cartTotalVal: { color: colors.white, fontSize: 22, fontWeight: '700' },
+  cartTotalVal: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
   productCard: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   productThumb: {
     width: '100%',
     aspectRatio: 1.2,
     borderRadius: radius.md,
-    backgroundColor: colors.bone2,
+    backgroundColor: c.bone2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   productThumbEmoji: { fontSize: 32 },
-  productName: { fontSize: 14, fontWeight: '600', color: colors.ink, lineHeight: 18 },
-  productStock: { fontSize: 11, color: colors.muted, marginTop: 4 },
+  productName: { fontSize: 14, fontWeight: '600', color: c.ink, lineHeight: 18 },
+  productStock: { fontSize: 11, color: c.muted, marginTop: 4 },
   productFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
-  productPrice: { fontSize: 15, fontWeight: '700', color: colors.rose },
+  productPrice: { fontSize: 15, fontWeight: '700', color: c.primary },
   addBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.rose,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

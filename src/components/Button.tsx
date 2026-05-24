@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -6,7 +6,8 @@ import {
   Text,
   ViewStyle,
 } from 'react-native';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'dark';
 
@@ -20,6 +21,31 @@ interface ButtonProps {
   style?: ViewStyle;
 }
 
+function buildVariants(c: ThemeColors): Record<Variant, { container: ViewStyle; label: { color: string } }> {
+  return {
+    primary: {
+      container: { backgroundColor: c.primary },
+      label: { color: c.white },
+    },
+    secondary: {
+      container: {
+        backgroundColor: c.surface,
+        borderWidth: 1,
+        borderColor: c.bone3,
+      },
+      label: { color: c.ink },
+    },
+    ghost: {
+      container: { backgroundColor: 'transparent' },
+      label: { color: c.primary },
+    },
+    dark: {
+      container: { backgroundColor: c.navy },
+      label: { color: '#F3F4F6' },
+    },
+  };
+}
+
 export function Button({
   label,
   onPress,
@@ -29,13 +55,16 @@ export function Button({
   fullWidth,
   style,
 }: ButtonProps) {
+  const { colors } = useTheme();
+  const variantStyles = useMemo(() => buildVariants(colors), [colors]);
+
   return (
     <Pressable
       onPress={disabled || loading ? undefined : onPress}
       style={({ pressed }) => [
         styles.base,
         variantStyles[variant].container,
-        fullWidth && { alignSelf: 'stretch' },
+        fullWidth && { alignSelf: 'stretch' as const },
         pressed && { opacity: 0.85 },
         disabled && { opacity: 0.4 },
         style,
@@ -66,26 +95,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 });
-
-const variantStyles: Record<Variant, { container: ViewStyle; label: { color: string } }> = {
-  primary: {
-    container: { backgroundColor: colors.rose },
-    label: { color: colors.white },
-  },
-  secondary: {
-    container: {
-      backgroundColor: colors.white,
-      borderWidth: 1,
-      borderColor: colors.bone3,
-    },
-    label: { color: colors.ink },
-  },
-  ghost: {
-    container: { backgroundColor: 'transparent' },
-    label: { color: colors.rose },
-  },
-  dark: {
-    container: { backgroundColor: colors.navy },
-    label: { color: colors.white },
-  },
-};

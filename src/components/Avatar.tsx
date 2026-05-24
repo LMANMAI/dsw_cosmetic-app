@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 interface AvatarProps {
   nombre: string;
@@ -8,6 +8,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ nombre, size = 48 }: AvatarProps) {
+  const { colors } = useTheme();
   const initials = nombre
     .split(' ')
     .map((p) => p[0])
@@ -19,22 +20,27 @@ export function Avatar({ nombre, size = 48 }: AvatarProps) {
     <View
       style={[
         styles.box,
-        { width: size, height: size, borderRadius: size / 2 },
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: colors.primaryTint,
+        },
       ]}
     >
-      <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
+      <Text style={[styles.initials, { fontSize: size * 0.36, color: colors.primary }]}>
+        {initials}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: {
-    backgroundColor: colors.roseTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   initials: {
-    color: colors.rose,
     fontWeight: '700',
   },
 });

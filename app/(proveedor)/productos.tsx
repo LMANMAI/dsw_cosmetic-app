@@ -19,14 +19,16 @@ import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { productosService } from '@/services';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
 import { formatARS } from '@/utils/format';
 import type { PerfilProveedor, Producto } from '@/types/models';
 
 const CATEGORIAS = ['Uñas', 'Cabello', 'Maquillaje', 'Skincare', 'Equipamiento', 'Otros'];
 
 export default function ProductosProveedorScreen() {
+  const { colors } = useTheme();
   const { user } = useSession();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const proveedorNombre = useMemo(
     () => (user?.perfil as PerfilProveedor | undefined)?.razonSocial ?? user?.nombre ?? '',
     [user],
@@ -98,7 +100,7 @@ export default function ProductosProveedorScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.rose} style={{ marginTop: spacing.xxl }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
       ) : (
         <FlatList
           data={items}
@@ -110,6 +112,8 @@ export default function ProductosProveedorScreen() {
               onPress={() => setEditing(item)}
               onAdjust={(d) => onAdjustStock(item, d)}
               onDelete={() => onDelete(item)}
+              colors={colors}
+              styles={styles}
             />
           )}
           ListEmptyComponent={
@@ -137,6 +141,8 @@ export default function ProductosProveedorScreen() {
         }}
         onSave={onSave}
         onDelete={editing ? () => onDelete(editing) : undefined}
+        colors={colors}
+        styles={styles}
       />
     </SafeAreaView>
   );
@@ -148,11 +154,15 @@ function ProductRow({
   onPress,
   onAdjust,
   onDelete,
+  colors,
+  styles,
 }: {
   producto: Producto;
   onPress: () => void;
   onAdjust: (delta: number) => void;
   onDelete: () => void;
+  colors: ReturnType<typeof import('@/theme').useTheme>['colors'];
+  styles: ReturnType<typeof createStyles>;
 }) {
   const stockTone =
     producto.stock === 0 ? colors.danger : producto.stock < 5 ? colors.warning : colors.success;
@@ -197,9 +207,11 @@ interface EditorProps {
   onClose: () => void;
   onSave: (data: Omit<Producto, 'id'>, id?: string) => Promise<void> | void;
   onDelete?: () => void;
+  colors: ReturnType<typeof import('@/theme').useTheme>['colors'];
+  styles: ReturnType<typeof createStyles>;
 }
 
-function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorProps) {
+function ProductEditor({ visible, producto, onClose, onSave, onDelete, colors, styles }: EditorProps) {
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
   const [stock, setStock] = useState('');
@@ -266,7 +278,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorP
               {producto ? 'Editar producto' : 'Nuevo producto'}
             </Text>
 
-            <Field label="Nombre" required>
+            <Field label="Nombre" required colors={colors} styles={styles}>
               <TextInput
                 style={styles.input}
                 value={nombre}
@@ -277,7 +289,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorP
             </Field>
 
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <Field label="Precio (ARS)" required style={{ flex: 1 }}>
+              <Field label="Precio (ARS)" required style={{ flex: 1 }} colors={colors} styles={styles}>
                 <TextInput
                   style={styles.input}
                   value={precio}
@@ -287,7 +299,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorP
                   placeholderTextColor={colors.muted}
                 />
               </Field>
-              <Field label="Stock" required style={{ flex: 1 }}>
+              <Field label="Stock" required style={{ flex: 1 }} colors={colors} styles={styles}>
                 <TextInput
                   style={styles.input}
                   value={stock}
@@ -299,7 +311,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorP
               </Field>
             </View>
 
-            <Field label="Categoría">
+            <Field label="Categoría" colors={colors} styles={styles}>
               <View style={styles.chipsRow}>
                 {CATEGORIAS.map((c) => {
                   const active = categoria === c;
@@ -316,7 +328,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorP
               </View>
             </Field>
 
-            <Field label="Descripción">
+            <Field label="Descripción" colors={colors} styles={styles}>
               <TextInput
                 style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
                 value={descripcion}
@@ -327,7 +339,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete }: EditorP
               />
             </Field>
 
-            <Field label="URL de imagen (opcional)">
+            <Field label="URL de imagen (opcional)" colors={colors} styles={styles}>
               <TextInput
                 style={styles.input}
                 value={imagenUrl}
@@ -367,142 +379,147 @@ function Field({
   required,
   children,
   style,
+  colors,
+  styles,
 }: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
   style?: any;
+  colors: ReturnType<typeof import('@/theme').useTheme>['colors'];
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={[{ marginBottom: spacing.md }, style]}>
       <Text style={styles.fieldLabel}>
         {label}
-        {required ? <Text style={{ color: colors.rose }}> *</Text> : null}
+        {required ? <Text style={{ color: colors.primary }}> *</Text> : null}
       </Text>
       {children}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
-  headerWrap: { paddingHorizontal: spacing.xxl, paddingTop: spacing.lg },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
-  },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  cardCat: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  cardPrice: { fontSize: 14, fontWeight: '700', color: colors.rose },
-  stockPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  stockText: { fontSize: 11, fontWeight: '700' },
-  stockBtns: { flexDirection: 'column', gap: 6 },
-  stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: colors.bone,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.bone3,
-  },
-  stepperBtnPrimary: {
-    backgroundColor: colors.rose,
-    borderColor: colors.rose,
-  },
-  empty: { alignItems: 'center', paddingVertical: spacing.huge, gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 2, paddingHorizontal: spacing.xxl },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.rose,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.ink,
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  // modal
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 36, 0.4)',
-  },
-  sheet: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: '90%',
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.bone3,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-  },
-  sheetTitle: { fontSize: 20, fontWeight: '700', color: colors.ink, marginBottom: spacing.lg },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.muted,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.bone,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.bone3,
-    backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.rose, borderColor: colors.rose },
-  chipLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
-  chipLabelActive: { color: colors.white },
-  deleteLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  deleteLinkLabel: { fontSize: 14, color: colors.danger, fontWeight: '600' },
-  cancelLink: { paddingVertical: spacing.md, alignItems: 'center' },
-  cancelLinkLabel: { fontSize: 14, color: colors.muted },
-});
+const createStyles = (colors: ReturnType<typeof import('@/theme').useTheme>['colors']) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bone },
+    headerWrap: { paddingHorizontal: spacing.xxl, paddingTop: spacing.lg },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.white,
+      borderRadius: radius.xl,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: spacing.md,
+    },
+    cardTitle: { fontSize: 15, fontWeight: '700', color: colors.ink },
+    cardCat: { fontSize: 12, color: colors.muted, marginTop: 2 },
+    cardMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    cardPrice: { fontSize: 14, fontWeight: '700', color: colors.primary },
+    stockPill: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: radius.pill,
+    },
+    stockText: { fontSize: 11, fontWeight: '700' },
+    stockBtns: { flexDirection: 'column', gap: 6 },
+    stepperBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.bone,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.bone3,
+    },
+    stepperBtnPrimary: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    empty: { alignItems: 'center', paddingVertical: spacing.huge, gap: 8 },
+    emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
+    emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 2, paddingHorizontal: spacing.xxl },
+    fab: {
+      position: 'absolute',
+      bottom: 24,
+      right: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.ink,
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 8,
+    },
+    // modal
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(15, 23, 36, 0.4)',
+    },
+    sheet: {
+      backgroundColor: colors.white,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      maxHeight: '90%',
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      backgroundColor: colors.bone3,
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginTop: spacing.sm,
+    },
+    sheetTitle: { fontSize: 20, fontWeight: '700', color: colors.ink, marginBottom: spacing.lg },
+    fieldLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+    input: {
+      backgroundColor: colors.bone,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      fontSize: 15,
+      color: colors.ink,
+    },
+    chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.bone3,
+      backgroundColor: colors.white,
+    },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
+    chipLabelActive: { color: colors.white },
+    deleteLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    deleteLinkLabel: { fontSize: 14, color: colors.danger, fontWeight: '600' },
+    cancelLink: { paddingVertical: spacing.md, alignItems: 'center' },
+    cancelLinkLabel: { fontSize: 14, color: colors.muted },
+  });

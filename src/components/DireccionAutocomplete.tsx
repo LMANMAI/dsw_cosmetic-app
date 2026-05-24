@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarDirecciones, type DireccionSugerida } from '@/services/geocoding.service';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
 
 // react-native-maps no soporta web, lo cargamos solo en nativo
 let MapView: any = null;
@@ -29,6 +29,7 @@ export function DireccionAutocomplete({
   onSelect,
   placeholder = 'Buscá tu dirección...',
 }: DireccionAutocompleteProps) {
+  const { colors } = useTheme();
   const [texto, setTexto] = useState('');
   const [sugerencias, setSugerencias] = useState<DireccionSugerida[]>([]);
   const [seleccionada, setSeleccionada] = useState<DireccionSugerida | null>(null);
@@ -76,10 +77,10 @@ export function DireccionAutocomplete({
   return (
     <View style={styles.container}>
       {/* Input de búsqueda */}
-      <View style={styles.inputWrap}>
+      <View style={[styles.inputWrap, { backgroundColor: colors.bone }]}>
         <Ionicons name="search-outline" size={18} color={colors.muted} style={{ marginRight: spacing.sm }} />
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.ink }]}
           placeholder={placeholder}
           placeholderTextColor={colors.muted}
           value={texto}
@@ -97,24 +98,24 @@ export function DireccionAutocomplete({
 
       {/* Indicador de búsqueda */}
       {buscando ? (
-        <Text style={styles.hint}>Buscando direcciones...</Text>
+        <Text style={[styles.hint, { color: colors.muted }]}>Buscando direcciones...</Text>
       ) : null}
 
       {/* Lista de sugerencias */}
       {sugerencias.length > 0 && !seleccionada ? (
-        <View style={styles.suggestionsBox}>
+        <View style={[styles.suggestionsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {sugerencias.map((s, i) => (
             <Pressable
               key={`${s.latitud}-${s.longitud}-${i}`}
               style={({ pressed }) => [
                 styles.suggestion,
-                pressed && { backgroundColor: colors.bone2 },
-                i < sugerencias.length - 1 && styles.suggestionBorder,
+                pressed && { backgroundColor: colors.surfaceAlt },
+                i < sugerencias.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
               ]}
               onPress={() => elegir(s)}
             >
-              <Ionicons name="location-outline" size={16} color={colors.rose} />
-              <Text style={styles.suggestionText} numberOfLines={2}>
+              <Ionicons name="location-outline" size={16} color={colors.primary} />
+              <Text style={[styles.suggestionText, { color: colors.ink }]} numberOfLines={2}>
                 {s.displayName}
               </Text>
             </Pressable>
@@ -146,19 +147,19 @@ export function DireccionAutocomplete({
                 }}
               >
                 <View style={styles.pinWrap}>
-                  <View style={styles.pin} />
+                  <View style={[styles.pin, { backgroundColor: colors.primary, borderColor: colors.surface }]} />
                 </View>
               </Marker>
             </MapView>
-            <View style={styles.mapOverlay}>
+            <View style={[styles.mapOverlay, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-              <Text style={styles.mapOverlayText}>Ubicación confirmada</Text>
+              <Text style={[styles.mapOverlayText, { color: colors.success }]}>Ubicación confirmada</Text>
             </View>
           </View>
         ) : (
-          <View style={styles.confirmBadge}>
+          <View style={[styles.confirmBadge, { backgroundColor: colors.bone }]}>
             <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-            <Text style={styles.confirmText}>
+            <Text style={[styles.confirmText, { color: colors.ink }]}>
               Ubicación confirmada: {seleccionada.direccion}, {seleccionada.ciudad}
             </Text>
           </View>
@@ -175,7 +176,6 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bone,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: 4,
@@ -186,20 +186,16 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: colors.ink,
     paddingVertical: spacing.md,
   },
   hint: {
     fontSize: 12,
-    color: colors.muted,
     marginTop: spacing.xs,
     marginLeft: spacing.md,
   },
   suggestionsBox: {
-    backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     marginTop: spacing.sm,
     overflow: 'hidden',
   },
@@ -210,14 +206,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  suggestionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.bone2,
-  },
   suggestionText: {
     flex: 1,
     fontSize: 13,
-    color: colors.ink,
     lineHeight: 18,
   },
   mapContainer: {
@@ -237,9 +228,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.rose,
     borderWidth: 3,
-    borderColor: colors.white,
   },
   mapOverlay: {
     position: 'absolute',
@@ -248,7 +237,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.white,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
@@ -256,13 +244,11 @@ const styles = StyleSheet.create({
   mapOverlayText: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.success,
   },
   confirmBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.bone,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginTop: spacing.md,
@@ -270,7 +256,6 @@ const styles = StyleSheet.create({
   confirmText: {
     flex: 1,
     fontSize: 13,
-    color: colors.ink,
     fontWeight: '500',
   },
 });

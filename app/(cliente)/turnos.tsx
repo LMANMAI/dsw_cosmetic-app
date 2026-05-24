@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,11 +16,13 @@ import { Badge } from '@/components/Badge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { turnosService } from '@/services';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { formatARS, formatFecha } from '@/utils/format';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 
 export default function MisTurnosScreen() {
+  const { colors } = useTheme();
   const { user } = useSession();
   const [items, setItems] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +98,8 @@ export default function MisTurnosScreen() {
     setRating(null);
   };
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerWrap}>
@@ -107,7 +111,7 @@ export default function MisTurnosScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.rose} style={{ marginTop: spacing.xxl }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
       ) : (
         <FlatList
           data={items}
@@ -160,6 +164,8 @@ function TurnoCard({
   onReprogramar: () => void;
   onPuntuar: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const ya_pagado = turno.estado === 'completado';
   return (
     <View style={styles.card}>
@@ -210,8 +216,10 @@ function ActionBtn({
   primary?: boolean;
   danger?: boolean;
 }) {
-  const bg = primary ? colors.ink : danger ? 'transparent' : colors.bone;
-  const fg = primary ? colors.white : danger ? colors.danger : colors.ink;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const bg = primary ? colors.ink : danger ? 'transparent' : colors.background;
+  const fg = primary ? colors.surface : danger ? colors.danger : colors.ink;
   const border = primary ? colors.ink : danger ? colors.danger : colors.bone3;
   return (
     <Pressable
@@ -261,6 +269,8 @@ function RatingModal({
   onSubmit: () => void;
   servicio: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -290,15 +300,15 @@ function RatingModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   headerWrap: { paddingHorizontal: spacing.xxl, paddingTop: spacing.lg },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     gap: spacing.sm,
   },
   cardHead: {
@@ -307,15 +317,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.ink, flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: c.ink, flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  meta: { fontSize: 14, color: colors.muted, textTransform: 'capitalize' },
+  meta: { fontSize: 14, color: c.muted, textTransform: 'capitalize' },
   empty: {
     alignItems: 'center',
     paddingVertical: spacing.huge,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  emptyText: { fontSize: 14, color: colors.muted, marginTop: 6, textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: c.ink },
+  emptyText: { fontSize: 14, color: c.muted, marginTop: 6, textAlign: 'center' },
   actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -345,13 +355,13 @@ const styles = StyleSheet.create({
   },
   ratingCard: {
     width: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.xxl,
     alignItems: 'center',
   },
-  ratingTitle: { fontSize: 18, fontWeight: '700', color: colors.ink, textAlign: 'center' },
-  ratingSub: { fontSize: 13, color: colors.muted, marginTop: 6, textAlign: 'center' },
+  ratingTitle: { fontSize: 18, fontWeight: '700', color: c.ink, textAlign: 'center' },
+  ratingSub: { fontSize: 13, color: c.muted, marginTop: 6, textAlign: 'center' },
   starsRow: {
     flexDirection: 'row',
     gap: spacing.sm,

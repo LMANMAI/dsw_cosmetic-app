@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 
-type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'rose';
+type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'primary';
 
 interface BadgeProps {
   label: string;
@@ -10,16 +11,20 @@ interface BadgeProps {
   style?: ViewStyle;
 }
 
-const tones: Record<Tone, { bg: string; fg: string }> = {
-  success: { bg: 'rgba(59, 161, 116, 0.15)', fg: colors.success },
-  warning: { bg: 'rgba(224, 164, 88, 0.18)', fg: colors.warning },
-  danger: { bg: 'rgba(201, 75, 75, 0.15)', fg: colors.danger },
-  info: { bg: 'rgba(63, 124, 172, 0.15)', fg: colors.info },
-  neutral: { bg: colors.bone2, fg: colors.muted },
-  rose: { bg: colors.roseTint, fg: colors.rose },
-};
+function buildTones(c: ThemeColors): Record<Tone, { bg: string; fg: string }> {
+  return {
+    success: { bg: 'rgba(59, 161, 116, 0.15)', fg: c.success },
+    warning: { bg: 'rgba(224, 164, 88, 0.18)', fg: c.warning },
+    danger: { bg: 'rgba(201, 75, 75, 0.15)', fg: c.danger },
+    info: { bg: 'rgba(63, 124, 172, 0.15)', fg: c.info },
+    neutral: { bg: c.surfaceAlt, fg: c.muted },
+    primary: { bg: c.primaryTint, fg: c.primary },
+  };
+}
 
 export function Badge({ label, tone = 'neutral', style }: BadgeProps) {
+  const { colors } = useTheme();
+  const tones = useMemo(() => buildTones(colors), [colors]);
   const palette = tones[tone];
   return (
     <View style={[styles.badge, { backgroundColor: palette.bg }, style]}>
