@@ -33,17 +33,50 @@ export type PerfilPorRol =
   | { rol: 'admin'; perfil: Record<string, never> };
 
 export type CategoriaSlug =
+  | 'pestanas_cejas'
   | 'unas'
-  | 'pestanas'
-  | 'cejas'
-  | 'masajes'
-  | 'nutricion'
-  | 'estilismo';
+  | 'depilacion'
+  | 'facial'
+  | 'corporal'
+  | 'capilar'
+  | 'maquillaje'
+  | 'barberia'
+  | 'estetica_masculina'
+  | 'bienestar_spa'
+  | 'fitness_salud'
+  | 'peluqueria_canina'
+  | 'bienestar_animal';
 
 export interface Categoria {
   slug: CategoriaSlug;
   nombre: string;
   emoji: string;
+}
+
+/**
+ * Servicio del catálogo global (sin precio ni profesionalId).
+ * Cada profesional selecciona del catálogo y le asigna su precio y duración.
+ */
+export interface ServicioCatalogo {
+  id: string;
+  nombre: string;
+  categoria: CategoriaSlug;
+  duracionEstimadaMin: number; // sugerida, el profesional puede cambiarla
+  genero?: 'femenino' | 'masculino' | 'unisex'; // para filtrar
+}
+
+/**
+ * Servicio que un profesional eligió del catálogo, con su precio y duración.
+ */
+export interface ServicioProfesional {
+  id: string;
+  profesionalId: string;
+  catalogoId: string; // ref al ServicioCatalogo
+  nombre: string;
+  precio: number;
+  duracionMin: number;
+  categoria: CategoriaSlug;
+  activo: boolean;
 }
 
 export interface Usuario {

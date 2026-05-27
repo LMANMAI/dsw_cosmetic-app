@@ -1,5 +1,7 @@
 export { authService } from './auth.service';
 export type { SignupPayload } from './auth.service';
+export { catalogoService } from './catalogo.service';
+export { disponibilidadService } from './disponibilidad.service';
 export { profesionalesService } from './profesionales.service';
 export { turnosService } from './turnos.service';
 export { productosService } from './productos.service';

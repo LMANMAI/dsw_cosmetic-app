@@ -392,7 +392,7 @@ export default function SignupScreen() {
             />
 
             <Button
-              variant="dark"
+              variant="primary"
               label="Crear cuenta"
               loading={loading}
               fullWidth

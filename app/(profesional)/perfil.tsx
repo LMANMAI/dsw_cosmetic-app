@@ -1,13 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
+import { disponibilidadService } from '@/services/disponibilidad.service';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
+import { seedCatalogo } from '@/services/seed-catalogo';
 import type { PerfilProfesionalSignup } from '@/types/models';
 
 const ANTICIPO_OPTIONS = ['Sin anticipo', '20% del monto', '50% del monto', '100% del monto'];
@@ -15,7 +19,25 @@ const ANTICIPO_OPTIONS = ['Sin anticipo', '20% del monto', '50% del monto', '100
 export default function PerfilProfesionalScreen() {
   const { user, logout, switchRole } = useSession();
   const { colors } = useTheme();
+  const router = useRouter();
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
+  const [horariosLabel, setHorariosLabel] = useState('Sin configurar');
+
+  // Recargar label de horarios cada vez que la pantalla gana foco
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      disponibilidadService.listar(user.id).then((slots) => {
+        if (slots.length > 0) {
+          const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+          const resumen = slots.map((s) => diasNombres[s.diaSemana]).join(', ');
+          setHorariosLabel(resumen);
+        } else {
+          setHorariosLabel('Sin configurar');
+        }
+      });
+    }, [user?.id]),
+  );
 
   const modalidadLabel =
     perfil?.modalidad === 'salon'
@@ -135,9 +157,9 @@ export default function PerfilProfesionalScreen() {
           <SettingsRow
             icon="time-outline"
             label="Horarios laborales"
-            description="Sin configurar"
+            description={horariosLabel}
             isLast
-            onPress={() => Alert.alert('Proximamente', 'Horarios laborales.')}
+            onPress={() => router.push('/(profesional)/horarios')}
           />
         </SettingsGroup>
 
@@ -194,6 +216,26 @@ export default function PerfilProfesionalScreen() {
             destructive
             isLast
             onPress={confirmarLogout}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Desarrollo">
+          <SettingsRow
+            icon="cloud-upload-outline"
+            label="Subir catálogo a Firestore"
+            description="Sube categorías y servicios a la base de datos"
+            isLast
+            onPress={async () => {
+              try {
+                const res = await seedCatalogo();
+                Alert.alert(
+                  'Seed completado',
+                  `${res.categorias} categorías y ${res.servicios} servicios subidos.`,
+                );
+              } catch (err: any) {
+                Alert.alert('Error', err.message);
+              }
+            }}
           />
         </SettingsGroup>
       </ScrollView>

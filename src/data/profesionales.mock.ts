@@ -19,7 +19,7 @@ export const PROFESIONALES_MOCK: PerfilProfesional[] = [
     rating: 4.9,
     reviews: 87,
     activa: true,
-    categorias: ['unas', 'cejas', 'pestanas'],
+    categorias: ['unas', 'pestanas_cejas'],
     distanciaKm: 0.8,
   },
   {
@@ -39,7 +39,7 @@ export const PROFESIONALES_MOCK: PerfilProfesional[] = [
     rating: 4.8,
     reviews: 142,
     activa: true,
-    categorias: ['pestanas', 'cejas'],
+    categorias: ['pestanas_cejas'],
     distanciaKm: 1.4,
   },
   {
@@ -58,7 +58,7 @@ export const PROFESIONALES_MOCK: PerfilProfesional[] = [
     rating: 5.0,
     reviews: 54,
     activa: true,
-    categorias: ['masajes'],
+    categorias: ['corporal'],
     distanciaKm: 2.1,
   },
   {
@@ -98,26 +98,26 @@ export const PROFESIONALES_MOCK: PerfilProfesional[] = [
     rating: 4.9,
     reviews: 98,
     activa: true,
-    categorias: ['nutricion'],
+    categorias: ['bienestar_spa'],
     distanciaKm: 2.8,
   },
 ];
 
 export const SERVICIOS_MOCK: Servicio[] = [
   // Carla
-  { id: 's-1', profesionalId: 'pro-1', nombre: 'Diseño de cejas con henna', precio: 8500, duracionMin: 45, categoria: 'cejas' },
+  { id: 's-1', profesionalId: 'pro-1', nombre: 'Diseño de cejas con henna', precio: 8500, duracionMin: 45, categoria: 'pestanas_cejas' },
   { id: 's-2', profesionalId: 'pro-1', nombre: 'Esmaltado semipermanente', precio: 12000, duracionMin: 60, categoria: 'unas' },
-  { id: 's-3', profesionalId: 'pro-1', nombre: 'Lifting de pestañas', precio: 14000, duracionMin: 75, categoria: 'pestanas' },
+  { id: 's-3', profesionalId: 'pro-1', nombre: 'Lifting de pestañas', precio: 14000, duracionMin: 75, categoria: 'pestanas_cejas' },
   // Lucía
-  { id: 's-4', profesionalId: 'pro-2', nombre: 'Lifting + tintura de pestañas', precio: 16000, duracionMin: 90, categoria: 'pestanas' },
-  { id: 's-5', profesionalId: 'pro-2', nombre: 'Perfilado de cejas', precio: 6500, duracionMin: 30, categoria: 'cejas' },
+  { id: 's-4', profesionalId: 'pro-2', nombre: 'Lifting + tintura de pestañas', precio: 16000, duracionMin: 90, categoria: 'pestanas_cejas' },
+  { id: 's-5', profesionalId: 'pro-2', nombre: 'Perfilado de cejas', precio: 6500, duracionMin: 30, categoria: 'pestanas_cejas' },
   // Sofía
-  { id: 's-6', profesionalId: 'pro-3', nombre: 'Masaje descontracturante 60 min', precio: 18000, duracionMin: 60, categoria: 'masajes' },
-  { id: 's-7', profesionalId: 'pro-3', nombre: 'Masaje deportivo 45 min', precio: 14000, duracionMin: 45, categoria: 'masajes' },
+  { id: 's-6', profesionalId: 'pro-3', nombre: 'Masaje descontracturante 60 min', precio: 18000, duracionMin: 60, categoria: 'corporal' },
+  { id: 's-7', profesionalId: 'pro-3', nombre: 'Masaje deportivo 45 min', precio: 14000, duracionMin: 45, categoria: 'corporal' },
   // Ana
   { id: 's-8', profesionalId: 'pro-4', nombre: 'Esculpidas en acrílico', precio: 22000, duracionMin: 120, categoria: 'unas' },
   { id: 's-9', profesionalId: 'pro-4', nombre: 'Manicura express', precio: 7500, duracionMin: 30, categoria: 'unas' },
   // Valentina
-  { id: 's-10', profesionalId: 'pro-5', nombre: 'Consulta nutricional inicial', precio: 25000, duracionMin: 60, categoria: 'nutricion' },
-  { id: 's-11', profesionalId: 'pro-5', nombre: 'Seguimiento mensual', precio: 18000, duracionMin: 45, categoria: 'nutricion' },
+  { id: 's-10', profesionalId: 'pro-5', nombre: 'Consulta nutricional inicial', precio: 25000, duracionMin: 60, categoria: 'bienestar_spa' },
+  { id: 's-11', profesionalId: 'pro-5', nombre: 'Seguimiento mensual', precio: 18000, duracionMin: 45, categoria: 'bienestar_spa' },
 ];

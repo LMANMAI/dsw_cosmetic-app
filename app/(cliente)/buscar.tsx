@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,11 +34,16 @@ export default function BuscarScreen() {
 
   // Función para obtener / actualizar ubicación del usuario
   const fetchLocation = useCallback(async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status === 'granted') {
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLat(loc.coords.latitude);
-      setUserLng(loc.coords.longitude);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLat(loc.coords.latitude);
+        setUserLng(loc.coords.longitude);
+      }
+    } catch (e) {
+      // En emulador sin GPS esto falla — no bloquear la UI
+      console.log('Ubicación no disponible:', e);
     }
   }, []);
 
@@ -144,44 +148,38 @@ export default function BuscarScreen() {
           {loading ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
 
-        <FlatList
-          data={items}
-          keyExtractor={(it) => it.id}
-          scrollEnabled={false}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push(`/(cliente)/profesional/${item.id}`)}
-              style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
-            >
-              <Avatar nombre={item.nombre} size={52} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.proName}>{item.nombre}</Text>
-                <Text style={styles.proDesc} numberOfLines={2}>
-                  {item.descripcion}
-                </Text>
-                <View style={styles.proMeta}>
-                  <Text style={styles.metaPill}>{'📍'} {item.zona}</Text>
-                  <Text style={styles.metaPill}>{'⭐'} {item.rating}</Text>
-                  {item.distanciaKm != null ? (
-                    <Text style={styles.metaPill}>{item.distanciaKm}km</Text>
-                  ) : null}
+        {items.length > 0
+          ? items.map((item) => (
+              <Pressable
+                key={item.id}
+                onPress={() => router.push(`/(cliente)/profesional/${item.id}`)}
+                style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+              >
+                <Avatar nombre={item.nombre} size={52} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.proName}>{item.nombre}</Text>
+                  <Text style={styles.proDesc} numberOfLines={2}>
+                    {item.descripcion}
+                  </Text>
+                  <View style={styles.proMeta}>
+                    <Text style={styles.metaPill}>{'📍'} {item.zona}</Text>
+                    <Text style={styles.metaPill}>{'⭐'} {item.rating}</Text>
+                    {item.distanciaKm != null ? (
+                      <Text style={styles.metaPill}>{item.distanciaKm}km</Text>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-            </Pressable>
-          )}
-          ListEmptyComponent={
-            !loading ? (
+                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+              </Pressable>
+            ))
+          : !loading ? (
               <View style={styles.empty}>
                 <Text style={styles.emptyTitle}>Sin resultados</Text>
                 <Text style={styles.emptyText}>
                   Probá cambiar la categoría o ampliar la búsqueda.
                 </Text>
               </View>
-            ) : null
-          }
-        />
+            ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -240,6 +238,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: c.border,
     marginHorizontal: spacing.xxl,
+    marginBottom: spacing.md,
   },
   proName: {
     fontSize: 16,

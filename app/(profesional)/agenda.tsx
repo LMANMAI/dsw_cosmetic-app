@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,9 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { turnosService } from '@/services';
+import { disponibilidadService } from '@/services/disponibilidad.service';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 import { Badge } from '@/components/Badge';
+import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { useTheme, radius, spacing, shadow } from '@/theme';
@@ -30,22 +34,32 @@ const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info'
 export default function AgendaScreen() {
   const { colors } = useTheme();
   const { user } = useSession();
+  const router = useRouter();
   const profesionalId = user?.id ?? '';
   const [items, setItems] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tieneAgenda, setTieneAgenda] = useState<boolean | null>(null);
   const todayISO = new Date().toISOString().slice(0, 10);
 
-  const cargar = () => {
+  const cargar = useCallback(() => {
     setLoading(true);
-    turnosService
-      .listarDelProfesional(profesionalId, todayISO)
-      .then(setItems)
+    Promise.all([
+      turnosService.listarDelProfesional(profesionalId, todayISO),
+      disponibilidadService.tieneAgenda(profesionalId),
+    ])
+      .then(([turnos, tiene]) => {
+        setItems(turnos);
+        setTieneAgenda(tiene);
+      })
       .finally(() => setLoading(false));
-  };
+  }, [profesionalId, todayISO]);
 
-  useEffect(() => {
-    cargar();
-  }, [profesionalId]);
+  // Recargar cada vez que la pantalla gana foco (ej. al volver de configurar horarios)
+  useFocusEffect(
+    useCallback(() => {
+      cargar();
+    }, [cargar]),
+  );
 
   const ingresos = useMemo(
     () =>
@@ -104,6 +118,17 @@ export default function AgendaScreen() {
               month: 'long',
             })}
             subtitle={user?.nombre}
+            right={
+              <Pressable
+                onPress={() => router.push('/(profesional)/horarios')}
+                style={({ pressed }) => [styles.editAgendaBtn, pressed && { opacity: 0.7 }]}
+              >
+                <Ionicons name="settings-outline" size={18} color={colors.primary} />
+                <Text style={[styles.editAgendaLabel, { color: colors.primary }]}>
+                  {tieneAgenda ? 'Editar horarios' : 'Configurar'}
+                </Text>
+              </Pressable>
+            }
           />
         </View>
 
@@ -124,6 +149,34 @@ export default function AgendaScreen() {
           </View>
         </View>
 
+        {/* Estado: sin agenda configurada → CTA para crear */}
+        {!loading && tieneAgenda === false && (
+          <View style={styles.setupCard}>
+            <View style={styles.setupIconWrap}>
+              <Ionicons name="calendar-outline" size={48} color={colors.primary} />
+            </View>
+            <Text style={styles.setupTitle}>Configurá tu agenda</Text>
+            <Text style={styles.setupDesc}>
+              Elegí los días y horarios en los que atendés para que tus clientes puedan reservar turnos con vos.
+            </Text>
+            <Button
+              label="Crear mi agenda"
+              onPress={() => router.push('/(profesional)/horarios')}
+              fullWidth
+              style={{ marginTop: spacing.lg }}
+            />
+            <Button
+              label="Lo hago después"
+              variant="ghost"
+              onPress={() => setTieneAgenda(true)}
+              style={{ marginTop: spacing.xs }}
+            />
+          </View>
+        )}
+
+        {/* Contenido normal de la agenda (solo si ya configuró) */}
+        {(tieneAgenda === true || tieneAgenda === null) && (
+        <>
         <View style={styles.section}>
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Agenda diaria</Text>
@@ -175,6 +228,8 @@ export default function AgendaScreen() {
             Tocá un turno para confirmarlo o registrar el cobro al finalizar.
           </Text>
         </View>
+        </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -270,4 +325,49 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginHorizontal: spacing.xxl,
   },
   tipText: { fontSize: 13, color: c.primary, fontWeight: '500', flex: 1 },
+  editAgendaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.primaryTint,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+  },
+  editAgendaLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  setupCard: {
+    alignItems: 'center',
+    backgroundColor: c.surface,
+    borderRadius: radius.xl,
+    padding: spacing.xxxl,
+    marginHorizontal: spacing.xxl,
+    marginTop: spacing.xl,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  setupIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: c.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  setupTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: c.ink,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  setupDesc: {
+    fontSize: 14,
+    color: c.muted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });

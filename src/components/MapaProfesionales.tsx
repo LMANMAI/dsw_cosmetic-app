@@ -184,8 +184,6 @@ const styles = StyleSheet.create({
     height: 240,
     borderRadius: radius.xl,
     overflow: 'hidden',
-    position: 'relative',
-    ...shadow.card,
   },
   map: {
     ...StyleSheet.absoluteFillObject,

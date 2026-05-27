@@ -54,6 +54,12 @@ export default function ProfesionalLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="horarios"
+        options={{
+          href: null, // oculta del tab bar — se accede por navegación directa
+        }}
+      />
     </Tabs>
   );
 }

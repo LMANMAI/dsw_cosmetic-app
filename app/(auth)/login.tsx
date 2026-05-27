@@ -139,7 +139,7 @@ export default function LoginScreen() {
             </View>
 
             <Button
-              variant="dark"
+              variant="primary"
               label="Ingresar"
               onPress={() => handleLogin()}
               loading={loading}
