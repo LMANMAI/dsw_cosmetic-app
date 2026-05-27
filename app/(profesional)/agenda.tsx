@@ -37,22 +37,37 @@ export default function AgendaScreen() {
   const router = useRouter();
   const profesionalId = user?.id ?? '';
   const [items, setItems] = useState<Turno[]>([]);
+  const [pendientesFuturos, setPendientesFuturos] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
   const [tieneAgenda, setTieneAgenda] = useState<boolean | null>(null);
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const cargar = useCallback(() => {
+    if (!profesionalId) return;
     setLoading(true);
     Promise.all([
       turnosService.listarDelProfesional(profesionalId, todayISO),
+      turnosService.listarDelProfesional(profesionalId),
       disponibilidadService.tieneAgenda(profesionalId),
     ])
-      .then(([turnos, tiene]) => {
+      .then(([turnos, todos, tiene]) => {
         setItems(turnos);
+        setPendientesFuturos(
+          todos.filter((t) => t.estado === 'pendiente' && t.fecha !== todayISO)
+               .sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1)),
+        );
         setTieneAgenda(tiene);
+      })
+      .catch((err) => {
+        console.error('[agenda] error al cargar:', err?.message ?? err);
       })
       .finally(() => setLoading(false));
   }, [profesionalId, todayISO]);
+
+  // Cargar cuando profesionalId esté disponible (por si el contexto carga tarde)
+  useEffect(() => {
+    if (profesionalId) cargar();
+  }, [profesionalId]);
 
   // Recargar cada vez que la pantalla gana foco (ej. al volver de configurar horarios)
   useFocusEffect(
@@ -171,6 +186,41 @@ export default function AgendaScreen() {
               onPress={() => setTieneAgenda(true)}
               style={{ marginTop: spacing.xs }}
             />
+          </View>
+        )}
+
+        {/* Pendientes de otros días que esperan confirmación */}
+        {pendientesFuturos.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Pendientes de confirmación</Text>
+              <Badge label={`${pendientesFuturos.length}`} tone="warning" />
+            </View>
+            {pendientesFuturos.map((t) => (
+              <Pressable
+                key={t.id}
+                onPress={() => accionarTurno(t)}
+                style={({ pressed }) => [styles.turnoCard, pressed && { opacity: 0.92 }]}
+              >
+                <View style={styles.horaCol}>
+                  <Text style={styles.hora}>{t.hora}</Text>
+                  <Text style={styles.dur}>{t.duracionMin}'</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <View style={styles.rowSpace}>
+                    <Text style={styles.cliente}>{t.clienteNombre}</Text>
+                    <Badge label={t.estado} tone={ESTADO_TONE[t.estado]} />
+                  </View>
+                  <Text style={styles.servicio}>{t.servicioNombre}</Text>
+                  <Text style={[styles.pago, { color: colors.muted }]}>
+                    📅 {new Date(t.fecha + 'T00:00:00').toLocaleDateString('es-AR', {
+                      weekday: 'long', day: '2-digit', month: 'long',
+                    })}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
           </View>
         )}
 

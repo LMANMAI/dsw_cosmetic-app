@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
 import { disponibilidadService } from '@/services/disponibilidad.service';
+import { serviciosService } from '@/services/servicios.service';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
@@ -22,8 +23,9 @@ export default function PerfilProfesionalScreen() {
   const router = useRouter();
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
   const [horariosLabel, setHorariosLabel] = useState('Sin configurar');
+  const [cantServicios, setCantServicios] = useState(0);
 
-  // Recargar label de horarios cada vez que la pantalla gana foco
+  // Recargar datos cada vez que la pantalla gana foco
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
@@ -36,6 +38,7 @@ export default function PerfilProfesionalScreen() {
           setHorariosLabel('Sin configurar');
         }
       });
+      serviciosService.listar(user.id).then((svcs) => setCantServicios(svcs.length));
     }, [user?.id]),
   );
 
@@ -114,7 +117,7 @@ export default function PerfilProfesionalScreen() {
             <Text style={styles.statLbl}>Rating</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>0</Text>
+            <Text style={styles.statVal}>{cantServicios}</Text>
             <Text style={styles.statLbl}>Servicios</Text>
           </View>
         </View>
@@ -151,8 +154,8 @@ export default function PerfilProfesionalScreen() {
           <SettingsRow
             icon="cut-outline"
             label="Servicios y precios"
-            description="0 activos"
-            onPress={() => Alert.alert('Proximamente', 'Gestion de servicios.')}
+            description={`${cantServicios} ${cantServicios === 1 ? 'activo' : 'activos'}`}
+            onPress={() => router.push('/(profesional)/servicios')}
           />
           <SettingsRow
             icon="time-outline"

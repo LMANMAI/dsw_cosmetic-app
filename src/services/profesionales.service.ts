@@ -8,8 +8,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { calcularDistanciaKm } from './geocoding.service';
+import { serviciosService } from './servicios.service';
 import type { CategoriaSlug, PerfilProfesional, Servicio, PerfilProfesionalSignup } from '@/types/models';
-import { SERVICIOS_MOCK } from '@/data/profesionales.mock';
 
 const USERS_COLLECTION = 'usuarios';
 
@@ -175,12 +175,8 @@ export const profesionalesService = {
     return docToPerfilProfesional(docSnap.id, data);
   },
 
-  /**
-   * Lista servicios de un profesional.
-   * TODO: migrar a Firestore cuando se implemente la gestión de servicios.
-   */
+  /** Lista los servicios activos de un profesional desde Firestore. */
   async listarServiciosDe(profesionalId: string): Promise<Servicio[]> {
-    // Por ahora sigue con mock hasta que se implemente la gestión de servicios
-    return SERVICIOS_MOCK.filter((s) => s.profesionalId === profesionalId);
+    return serviciosService.listarComoServicio(profesionalId);
   },
 };

@@ -60,6 +60,12 @@ export default function ProfesionalLayout() {
           href: null, // oculta del tab bar — se accede por navegación directa
         }}
       />
+      <Tabs.Screen
+        name="servicios"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
     </Tabs>
   );
 }

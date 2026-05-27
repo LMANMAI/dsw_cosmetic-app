@@ -105,7 +105,10 @@ export default function PerfilProfesionalScreen() {
     disponibilidadService
       .horariosDisponibles(id, fechaElegida.diaSemana, servicioElegido.duracionMin, fechaISO)
       .then(setSlotsDisponibles)
-      .catch(() => setSlotsDisponibles([]));
+      .catch((err) => {
+        console.warn('[horariosDisponibles] error:', err);
+        setSlotsDisponibles([]);
+      });
     setHorarioElegido(null); // resetear horario al cambiar día/servicio
   }, [id, servicioElegido?.id, fechaElegida?.diaSemana]);
 

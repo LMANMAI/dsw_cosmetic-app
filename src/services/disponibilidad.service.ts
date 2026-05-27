@@ -40,18 +40,26 @@ export const disponibilidadService = {
    * Array vacío = nunca configuró horarios.
    */
   async listar(profesionalId: string): Promise<Disponibilidad[]> {
+    if (!profesionalId) return [];
     const ref = doc(db, COLLECTION, profesionalId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return [];
 
-    const data = snap.data() as { slots: Omit<Disponibilidad, 'profesionalId'>[] };
+    const data = snap.data() as { slots: any[] };
     return (data.slots ?? [])
-      .map((s) => ({ ...s, profesionalId }))
+      .map((s): Disponibilidad => {
+        // Compatibilidad con el formato viejo ({ horaInicio, horaFin } directo)
+        const franjas: Franja[] = s.franjas ?? [
+          { horaInicio: s.horaInicio, horaFin: s.horaFin },
+        ];
+        return { diaSemana: s.diaSemana, franjas, profesionalId };
+      })
       .sort((a, b) => a.diaSemana - b.diaSemana);
   },
 
   /** Indica si el profesional ya configuró al menos un día. */
   async tieneAgenda(profesionalId: string): Promise<boolean> {
+    if (!profesionalId) return false;
     const ref = doc(db, COLLECTION, profesionalId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return false;
