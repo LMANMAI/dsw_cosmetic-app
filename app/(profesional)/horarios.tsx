@@ -15,54 +15,50 @@ import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { disponibilidadService } from '@/services/disponibilidad.service';
-import { useTheme, radius, spacing, shadow } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
+import type { Franja } from '@/types/models';
 
 /* ─── Constantes ─── */
 
 const DIAS_SEMANA = [
-  { valor: 1, nombre: 'Lunes', corto: 'Lun' },
-  { valor: 2, nombre: 'Martes', corto: 'Mar' },
+  { valor: 1, nombre: 'Lunes',     corto: 'Lun' },
+  { valor: 2, nombre: 'Martes',    corto: 'Mar' },
   { valor: 3, nombre: 'Miércoles', corto: 'Mié' },
-  { valor: 4, nombre: 'Jueves', corto: 'Jue' },
-  { valor: 5, nombre: 'Viernes', corto: 'Vie' },
-  { valor: 6, nombre: 'Sábado', corto: 'Sáb' },
-  { valor: 0, nombre: 'Domingo', corto: 'Dom' },
+  { valor: 4, nombre: 'Jueves',    corto: 'Jue' },
+  { valor: 5, nombre: 'Viernes',   corto: 'Vie' },
+  { valor: 6, nombre: 'Sábado',    corto: 'Sáb' },
+  { valor: 0, nombre: 'Domingo',   corto: 'Dom' },
 ] as const;
 
 const HORAS_OPCIONES = Array.from({ length: 30 }, (_, i) => {
-  const totalMin = 7 * 60 + i * 30; // desde 07:00 cada 30 min
+  const totalMin = 7 * 60 + i * 30;
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }).filter((h) => {
   const [hh] = h.split(':').map(Number);
-  return hh <= 22; // hasta 22:00
+  return hh <= 22;
 });
+
+const FRANJA_DEFAULT: Franja = { horaInicio: '09:00', horaFin: '18:00' };
 
 interface DiaConfig {
   activo: boolean;
-  horaInicio: string;
-  horaFin: string;
+  franjas: Franja[];
 }
 
 type AgendaState = Record<number, DiaConfig>;
 
-const defaultDia = (): DiaConfig => ({
-  activo: false,
-  horaInicio: '09:00',
-  horaFin: '18:00',
-});
-
 const buildInitialState = (): AgendaState => {
   const state: AgendaState = {};
   DIAS_SEMANA.forEach((d) => {
-    state[d.valor] = defaultDia();
+    state[d.valor] = { activo: false, franjas: [{ ...FRANJA_DEFAULT }] };
   });
   return state;
 };
 
-/* ─── Componente selector de hora ─── */
+/* ─── Selector de hora ─── */
 
 function HoraPicker({
   label,
@@ -78,24 +74,16 @@ function HoraPicker({
   colors: ThemeColors;
 }) {
   const mostrarOpciones = () => {
-    const buttons = opciones.map((h) => ({
-      text: h,
-      onPress: () => onSelect(h),
-    }));
-    // Dividir en grupos para que no sea un alert gigante
     Alert.alert(label, 'Seleccioná el horario', [
-      ...buttons.slice(0, 8),
-      { text: 'Más...', onPress: () => mostrarMas() },
+      ...opciones.slice(0, 8).map((h) => ({ text: h, onPress: () => onSelect(h) })),
+      { text: 'Más...', onPress: mostrarMas },
       { text: 'Cancelar', style: 'cancel' },
     ]);
   };
 
   const mostrarMas = () => {
     Alert.alert(label, 'Más horarios', [
-      ...opciones.slice(8).map((h) => ({
-        text: h,
-        onPress: () => onSelect(h),
-      })),
+      ...opciones.slice(8).map((h) => ({ text: h, onPress: () => onSelect(h) })),
       { text: 'Cancelar', style: 'cancel' },
     ]);
   };
@@ -108,8 +96,8 @@ function HoraPicker({
         { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
       ]}
     >
-      <Text style={[pickerStyles.pickerLabel, { color: colors.muted }]}>{label}</Text>
-      <Text style={[pickerStyles.pickerValue, { color: colors.ink }]}>{value}</Text>
+      <Text style={[pickerStyles.label, { color: colors.muted }]}>{label}</Text>
+      <Text style={[pickerStyles.value, { color: colors.ink }]}>{value}</Text>
       <Ionicons name="chevron-down" size={14} color={colors.muted} />
     </Pressable>
   );
@@ -125,8 +113,8 @@ const pickerStyles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
   },
-  pickerLabel: { fontSize: 12, fontWeight: '600' },
-  pickerValue: { fontSize: 16, fontWeight: '700' },
+  label: { fontSize: 12, fontWeight: '600' },
+  value: { fontSize: 16, fontWeight: '700' },
 });
 
 /* ─── Pantalla principal ─── */
@@ -143,21 +131,19 @@ export default function HorariosScreen() {
 
   // Cargar disponibilidad existente
   useEffect(() => {
-    disponibilidadService.listar(profesionalId).then((slots) => {
-      if (slots.length > 0) {
+    disponibilidadService.listar(profesionalId).then((dias) => {
+      if (dias.length > 0) {
         const state = buildInitialState();
-        slots.forEach((s) => {
-          state[s.diaSemana] = {
-            activo: true,
-            horaInicio: s.horaInicio,
-            horaFin: s.horaFin,
-          };
+        dias.forEach((d) => {
+          state[d.diaSemana] = { activo: true, franjas: d.franjas };
         });
         setAgenda(state);
       }
       setLoading(false);
     });
   }, [profesionalId]);
+
+  /* ── Handlers ── */
 
   const toggleDia = useCallback((dia: number) => {
     setAgenda((prev) => ({
@@ -166,12 +152,45 @@ export default function HorariosScreen() {
     }));
   }, []);
 
-  const setHora = useCallback((dia: number, campo: 'horaInicio' | 'horaFin', valor: string) => {
-    setAgenda((prev) => ({
-      ...prev,
-      [dia]: { ...prev[dia], [campo]: valor },
-    }));
+  const setFranja = useCallback(
+    (dia: number, idx: number, campo: keyof Franja, valor: string) => {
+      setAgenda((prev) => {
+        const franjas = prev[dia].franjas.map((f, i) =>
+          i === idx ? { ...f, [campo]: valor } : f,
+        );
+        return { ...prev, [dia]: { ...prev[dia], franjas } };
+      });
+    },
+    [],
+  );
+
+  const agregarFranja = useCallback((dia: number) => {
+    setAgenda((prev) => {
+      const ultima = prev[dia].franjas[prev[dia].franjas.length - 1];
+      // Sugerir inicio 2 h después del fin de la última franja
+      const [hh, mm] = ultima.horaFin.split(':').map(Number);
+      const nuevaInicio = Math.min(hh + 2, 20);
+      const nuevaFin = Math.min(nuevaInicio + 2, 22);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const nueva: Franja = {
+        horaInicio: `${pad(nuevaInicio)}:${pad(mm)}`,
+        horaFin: `${pad(nuevaFin)}:${pad(mm)}`,
+      };
+      return {
+        ...prev,
+        [dia]: { ...prev[dia], franjas: [...prev[dia].franjas, nueva] },
+      };
+    });
   }, []);
+
+  const eliminarFranja = useCallback((dia: number, idx: number) => {
+    setAgenda((prev) => {
+      const franjas = prev[dia].franjas.filter((_, i) => i !== idx);
+      return { ...prev, [dia]: { ...prev[dia], franjas } };
+    });
+  }, []);
+
+  /* ── Validación ── */
 
   const diasActivos = useMemo(
     () => Object.values(agenda).filter((d) => d.activo).length,
@@ -183,27 +202,39 @@ export default function HorariosScreen() {
       Alert.alert('Sin días', 'Activá al menos un día de la semana para guardar tu agenda.');
       return false;
     }
-    // Validar que horaFin > horaInicio
     for (const d of DIAS_SEMANA) {
       const config = agenda[d.valor];
-      if (config.activo && config.horaInicio >= config.horaFin) {
-        Alert.alert(
-          'Horario inválido',
-          `El horario de cierre del ${d.nombre} debe ser posterior al de apertura.`,
-        );
-        return false;
+      if (!config.activo) continue;
+      for (let i = 0; i < config.franjas.length; i++) {
+        const f = config.franjas[i];
+        if (f.horaInicio >= f.horaFin) {
+          Alert.alert(
+            'Horario inválido',
+            `La franja ${i + 1} del ${d.nombre} tiene el cierre antes de la apertura.`,
+          );
+          return false;
+        }
+        // Verificar que no se solapen con la franja anterior
+        if (i > 0 && f.horaInicio < config.franjas[i - 1].horaFin) {
+          Alert.alert(
+            'Franjas solapadas',
+            `Las franjas ${i} y ${i + 1} del ${d.nombre} se superponen.`,
+          );
+          return false;
+        }
       }
     }
     return true;
   };
+
+  /* ── Guardar ── */
 
   const guardar = async () => {
     if (!validar()) return;
     setSaving(true);
     const slots = DIAS_SEMANA.filter((d) => agenda[d.valor].activo).map((d) => ({
       diaSemana: d.valor as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-      horaInicio: agenda[d.valor].horaInicio,
-      horaFin: agenda[d.valor].horaFin,
+      franjas: agenda[d.valor].franjas,
     }));
     await disponibilidadService.guardar(profesionalId, slots);
     setSaving(false);
@@ -236,7 +267,7 @@ export default function HorariosScreen() {
           <ScreenHeader
             eyebrow="Configuración"
             title="Horarios laborales"
-            subtitle="Elegí los días y horarios en los que atendés. Tus clientes solo podrán reservar en estos horarios."
+            subtitle="Elegí los días y franjas en los que atendés. Podés tener más de una franja por día."
           />
 
           {/* Resumen */}
@@ -292,38 +323,72 @@ export default function HorariosScreen() {
                       {dia.nombre}
                     </Text>
                     {config.activo && (
-                      <Text style={[styles.diaHorario, { color: colors.primary }]}>
-                        {config.horaInicio} - {config.horaFin}
+                      <Text style={[styles.diaResumen, { color: colors.primary }]}>
+                        {config.franjas.length} {config.franjas.length === 1 ? 'franja' : 'franjas'}
                       </Text>
                     )}
                   </Pressable>
 
-                  {/* Pickers de hora (solo si está activo) */}
+                  {/* Franjas (solo si el día está activo) */}
                   {config.activo && (
-                    <View style={styles.horasRow}>
-                      <View style={{ flex: 1 }}>
-                        <HoraPicker
-                          label="Desde"
-                          value={config.horaInicio}
-                          opciones={HORAS_OPCIONES}
-                          onSelect={(h) => setHora(dia.valor, 'horaInicio', h)}
-                          colors={colors}
-                        />
-                      </View>
-                      <Ionicons
-                        name="arrow-forward"
-                        size={16}
-                        color={colors.muted}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <HoraPicker
-                          label="Hasta"
-                          value={config.horaFin}
-                          opciones={HORAS_OPCIONES}
-                          onSelect={(h) => setHora(dia.valor, 'horaFin', h)}
-                          colors={colors}
-                        />
-                      </View>
+                    <View style={styles.franjasWrap}>
+                      {config.franjas.map((franja, idx) => (
+                        <View key={idx} style={styles.franjaRow}>
+                          {/* Número de franja */}
+                          <View style={[styles.franjaNum, { backgroundColor: colors.primaryTint }]}>
+                            <Text style={[styles.franjaNumTxt, { color: colors.primary }]}>
+                              {idx + 1}
+                            </Text>
+                          </View>
+
+                          {/* Pickers */}
+                          <View style={{ flex: 1 }}>
+                            <View style={styles.pickersRow}>
+                              <View style={{ flex: 1 }}>
+                                <HoraPicker
+                                  label="Desde"
+                                  value={franja.horaInicio}
+                                  opciones={HORAS_OPCIONES}
+                                  onSelect={(h) => setFranja(dia.valor, idx, 'horaInicio', h)}
+                                  colors={colors}
+                                />
+                              </View>
+                              <Ionicons name="arrow-forward" size={16} color={colors.muted} />
+                              <View style={{ flex: 1 }}>
+                                <HoraPicker
+                                  label="Hasta"
+                                  value={franja.horaFin}
+                                  opciones={HORAS_OPCIONES}
+                                  onSelect={(h) => setFranja(dia.valor, idx, 'horaFin', h)}
+                                  colors={colors}
+                                />
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Botón eliminar franja (solo si hay más de una) */}
+                          {config.franjas.length > 1 && (
+                            <Pressable
+                              onPress={() => eliminarFranja(dia.valor, idx)}
+                              hitSlop={8}
+                              style={[styles.deleteBtn, { borderColor: colors.border }]}
+                            >
+                              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                            </Pressable>
+                          )}
+                        </View>
+                      ))}
+
+                      {/* Botón agregar franja */}
+                      <Pressable
+                        onPress={() => agregarFranja(dia.valor)}
+                        style={[styles.addFranjaBtn, { borderColor: colors.primary }]}
+                      >
+                        <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.addFranjaTxt, { color: colors.primary }]}>
+                          Agregar franja
+                        </Text>
+                      </Pressable>
                     </View>
                   )}
                 </View>
@@ -335,7 +400,7 @@ export default function HorariosScreen() {
           <View style={styles.tip}>
             <Ionicons name="bulb-outline" size={18} color={colors.primary} />
             <Text style={styles.tipText}>
-              Podés modificar estos horarios cuando quieras desde tu perfil.
+              Útil si hacés un descanso al mediodía. Podés agregar tantas franjas como necesites por día.
             </Text>
           </View>
         </View>
@@ -408,19 +473,59 @@ const makeStyles = (c: ThemeColors) =>
       justifyContent: 'center',
     },
     diaNombre: { fontSize: 16, fontWeight: '600', flex: 1 },
-    diaHorario: { fontSize: 13, fontWeight: '600' },
+    diaResumen: { fontSize: 13, fontWeight: '600' },
 
-    horasRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginHorizontal: spacing.xl,
-      marginBottom: spacing.xl,
-      marginTop: spacing.sm,
-      paddingTop: spacing.lg,
+    franjasWrap: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xl,
+      paddingTop: spacing.sm,
       borderTopWidth: 1,
       borderTopColor: c.border,
-      gap: spacing.lg,
+      gap: spacing.md,
     },
+
+    franjaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    franjaNum: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    franjaNumTxt: { fontSize: 12, fontWeight: '700' },
+
+    pickersRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+
+    deleteBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    addFranjaBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      alignSelf: 'flex-start',
+      marginTop: spacing.xs,
+    },
+    addFranjaTxt: { fontSize: 13, fontWeight: '600' },
 
     tip: {
       flexDirection: 'row',

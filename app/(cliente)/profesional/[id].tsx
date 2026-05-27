@@ -101,8 +101,9 @@ export default function PerfilProfesionalScreen() {
       setSlotsDisponibles([]);
       return;
     }
+    const fechaISO = fechaElegida.fecha.toISOString().slice(0, 10);
     disponibilidadService
-      .horariosDisponibles(id, fechaElegida.diaSemana, servicioElegido.duracionMin)
+      .horariosDisponibles(id, fechaElegida.diaSemana, servicioElegido.duracionMin, fechaISO)
       .then(setSlotsDisponibles)
       .catch(() => setSlotsDisponibles([]));
     setHorarioElegido(null); // resetear horario al cambiar día/servicio

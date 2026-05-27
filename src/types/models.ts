@@ -147,11 +147,15 @@ export interface Turno {
   notas?: string;
 }
 
+export interface Franja {
+  horaInicio: string; // HH:mm
+  horaFin: string;
+}
+
 export interface Disponibilidad {
   profesionalId: string;
   diaSemana: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = domingo
-  horaInicio: string; // HH:mm
-  horaFin: string;
+  franjas: Franja[]; // una o más franjas horarias por día
 }
 
 export interface Producto {
