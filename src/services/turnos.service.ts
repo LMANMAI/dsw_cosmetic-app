@@ -9,7 +9,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { CierreCaja, EstadoTurno, MetodoPago, Turno } from '@/types/models';
+import type { CierreCaja, DetalleCobro, EstadoTurno, MetodoPago, Turno } from '@/types/models';
+import { COMISION_PLATAFORMA } from '@/types/models';
 
 const COLLECTION = 'turnos';
 
@@ -48,7 +49,8 @@ export const turnosService = {
     return { ...nuevo, id: ref.id };
   },
 
-  /** Cambia el estado de un turno y, opcionalmente, registra el método de pago. */
+  /** Cambia el estado de un turno y, opcionalmente, registra el método de pago.
+   *  Al completar un turno se calcula automáticamente la comisión de la plataforma. */
   async actualizarEstado(
     turnoId: string,
     estado: EstadoTurno,
@@ -57,6 +59,14 @@ export const turnosService = {
     const ref = doc(db, COLLECTION, turnoId);
     const cambios: Record<string, unknown> = { estado };
     if (metodo) cambios.metodoPago = metodo;
+
+    // Al completar, calcular comisión de la plataforma
+    if (estado === 'completado') {
+      const snap = await getDoc(ref);
+      const turno = snap.data() as Turno;
+      cambios.comisionPlataforma = Math.round(turno.monto * COMISION_PLATAFORMA);
+    }
+
     await updateDoc(ref, cambios);
     const snap = await getDoc(ref);
     return { id: snap.id, ...snap.data() } as Turno;
@@ -95,10 +105,29 @@ export const turnosService = {
       mixto: 0,
     };
     let total = 0;
+    let totalComision = 0;
     completados.forEach((t) => {
       total += t.monto;
       if (t.metodoPago) porMetodo[t.metodoPago] += t.monto;
     });
+
+    // Detalle individual de cada cobro, ordenado por fecha + hora
+    const detalleCobros: DetalleCobro[] = completados
+      .sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1))
+      .map((t) => {
+        const comision = t.comisionPlataforma ?? Math.round(t.monto * COMISION_PLATAFORMA);
+        totalComision += comision;
+        return {
+          turnoId: t.id,
+          fecha: t.fecha,
+          clienteNombre: t.clienteNombre,
+          servicioNombre: t.servicioNombre,
+          monto: t.monto,
+          metodoPago: t.metodoPago ?? 'efectivo',
+          comision,
+          netoProfesional: t.monto - comision,
+        };
+      });
 
     return {
       mes,
@@ -107,7 +136,9 @@ export const turnosService = {
       porMetodo,
       cantidadTurnos: completados.length,
       insumosComprados: 0, // se completa desde pedidosService
-      gananciaNeta: total,
+      totalComisionPlataforma: totalComision,
+      gananciaNeta: total - totalComision,
+      detalleCobros,
     };
   },
 };

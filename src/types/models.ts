@@ -108,6 +108,8 @@ export interface PerfilProfesional {
   rating: number;
   reviews: number;
   activa: boolean;
+  /** Se pone en true cuando tiene comisión vencida impaga → deja de ser visible. */
+  suspendida?: boolean;
   categorias: CategoriaSlug[];
   fotoUrl?: string;
   distanciaKm?: number;
@@ -131,6 +133,9 @@ export type EstadoTurno =
 
 export type MetodoPago = 'efectivo' | 'transferencia' | 'mercado_pago' | 'mixto';
 
+/** Porcentaje de comisión que cobra la plataforma sobre cada servicio (0-1). */
+export const COMISION_PLATAFORMA = 0.20;
+
 export interface Turno {
   id: string;
   clienteId: string;
@@ -145,6 +150,8 @@ export interface Turno {
   monto: number;
   metodoPago?: MetodoPago;
   notas?: string;
+  /** Monto de comisión que corresponde a la plataforma. */
+  comisionPlataforma?: number;
 }
 
 export interface Franja {
@@ -188,6 +195,34 @@ export interface Pedido {
   direccionEnvio?: string;
 }
 
+export interface DetalleCobro {
+  turnoId: string;
+  fecha: string;
+  clienteNombre: string;
+  servicioNombre: string;
+  monto: number;
+  metodoPago: MetodoPago;
+  comision: number; // monto de comisión para la plataforma
+  netoProfesional: number; // monto - comisión
+}
+
+/* ── Comisión mensual que el profesional debe abonar a la plataforma ── */
+
+export type EstadoComision = 'pendiente' | 'pagada' | 'vencida';
+
+export interface ComisionMensual {
+  id: string;
+  profesionalId: string;
+  mes: number;   // 0-11
+  anio: number;
+  montoTotal: number;       // suma de comisiones de todos los turnos del mes
+  estado: EstadoComision;
+  fechaPago?: string;       // ISO date cuando se pagó
+  mercadoPagoPreferenceId?: string; // ID de preferencia de MP para el checkout
+  mercadoPagoPaymentId?: string;    // ID del pago confirmado en MP
+  creadoEn: string;         // ISO datetime
+}
+
 export interface CierreCaja {
   mes: number;
   anio: number;
@@ -195,5 +230,8 @@ export interface CierreCaja {
   porMetodo: Record<MetodoPago, number>;
   cantidadTurnos: number;
   insumosComprados: number;
-  gananciaNeta: number;
+  totalComisionPlataforma: number; // suma de comisiones del mes
+  comisionMensual?: ComisionMensual; // estado de pago de la comisión
+  gananciaNeta: number; // totalCobrado - insumosComprados - totalComisionPlataforma
+  detalleCobros: DetalleCobro[];
 }

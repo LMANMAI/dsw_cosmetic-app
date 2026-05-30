@@ -130,9 +130,13 @@ export const profesionalesService = {
     let result: PerfilProfesional[] = [];
 
     snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      // No mostrar profesionales suspendidos por comisión impaga
+      if (data.suspendida) return;
+
       const perfil = docToPerfilProfesional(
         docSnap.id,
-        docSnap.data(),
+        data,
         filtros.userLat,
         filtros.userLng,
       );
