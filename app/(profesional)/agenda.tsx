@@ -26,6 +26,7 @@ import { formatARS, metodoPagoLabel } from '@/utils/format';
 const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
   confirmado: 'success',
   pendiente: 'warning',
+  pendiente_pago: 'warning',
   completado: 'info',
   cancelado: 'danger',
   no_asistio: 'danger',
@@ -55,7 +56,7 @@ export default function AgendaScreen() {
         setItems(turnos);
         const futuros = todos.filter((t) => t.fecha > todayISO);
         setPendientesFuturos(
-          futuros.filter((t) => t.estado === 'pendiente')
+          futuros.filter((t) => t.estado === 'pendiente' || t.estado === 'pendiente_pago')
                  .sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1)),
         );
         setProximosTurnos(

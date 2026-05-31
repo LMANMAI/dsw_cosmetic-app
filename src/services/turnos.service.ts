@@ -42,11 +42,31 @@ export const turnosService = {
       .sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? 1 : -1));
   },
 
-  /** Crea un turno nuevo con estado "pendiente". */
-  async reservar(input: Omit<Turno, 'id' | 'estado'>): Promise<Turno> {
-    const nuevo = { ...input, estado: 'pendiente' as const };
+  /** Crea un turno nuevo.
+   *  - Si hay seña > 0: estado = pendiente_pago (espera pago por MercadoPago)
+   *  - Si no hay seña y autoConfirmar: estado = confirmado
+   *  - Si no hay seña y no autoConfirmar: estado = pendiente */
+  async reservar(input: Omit<Turno, 'id' | 'estado'>, autoConfirmar?: boolean): Promise<Turno> {
+    const tieneSeña = (input.montoSena ?? 0) > 0;
+    let estado: EstadoTurno;
+    if (tieneSeña) {
+      estado = 'pendiente_pago';
+    } else {
+      estado = autoConfirmar ? 'confirmado' : 'pendiente';
+    }
+    const nuevo = { ...input, estado, senaPagada: false };
     const ref = await addDoc(collection(db, COLLECTION), nuevo);
     return { ...nuevo, id: ref.id };
+  },
+
+  /** Marca la seña como pagada y avanza el turno al estado correspondiente. */
+  async confirmarPagoSena(turnoId: string, autoConfirmar?: boolean): Promise<void> {
+    const estado: EstadoTurno = autoConfirmar ? 'confirmado' : 'pendiente';
+    await updateDoc(doc(db, COLLECTION, turnoId), {
+      senaPagada: true,
+      metodoPago: 'mercado_pago',
+      estado,
+    });
   },
 
   /** Cambia el estado de un turno y, opcionalmente, registra el método de pago.

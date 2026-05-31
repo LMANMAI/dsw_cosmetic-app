@@ -9,21 +9,33 @@ import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
 import { disponibilidadService } from '@/services/disponibilidad.service';
 import { serviciosService } from '@/services/servicios.service';
+import { valoracionesService } from '@/services/valoraciones.service';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
 import { seedCatalogo } from '@/services/seed-catalogo';
 import type { PerfilProfesionalSignup } from '@/types/models';
 
-const ANTICIPO_OPTIONS = ['Sin anticipo', '20% del monto', '50% del monto', '100% del monto'];
+const ANTICIPO_OPTIONS: { label: string; value: 0 | 20 | 50 | 100 }[] = [
+  { label: 'Sin anticipo', value: 0 },
+  { label: '20% del monto', value: 20 },
+  { label: '50% del monto', value: 50 },
+  { label: '100% del monto', value: 100 },
+];
+
+function anticipoLabel(pct: number): string {
+  return ANTICIPO_OPTIONS.find((o) => o.value === pct)?.label ?? '20% del monto';
+}
 
 export default function PerfilProfesionalScreen() {
-  const { user, logout, switchRole } = useSession();
-  const { colors } = useTheme();
+  const { user, logout, switchRole, updateUser } = useSession();
+  const { colors, isDark, toggleTheme } = useTheme();
   const router = useRouter();
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
   const [horariosLabel, setHorariosLabel] = useState('Sin configurar');
   const [cantServicios, setCantServicios] = useState(0);
+  const [cantResenas, setCantResenas] = useState(0);
+  const [ratingProm, setRatingProm] = useState(0);
 
   // Recargar datos cada vez que la pantalla gana foco
   useFocusEffect(
@@ -39,6 +51,10 @@ export default function PerfilProfesionalScreen() {
         }
       });
       serviciosService.listar(user.id).then((svcs) => setCantServicios(svcs.length));
+      valoracionesService.obtenerResumen(user.id).then((r) => {
+        setCantResenas(r.cantidad);
+        setRatingProm(r.rating);
+      });
     }, [user?.id]),
   );
 
@@ -51,9 +67,9 @@ export default function PerfilProfesionalScreen() {
           ? 'Salón y domicilio'
           : 'Sin definir';
 
-  const [perfilPublico, setPerfilPublico] = useState(true);
-  const [anticipo, setAnticipo] = useState('20% del monto');
-  const [autoConfirmar, setAutoConfirmar] = useState(false);
+  const [perfilPublico, setPerfilPublico] = useState(perfil?.perfilVisible !== false);
+  const [anticipo, setAnticipo] = useState<0 | 20 | 50 | 100>(perfil?.anticipoPorcentaje ?? 20);
+  const [autoConfirmar, setAutoConfirmar] = useState(perfil?.autoConfirmarTurnos ?? false);
   const [pushEnabled, setPushEnabled] = useState(true);
   const [recordatorioCliente, setRecordatorioCliente] = useState('24h antes');
 
@@ -62,8 +78,17 @@ export default function PerfilProfesionalScreen() {
       'Anticipo de pago',
       'Cuanto se le pide al cliente al reservar.',
       ANTICIPO_OPTIONS.map((opt) => ({
-        text: opt,
-        onPress: () => setAnticipo(opt),
+        text: opt.label,
+        onPress: async () => {
+          setAnticipo(opt.value);
+          try {
+            await updateUser({
+              perfil: { ...(perfil as PerfilProfesionalSignup), anticipoPorcentaje: opt.value },
+            });
+          } catch {
+            setAnticipo(anticipo); // revertir
+          }
+        },
       })).concat([{ text: 'Cancelar', onPress: () => {} }]),
     );
   };
@@ -109,11 +134,11 @@ export default function PerfilProfesionalScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>0</Text>
+            <Text style={styles.statVal}>{cantResenas}</Text>
             <Text style={styles.statLbl}>Resenas</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>—</Text>
+            <Text style={styles.statVal}>{ratingProm > 0 ? ratingProm.toFixed(1) : '—'}</Text>
             <Text style={styles.statLbl}>Rating</Text>
           </View>
           <View style={styles.statBox}>
@@ -134,23 +159,9 @@ export default function PerfilProfesionalScreen() {
           <SettingsRow
             icon="storefront-outline"
             label="Datos del negocio"
-            description={`${perfil?.especialidad ?? 'Sin especialidad'} · ${modalidadLabel}`}
-            onPress={() => Alert.alert('Proximamente', 'Editor de negocio.')}
+            description={`${perfil?.nombreNegocio ?? perfil?.especialidad ?? 'Sin especialidad'} · ${modalidadLabel}`}
+            onPress={() => router.push('/(profesional)/editar-negocio')}
           />
-          <SettingsRow
-            icon="navigate-outline"
-            label="Dirección"
-            description={perfil?.direccion || 'Sin dirección'}
-            onPress={() => Alert.alert('Proximamente', 'Editar dirección.')}
-          />
-          {perfil?.instagram ? (
-            <SettingsRow
-              icon="logo-instagram"
-              label="Instagram"
-              description={`@${perfil.instagram}`}
-              onPress={() => Alert.alert('Proximamente', 'Editar Instagram.')}
-            />
-          ) : null}
           <SettingsRow
             icon="cut-outline"
             label="Servicios y precios"
@@ -161,8 +172,14 @@ export default function PerfilProfesionalScreen() {
             icon="time-outline"
             label="Horarios laborales"
             description={horariosLabel}
-            isLast
             onPress={() => router.push('/(profesional)/horarios')}
+          />
+          <SettingsRow
+            icon="star-outline"
+            label="Mi reputación"
+            description={ratingProm > 0 ? `${ratingProm.toFixed(1)} ★ · ${cantResenas} reseñas` : 'Sin valoraciones aún'}
+            isLast
+            onPress={() => router.push('/(profesional)/reputacion')}
           />
         </SettingsGroup>
 
@@ -172,19 +189,37 @@ export default function PerfilProfesionalScreen() {
             label="Perfil visible al publico"
             description="Si esta apagado, no aparecemos en busquedas"
             toggle={perfilPublico}
-            onToggle={setPerfilPublico}
+            onToggle={async (val) => {
+              setPerfilPublico(val);
+              try {
+                await updateUser({
+                  perfil: { ...(perfil as PerfilProfesionalSignup), perfilVisible: val },
+                });
+              } catch {
+                setPerfilPublico(!val); // revertir si falla
+              }
+            }}
           />
           <SettingsRow
             icon="checkmark-done-outline"
             label="Auto-confirmar turnos"
             description="Aceptar reservas sin revision manual"
             toggle={autoConfirmar}
-            onToggle={setAutoConfirmar}
+            onToggle={async (val) => {
+              setAutoConfirmar(val);
+              try {
+                await updateUser({
+                  perfil: { ...(perfil as PerfilProfesionalSignup), autoConfirmarTurnos: val },
+                });
+              } catch {
+                setAutoConfirmar(!val);
+              }
+            }}
           />
           <SettingsRow
             icon="cash-outline"
             label="Anticipo al reservar"
-            value={anticipo}
+            value={anticipoLabel(anticipo)}
             onPress={elegirAnticipo}
           />
           <SettingsRow
@@ -202,6 +237,17 @@ export default function PerfilProfesionalScreen() {
             label="Notificaciones push"
             toggle={pushEnabled}
             onToggle={setPushEnabled}
+            isLast
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Apariencia">
+          <SettingsRow
+            icon={isDark ? 'moon-outline' : 'sunny-outline'}
+            label="Tema oscuro"
+            description={isDark ? 'Activado' : 'Desactivado'}
+            toggle={isDark}
+            onToggle={toggleTheme}
             isLast
           />
         </SettingsGroup>

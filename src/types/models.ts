@@ -17,6 +17,13 @@ export interface PerfilProfesionalSignup {
   fotoSalonUrl?: string; // URL en Cloudinary (obligatoria si modalidad incluye salon)
   latitud?: number;  // geocodificado automáticamente desde dirección + ciudad
   longitud?: number;
+  nombreNegocio?: string; // nombre visible para los clientes
+  descripcion?: string;   // bio o descripción del negocio
+  sitioWeb?: string;       // URL del sitio web o link de contacto
+  telefonoContacto?: string; // teléfono público del negocio (puede diferir del personal)
+  perfilVisible?: boolean;    // si false, no aparece en búsquedas de clientes
+  autoConfirmarTurnos?: boolean; // si true, los turnos se confirman sin revisión manual
+  anticipoPorcentaje?: 0 | 20 | 50 | 100; // porcentaje de anticipo que se pide al reservar
 }
 
 export interface PerfilProveedor {
@@ -113,6 +120,8 @@ export interface PerfilProfesional {
   categorias: CategoriaSlug[];
   fotoUrl?: string;
   distanciaKm?: number;
+  autoConfirmarTurnos?: boolean;
+  anticipoPorcentaje?: 0 | 20 | 50 | 100;
 }
 
 export interface Servicio {
@@ -125,6 +134,7 @@ export interface Servicio {
 }
 
 export type EstadoTurno =
+  | 'pendiente_pago'
   | 'pendiente'
   | 'confirmado'
   | 'completado'
@@ -148,6 +158,8 @@ export interface Turno {
   duracionMin: number;
   estado: EstadoTurno;
   monto: number;
+  montoSena?: number;          // monto de la seña/anticipo
+  senaPagada?: boolean;        // true cuando se pagó la seña por MercadoPago
   metodoPago?: MetodoPago;
   notas?: string;
   /** Monto de comisión que corresponde a la plataforma. */
@@ -221,6 +233,19 @@ export interface ComisionMensual {
   mercadoPagoPreferenceId?: string; // ID de preferencia de MP para el checkout
   mercadoPagoPaymentId?: string;    // ID del pago confirmado en MP
   creadoEn: string;         // ISO datetime
+}
+
+/* ── Valoraciones / Reputación ── */
+
+export interface Valoracion {
+  id: string;
+  profesionalId: string;
+  clienteId: string;
+  clienteNombre: string;
+  turnoId: string;
+  puntuacion: 1 | 2 | 3 | 4 | 5;
+  comentario?: string;
+  fecha: string; // ISO date
 }
 
 export interface CierreCaja {

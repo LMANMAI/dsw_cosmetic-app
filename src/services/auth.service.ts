@@ -280,6 +280,26 @@ export const authService = {
     };
   },
 
+  /**
+   * Actualiza campos del usuario en Firestore y devuelve el usuario fresco.
+   */
+  async updateUser(
+    uid: string,
+    data: Partial<Pick<UsuarioDoc, 'nombre' | 'telefono' | 'avatarUrl' | 'perfil'>>,
+  ): Promise<Usuario> {
+    const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
+    if (demoMatch) {
+      const updated: Usuario = { ...demoMatch, ...data };
+      await setDemoSession(updated);
+      return updated;
+    }
+    const ref = doc(db, USERS_COLLECTION, uid);
+    const cleanData = stripUndefined(data);
+    await updateDoc(ref, { ...cleanData, updatedAt: serverTimestamp() });
+    const fresh = await getDoc(ref);
+    return buildUsuario(uid, fresh.data() as UsuarioDoc);
+  },
+
   async updateRol(uid: string, rol: UserRole): Promise<void> {
     const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
     if (demoMatch) {

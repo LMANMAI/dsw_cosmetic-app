@@ -2,6 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,8 +35,7 @@ function generarProximasFechas(disponibilidad: Disponibilidad[], cantidad = 7): 
   const fechas: { fecha: Date; diaSemana: number }[] = [];
   const diasDisponibles = new Set(disponibilidad.map((d) => d.diaSemana));
   const hoy = new Date();
-  let cursor = new Date(hoy);
-  cursor.setDate(cursor.getDate() + 1); // empezamos desde mañana
+  let cursor = new Date(hoy); // incluimos hoy si todavía hay horarios disponibles
 
   const MAX_ITER = 90; // seguridad: nunca más de 90 días hacia adelante
   let iter = 0;
@@ -64,6 +66,7 @@ export default function PerfilProfesionalScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reservando, setReservando] = useState(false);
+  const [pagoModal, setPagoModal] = useState<{ turnoId: string; monto: number; servicio: string } | null>(null);
 
   // Cargar profesional, servicios y disponibilidad
   useEffect(() => {
@@ -101,16 +104,35 @@ export default function PerfilProfesionalScreen() {
       setSlotsDisponibles([]);
       return;
     }
-    const fechaISO = fechaElegida.fecha.toISOString().slice(0, 10);
+    // Usar fecha local (no UTC) para evitar desfasaje de zona horaria
+    const f = fechaElegida.fecha;
+    const fechaISO = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
     disponibilidadService
       .horariosDisponibles(id, fechaElegida.diaSemana, servicioElegido.duracionMin, fechaISO)
-      .then(setSlotsDisponibles)
+      .then((slots) => {
+        // Si es hoy, filtrar horarios que ya pasaron
+        const ahora = new Date();
+        if (
+          f.getFullYear() === ahora.getFullYear() &&
+          f.getMonth() === ahora.getMonth() &&
+          f.getDate() === ahora.getDate()
+        ) {
+          const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
+          return setSlotsDisponibles(
+            slots.filter((s) => {
+              const [h, m] = s.split(':').map(Number);
+              return h * 60 + m > horaActual;
+            }),
+          );
+        }
+        setSlotsDisponibles(slots);
+      })
       .catch((err) => {
         console.warn('[horariosDisponibles] error:', err);
         setSlotsDisponibles([]);
       });
-    setHorarioElegido(null); // resetear horario al cambiar día/servicio
-  }, [id, servicioElegido?.id, fechaElegida?.diaSemana]);
+    setHorarioElegido(null);
+  }, [id, servicioElegido?.id, fechaElegida]);
 
   // Próximas fechas disponibles
   const proximasFechas = useMemo(
@@ -118,34 +140,58 @@ export default function PerfilProfesionalScreen() {
     [disponibilidad],
   );
 
-  // Cálculo de seña (20% del servicio)
-  const porcentajeAnticipo = 0.2;
+  // Cálculo de seña según config del profesional
+  const porcentajeAnticipo = (profesional?.anticipoPorcentaje ?? 20) / 100;
   const montoSena = servicioElegido ? Math.round(servicioElegido.precio * porcentajeAnticipo) : 0;
 
   const reservar = async () => {
     if (!profesional || !servicioElegido || !horarioElegido || !fechaElegida || !user) return;
     setReservando(true);
     try {
-      const fechaISO = fechaElegida.fecha.toISOString().slice(0, 10);
-      await turnosService.reservar({
-        clienteId: user.id,
-        clienteNombre: user.nombre,
-        profesionalId: profesional.id,
-        servicioId: servicioElegido.id,
-        servicioNombre: servicioElegido.nombre,
-        fecha: fechaISO,
-        hora: horarioElegido,
-        duracionMin: servicioElegido.duracionMin,
-        monto: servicioElegido.precio,
-      });
-      Alert.alert(
-        '¡Turno reservado!',
-        `${servicioElegido.nombre} el ${NOMBRE_DIA_LARGO[fechaElegida.diaSemana]} ${fechaElegida.fecha.getDate()}/${fechaElegida.fecha.getMonth() + 1} a las ${horarioElegido}.\n\nSeña: ${formatARS(montoSena)}`,
-        [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+      const fd = fechaElegida.fecha;
+      const fechaISO = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
+      const turno = await turnosService.reservar(
+        {
+          clienteId: user.id,
+          clienteNombre: user.nombre,
+          profesionalId: profesional.id,
+          servicioId: servicioElegido.id,
+          servicioNombre: servicioElegido.nombre,
+          fecha: fechaISO,
+          hora: horarioElegido,
+          duracionMin: servicioElegido.duracionMin,
+          monto: servicioElegido.precio,
+          montoSena: montoSena,
+        },
+        profesional.autoConfirmarTurnos,
       );
+
+      // Si hay seña, mostrar modal de pago
+      if (montoSena > 0) {
+        setPagoModal({ turnoId: turno.id, monto: montoSena, servicio: servicioElegido.nombre });
+      } else {
+        const estadoMsg = profesional.autoConfirmarTurnos ? 'confirmado' : 'pendiente de confirmación';
+        Alert.alert(
+          '¡Turno reservado!',
+          `${servicioElegido.nombre} el ${NOMBRE_DIA_LARGO[fechaElegida.diaSemana]} ${fd.getDate()}/${fd.getMonth() + 1} a las ${horarioElegido} (${estadoMsg}).`,
+          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+        );
+      }
     } finally {
       setReservando(false);
     }
+  };
+
+  const simularPagoMP = async () => {
+    if (!pagoModal || !profesional) return;
+    // TODO: Reemplazar con integración real de MercadoPago Checkout Pro
+    await turnosService.confirmarPagoSena(pagoModal.turnoId, profesional.autoConfirmarTurnos);
+    setPagoModal(null);
+    Alert.alert(
+      '¡Pago confirmado!',
+      'Tu seña fue registrada. El turno está confirmado.',
+      [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+    );
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -305,7 +351,7 @@ export default function PerfilProfesionalScreen() {
               Seña: {montoSena > 0 ? formatARS(montoSena) : '—'}
             </Text>
             {montoSena > 0 && (
-              <Text style={styles.footerPct}>(20%)</Text>
+              <Text style={styles.footerPct}>({profesional?.anticipoPorcentaje ?? 20}%)</Text>
             )}
           </View>
         </View>
@@ -316,6 +362,44 @@ export default function PerfilProfesionalScreen() {
           disabled={!horarioElegido || !servicioElegido || !fechaElegida}
         />
       </View>
+
+      {/* Modal de pago MercadoPago */}
+      <Modal visible={!!pagoModal} animationType="slide" transparent onRequestClose={() => setPagoModal(null)}>
+        <Pressable style={styles.pagoBackdrop} onPress={() => setPagoModal(null)} />
+        <View style={styles.pagoWrap} pointerEvents="box-none">
+          <View style={styles.pagoCard}>
+            <View style={styles.pagoIconWrap}>
+              <Ionicons name="card-outline" size={40} color={colors.primary} />
+            </View>
+            <Text style={styles.pagoTitle}>Pagar seña</Text>
+            <Text style={styles.pagoSub}>{pagoModal?.servicio}</Text>
+
+            <View style={styles.pagoMontoBox}>
+              <Text style={styles.pagoMontoLabel}>Monto a pagar</Text>
+              <Text style={styles.pagoMonto}>{formatARS(pagoModal?.monto ?? 0)}</Text>
+            </View>
+
+            <Pressable
+              style={styles.mpButton}
+              onPress={simularPagoMP}
+            >
+              <Text style={styles.mpButtonText}>Pagar con </Text>
+              <Text style={[styles.mpButtonText, { fontWeight: '800' }]}>Mercado Pago</Text>
+            </Pressable>
+
+            <Pressable onPress={() => {
+              setPagoModal(null);
+              Alert.alert(
+                'Turno reservado sin pago',
+                'Tu turno quedó como pendiente de pago. Podés pagar la seña desde "Mis turnos".',
+                [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+              );
+            }} style={styles.pagoLater}>
+              <Text style={styles.pagoLaterTxt}>Pagar más tarde</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -503,4 +587,59 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '700' },
   emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  // ── Modal de pago ──
+  pagoBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 36, 0.55)',
+  },
+  pagoWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  pagoCard: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.xxl,
+    alignItems: 'center',
+    paddingBottom: spacing.huge,
+  },
+  pagoIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: c.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  pagoTitle: { fontSize: 20, fontWeight: '700', color: c.ink },
+  pagoSub: { fontSize: 14, color: c.muted, marginTop: 4 },
+  pagoMontoBox: {
+    backgroundColor: c.background,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  pagoMontoLabel: { fontSize: 13, color: c.muted, marginBottom: 4 },
+  pagoMonto: { fontSize: 28, fontWeight: '800', color: c.ink },
+  mpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#009EE3',
+    borderRadius: radius.pill,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxl,
+    width: '100%',
+  },
+  mpButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  pagoLater: {
+    paddingVertical: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  pagoLaterTxt: { fontSize: 14, color: c.muted },
 });

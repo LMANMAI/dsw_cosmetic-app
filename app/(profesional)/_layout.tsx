@@ -66,6 +66,18 @@ export default function ProfesionalLayout() {
           href: null, // oculta del tab bar — se accede desde el perfil
         }}
       />
+      <Tabs.Screen
+        name="editar-negocio"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
+      <Tabs.Screen
+        name="reputacion"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Usuario, UserRole } from '@/types/models';
+import type { Usuario, UserRole, PerfilCliente, PerfilProfesionalSignup, PerfilProveedor } from '@/types/models';
 import { authService, type SignupPayload } from '@/services';
 
 interface SessionState {
@@ -12,6 +12,7 @@ interface SessionState {
   sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   switchRole: (rol: UserRole) => Promise<void>;
+  updateUser: (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor }>) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionState | undefined>(undefined);
@@ -57,6 +58,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback(
+    async (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor }>) => {
+      if (!user) return;
+      const updated = await authService.updateUser(user.id, data);
+      setUser(updated);
+    },
+    [user],
+  );
+
   const switchRole = useCallback(
     async (rol: UserRole) => {
       if (!user) return;
@@ -77,6 +87,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       sendPasswordReset,
       logout,
       switchRole,
+      updateUser,
     }),
     [
       user,
@@ -88,6 +99,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       sendPasswordReset,
       logout,
       switchRole,
+      updateUser,
     ],
   );
 

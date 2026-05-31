@@ -9,6 +9,7 @@ import {
 import { db } from './firebase';
 import { calcularDistanciaKm } from './geocoding.service';
 import { serviciosService } from './servicios.service';
+import { valoracionesService } from './valoraciones.service';
 import type { CategoriaSlug, PerfilProfesional, Servicio, PerfilProfesionalSignup } from '@/types/models';
 
 const USERS_COLLECTION = 'usuarios';
@@ -63,6 +64,8 @@ function docToPerfilProfesional(
     categorias: mapEspecialidadACategorias(perfil.especialidad),
     fotoUrl: data.avatarUrl,
     distanciaKm,
+    autoConfirmarTurnos: perfil.autoConfirmarTurnos ?? false,
+    anticipoPorcentaje: perfil.anticipoPorcentaje ?? 20,
   };
 }
 
@@ -131,8 +134,10 @@ export const profesionalesService = {
 
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      // No mostrar profesionales suspendidos por comisión impaga
+      // No mostrar profesionales suspendidos o con perfil oculto
       if (data.suspendida) return;
+      const perfilData = data.perfil as PerfilProfesionalSignup | undefined;
+      if (perfilData?.perfilVisible === false) return;
 
       const perfil = docToPerfilProfesional(
         docSnap.id,
@@ -164,6 +169,17 @@ export const profesionalesService = {
       result = result.filter((p) => (p.distanciaKm ?? 99) <= filtros.maxDistanciaKm!);
     }
 
+    // Enriquecer con valoraciones reales (no bloquear si falla)
+    await Promise.all(
+      result.map(async (p) => {
+        try {
+          const resumen = await valoracionesService.obtenerResumen(p.id);
+          p.rating = resumen.rating;
+          p.reviews = resumen.cantidad;
+        } catch { /* permisos pendientes, mostrar 0 */ }
+      }),
+    );
+
     // Ordenar por cercanía
     return result.sort((a, b) => (a.distanciaKm ?? 99) - (b.distanciaKm ?? 99));
   },
@@ -172,11 +188,19 @@ export const profesionalesService = {
    * Obtiene un profesional por su ID de usuario.
    */
   async obtenerPorId(id: string): Promise<PerfilProfesional | null> {
-    const docSnap = await getDoc(doc(db, USERS_COLLECTION, id));
+    const [docSnap, resumen] = await Promise.all([
+      getDoc(doc(db, USERS_COLLECTION, id)),
+      valoracionesService.obtenerResumen(id).catch(() => ({ rating: 0, cantidad: 0 })),
+    ]);
     if (!docSnap.exists()) return null;
     const data = docSnap.data();
     if (data.rol !== 'profesional') return null;
-    return docToPerfilProfesional(docSnap.id, data);
+    const perfil = docToPerfilProfesional(docSnap.id, data);
+    if (perfil) {
+      perfil.rating = resumen.rating;
+      perfil.reviews = resumen.cantidad;
+    }
+    return perfil;
   },
 
   /** Lista los servicios activos de un profesional desde Firestore. */
