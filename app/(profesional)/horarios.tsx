@@ -31,15 +31,20 @@ const DIAS_SEMANA = [
   { valor: 0, nombre: 'Domingo',   corto: 'Dom' },
 ] as const;
 
-const HORAS_OPCIONES = Array.from({ length: 30 }, (_, i) => {
-  const totalMin = 7 * 60 + i * 30;
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}).filter((h) => {
-  const [hh] = h.split(':').map(Number);
-  return hh <= 22;
+// Todas las medias horas del día: 00:00 a 23:30
+const HORAS_OPCIONES = Array.from({ length: 48 }, (_, i) => {
+  const h = Math.floor(i / 2);
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${String(h).padStart(2, '0')}:${m}`;
 });
+
+// Grupos de 6 horas para que el selector sea navegable
+const GRUPOS_HORARIOS = [
+  { label: 'Madrugada (00 a 06)', desde: 0, hasta: 6 },
+  { label: 'Mañana (06 a 12)', desde: 6, hasta: 12 },
+  { label: 'Tarde (12 a 18)', desde: 12, hasta: 18 },
+  { label: 'Noche (18 a 24)', desde: 18, hasta: 24 },
+] as const;
 
 const FRANJA_DEFAULT: Franja = { horaInicio: '09:00', horaFin: '18:00' };
 
@@ -73,17 +78,23 @@ function HoraPicker({
   onSelect: (h: string) => void;
   colors: ThemeColors;
 }) {
-  const mostrarOpciones = () => {
+  const mostrarHorasDelGrupo = (desde: number, hasta: number) => {
+    const horas = opciones.filter((h) => {
+      const [hh] = h.split(':').map(Number);
+      return hh >= desde && hh < hasta;
+    });
     Alert.alert(label, 'Seleccioná el horario', [
-      ...opciones.slice(0, 8).map((h) => ({ text: h, onPress: () => onSelect(h) })),
-      { text: 'Más...', onPress: mostrarMas },
+      ...horas.map((h) => ({ text: h, onPress: () => onSelect(h) })),
       { text: 'Cancelar', style: 'cancel' },
     ]);
   };
 
-  const mostrarMas = () => {
-    Alert.alert(label, 'Más horarios', [
-      ...opciones.slice(8).map((h) => ({ text: h, onPress: () => onSelect(h) })),
+  const mostrarOpciones = () => {
+    Alert.alert(label, 'Elegí la franja del día', [
+      ...GRUPOS_HORARIOS.map((g) => ({
+        text: g.label,
+        onPress: () => mostrarHorasDelGrupo(g.desde, g.hasta),
+      })),
       { text: 'Cancelar', style: 'cancel' },
     ]);
   };
@@ -169,8 +180,8 @@ export default function HorariosScreen() {
       const ultima = prev[dia].franjas[prev[dia].franjas.length - 1];
       // Sugerir inicio 2 h después del fin de la última franja
       const [hh, mm] = ultima.horaFin.split(':').map(Number);
-      const nuevaInicio = Math.min(hh + 2, 20);
-      const nuevaFin = Math.min(nuevaInicio + 2, 22);
+      const nuevaInicio = Math.min(hh + 2, 21);
+      const nuevaFin = Math.min(nuevaInicio + 2, 23);
       const pad = (n: number) => String(n).padStart(2, '0');
       const nueva: Franja = {
         horaInicio: `${pad(nuevaInicio)}:${pad(mm)}`,

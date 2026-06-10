@@ -86,6 +86,25 @@ export interface ServicioProfesional {
   activo: boolean;
 }
 
+/** Anticipación del recordatorio de turnos. 'off' = sin recordatorio. */
+export type RecordatorioTurnos = '30m' | '1h' | '2h' | '24h' | 'off';
+
+export interface PreferenciasNotificaciones {
+  pushEnabled: boolean;
+  recordatorioTurnos: RecordatorioTurnos;
+}
+
+/** Dirección guardada por el usuario (p. ej. casa, trabajo). */
+export interface Direccion {
+  id: string;
+  etiqueta: string; // "Casa", "Trabajo", etc.
+  direccion: string;
+  ciudad: string;
+  latitud?: number;
+  longitud?: number;
+  notas?: string; // piso, depto, indicaciones
+}
+
 export interface Usuario {
   id: string;
   nombre: string;
@@ -94,6 +113,8 @@ export interface Usuario {
   rol: UserRole;
   avatarUrl?: string;
   perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
+  direcciones?: Direccion[];
+  preferencias?: PreferenciasNotificaciones;
 }
 
 export type ModalidadTrabajo = 'salon' | 'domicilio' | 'ambos';

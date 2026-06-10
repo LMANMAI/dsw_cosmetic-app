@@ -89,7 +89,7 @@ export default function PerfilProfesionalScreen() {
             setAnticipo(anticipo); // revertir
           }
         },
-      })).concat([{ text: 'Cancelar', onPress: () => {} }]),
+      })).concat([{ text: 'Cancelar', onPress: async () => {} }]),
     );
   };
 

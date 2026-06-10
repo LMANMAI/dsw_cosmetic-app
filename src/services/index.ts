@@ -7,4 +7,5 @@ export { turnosService } from './turnos.service';
 export { comisionesService } from './comisiones.service';
 export { productosService } from './productos.service';
 export { valoracionesService } from './valoraciones.service';
+export { notificacionesService, PREFERENCIAS_DEFAULT, RECORDATORIO_LABELS } from './notificaciones.service';
 export { API_BASE_URL, ApiError } from './api-client';

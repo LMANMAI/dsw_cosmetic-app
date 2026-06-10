@@ -1,7 +1,14 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
+
+// getReactNativePersistence existe en el bundle React Native de firebase,
+// pero falta en los tipos web de firebase v11, por eso el cast.
+const getReactNativePersistence = (firebaseAuth as any).getReactNativePersistence as (
+  storage: typeof AsyncStorage,
+) => any;
 import { initializeFirestore, getFirestore } from 'firebase/firestore';
 
 export const firebaseConfig = {

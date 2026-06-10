@@ -55,6 +55,10 @@ export default function ClienteLayout() {
       />
       <Tabs.Screen name="profesional/[id]" options={{ href: null }} />
       <Tabs.Screen name="tienda" options={{ href: null }} />
+      <Tabs.Screen name="datos-personales" options={{ href: null }} />
+      <Tabs.Screen name="direcciones" options={{ href: null }} />
+      <Tabs.Screen name="centro-ayuda" options={{ href: null }} />
+      <Tabs.Screen name="terminos" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -229,10 +229,23 @@ export default function PerfilProfesionalScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={styles.header}>
+          {profesional.fotoSalon ? (
+            <>
+              {/* Foto del negocio como fondo del encabezado */}
+              <Image
+                source={{ uri: profesional.fotoSalon }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+              {/* Velo oscuro para que el texto siga siendo legible */}
+              <View style={styles.heroOverlay} />
+            </>
+          ) : (
+            <View style={styles.heroBg} />
+          )}
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={'#FFFFFF'} />
           </Pressable>
-          <View style={styles.heroBg} />
           <View style={styles.heroContent}>
             <Avatar nombre={profesional.nombre} size={88} />
             <Text style={styles.heroName}>{profesional.nombre}</Text>
@@ -411,9 +424,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxxl,
     paddingHorizontal: spacing.xxl,
-    borderBottomLeftRadius: radius.xxl,
-    borderBottomRightRadius: radius.xxl,
     overflow: 'hidden',
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 14, 30, 0.55)',
   },
   heroBg: {
     position: 'absolute',

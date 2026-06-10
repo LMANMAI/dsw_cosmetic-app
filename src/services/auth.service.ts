@@ -32,6 +32,8 @@ import type {
   PerfilCliente,
   PerfilProfesionalSignup,
   PerfilProveedor,
+  Direccion,
+  PreferenciasNotificaciones,
 } from '@/types/models';
 
 const USERS_COLLECTION = 'usuarios';
@@ -74,6 +76,8 @@ interface UsuarioDoc {
   rol: UserRole;
   avatarUrl?: string;
   perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
+  direcciones?: Direccion[];
+  preferencias?: PreferenciasNotificaciones;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -87,6 +91,8 @@ function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
     rol: d.rol,
     avatarUrl: d.avatarUrl,
     perfil: d.perfil,
+    direcciones: d.direcciones,
+    preferencias: d.preferencias,
   };
 }
 
@@ -285,7 +291,7 @@ export const authService = {
    */
   async updateUser(
     uid: string,
-    data: Partial<Pick<UsuarioDoc, 'nombre' | 'telefono' | 'avatarUrl' | 'perfil'>>,
+    data: Partial<Pick<UsuarioDoc, 'nombre' | 'telefono' | 'avatarUrl' | 'perfil' | 'direcciones' | 'preferencias'>>,
   ): Promise<Usuario> {
     const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
     if (demoMatch) {
