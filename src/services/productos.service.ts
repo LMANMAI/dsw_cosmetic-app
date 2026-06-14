@@ -1,81 +1,117 @@
-import type { Pedido, Producto } from '@/types/models';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import { PRODUCTOS_MOCK } from '@/data/productos.mock';
-import { fakeDelay } from './api-client';
+import type { Producto } from '@/types/models';
 
-let _productos: Producto[] = [...PRODUCTOS_MOCK];
-let _pedidos: Pedido[] = [];
+const COLLECTION = 'productos';
+
+/** Convierte un doc de Firestore en Producto. */
+function toProducto(id: string, data: any): Producto {
+  return {
+    id,
+    nombre: data.nombre,
+    precio: data.precio,
+    stock: data.stock,
+    categoria: data.categoria,
+    imagenUrl: data.imagenUrl,
+    proveedorId: data.proveedorId,
+    proveedorNombre: data.proveedorNombre,
+    descripcion: data.descripcion,
+  };
+}
+
+/** Quita las claves undefined (Firestore no las acepta). */
+function limpiar<T extends Record<string, any>>(obj: T): T {
+  const out = {} as T;
+  for (const k in obj) {
+    if (obj[k] !== undefined) out[k] = obj[k];
+  }
+  return out;
+}
 
 export const productosService = {
-  async listar(categoria?: string, query?: string): Promise<Producto[]> {
-    await fakeDelay();
-    let res = [..._productos];
-    if (categoria) res = res.filter((p) => p.categoria === categoria);
-    if (query) {
-      const q = query.toLowerCase();
-      res = res.filter((p) => p.nombre.toLowerCase().includes(q));
+  /** Lista productos de la tienda, opcionalmente filtrados por categoría y/o texto. */
+  async listar(categoria?: string, texto?: string): Promise<Producto[]> {
+    const q = categoria
+      ? query(collection(db, COLLECTION), where('categoria', '==', categoria))
+      : query(collection(db, COLLECTION));
+    const snap = await getDocs(q);
+    let res = snap.docs.map((d) => toProducto(d.id, d.data()));
+    if (texto) {
+      const t = texto.toLowerCase();
+      res = res.filter((p) => p.nombre.toLowerCase().includes(t));
     }
-    return res;
+    return res.sort((a, b) => a.nombre.localeCompare(b.nombre));
   },
 
   async obtenerPorId(id: string): Promise<Producto | null> {
-    await fakeDelay(120);
-    return _productos.find((p) => p.id === id) ?? null;
+    const ref = doc(db, COLLECTION, id);
+    const snap = await getDoc(ref);
+    return snap.exists() ? toProducto(snap.id, snap.data()) : null;
   },
 
-  async confirmarPedido(pedido: Omit<Pedido, 'id' | 'fecha' | 'estado'>): Promise<Pedido> {
-    await fakeDelay(450);
-    pedido.items.forEach((item) => {
-      _productos = _productos.map((p) =>
-        p.id === item.productoId
-          ? { ...p, stock: Math.max(0, p.stock - item.cantidad) }
-          : p,
-      );
-    });
-    const nuevo: Pedido = {
-      ...pedido,
-      id: `pe-${Date.now()}`,
-      fecha: new Date().toISOString(),
-      estado: 'confirmado',
-    };
-    _pedidos.push(nuevo);
-    return nuevo;
-  },
-
-  async pedidosDe(usuarioId: string): Promise<Pedido[]> {
-    await fakeDelay();
-    return _pedidos.filter((p) => p.compradorId === usuarioId);
-  },
-
-  async listarDelProveedor(proveedorNombre: string): Promise<Producto[]> {
-    await fakeDelay(120);
-    return _productos.filter(
-      (p) => (p.proveedor ?? '').toLowerCase() === proveedorNombre.toLowerCase(),
-    );
+  /** Productos de un proveedor (por su uid). */
+  async listarDelProveedor(proveedorId: string): Promise<Producto[]> {
+    if (!proveedorId) return [];
+    const q = query(collection(db, COLLECTION), where('proveedorId', '==', proveedorId));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map((d) => toProducto(d.id, d.data()))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
   },
 
   async crear(input: Omit<Producto, 'id'>): Promise<Producto> {
-    await fakeDelay(200);
-    const nuevo: Producto = { ...input, id: `pr-${Date.now()}` };
-    _productos = [..._productos, nuevo];
-    return nuevo;
+    const data = limpiar(input);
+    const ref = await addDoc(collection(db, COLLECTION), data);
+    return { id: ref.id, ...input };
   },
 
   async actualizar(id: string, patch: Partial<Producto>): Promise<Producto> {
-    await fakeDelay(150);
-    _productos = _productos.map((p) => (p.id === id ? { ...p, ...patch } : p));
-    return _productos.find((p) => p.id === id)!;
+    const ref = doc(db, COLLECTION, id);
+    await updateDoc(ref, limpiar(patch));
+    const snap = await getDoc(ref);
+    return toProducto(snap.id, snap.data());
   },
 
   async eliminar(id: string): Promise<void> {
-    await fakeDelay(150);
-    _productos = _productos.filter((p) => p.id !== id);
+    await deleteDoc(doc(db, COLLECTION, id));
   },
 
+  /** Ajusta el stock de forma atómica (no baja de 0). */
   async ajustarStock(id: string, delta: number): Promise<Producto> {
-    await fakeDelay(80);
-    _productos = _productos.map((p) =>
-      p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p,
-    );
-    return _productos.find((p) => p.id === id)!;
+    const ref = doc(db, COLLECTION, id);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) throw new Error('Producto no encontrado');
+      const actual = snap.data().stock ?? 0;
+      tx.update(ref, { stock: Math.max(0, actual + delta) });
+    });
+    const snap = await getDoc(ref);
+    return toProducto(snap.id, snap.data());
+  },
+
+  /**
+   * Siembra la colección de productos con datos demo (solo si está vacía).
+   * Útil para poblar la tienda en desarrollo/presentaciones.
+   */
+  async seed(): Promise<{ productos: number }> {
+    const snap = await getDocs(collection(db, COLLECTION));
+    if (!snap.empty) return { productos: snap.size };
+    for (const p of PRODUCTOS_MOCK) {
+      const { id, ...rest } = p;
+      await addDoc(collection(db, COLLECTION), limpiar(rest));
+    }
+    return { productos: PRODUCTOS_MOCK.length };
   },
 };

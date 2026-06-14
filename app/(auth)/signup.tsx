@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -20,13 +20,17 @@ import {
   AuthDivider,
   AuthHero,
   AuthInput,
+  AuthSelect,
   GoogleGlyph,
   SocialButton,
 } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
+import { rubrosService } from '@/services/rubros.service';
+import type { Rubro } from '@/data/rubros';
 import { useGoogleSignIn } from '@/services/google-auth';
 import { uploadImage } from '@/services/upload.service';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
+import { formatCuit, cuitCompleto, cuitValido } from '@/utils/format';
 import { useTheme, radius, spacing } from '@/theme';
 import type {
   PerfilCliente,
@@ -69,9 +73,30 @@ export default function SignupScreen() {
   const [razonSocial, setRazonSocial] = useState('');
   const [cuit, setCuit] = useState('');
   const [rubro, setRubro] = useState('');
-  const [ciudadProv, setCiudadProv] = useState('');
+  const [ubicacionProv, setUbicacionProv] = useState<DireccionSeleccionada | null>(null);
+  const [rubros, setRubros] = useState<Rubro[]>([]);
+  const [rubrosLoading, setRubrosLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  // Cargar rubros desde Firebase (con fallback local) la primera vez que se
+  // elige el rol proveedor.
+  useEffect(() => {
+    if (rol !== 'proveedor' || rubros.length > 0) return;
+    let activo = true;
+    setRubrosLoading(true);
+    rubrosService
+      .listar()
+      .then((data) => {
+        if (activo) setRubros(data);
+      })
+      .finally(() => {
+        if (activo) setRubrosLoading(false);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [rol, rubros.length]);
 
   const elegirFotoSalon = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -118,12 +143,15 @@ export default function SignupScreen() {
             razonSocial: razonSocial.trim(),
             cuit: cuit.trim(),
             rubro: rubro.trim(),
-            ciudad: ciudadProv.trim(),
+            ciudad: ubicacionProv?.ciudad ?? '',
+            direccion: ubicacionProv?.direccion ?? '',
+            latitud: ubicacionProv?.latitud,
+            longitud: ubicacionProv?.longitud,
           };
         default:
           return { ciudad: ciudadCli.trim() || undefined };
       }
-    }, [rol, especialidad, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ciudadProv, ciudadCli]);
+    }, [rol, especialidad, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ubicacionProv, ciudadCli]);
 
   const validate = (): string | null => {
     if (!nombre.trim()) return 'Ingresá tu nombre.';
@@ -142,8 +170,10 @@ export default function SignupScreen() {
       const p = perfilExtra as PerfilProveedor;
       if (!p.razonSocial) return 'Ingresá la razón social.';
       if (!p.cuit) return 'Ingresá el CUIT.';
-      if (!p.rubro) return 'Ingresá el rubro.';
-      if (!p.ciudad) return 'Ingresá la ciudad.';
+      if (!cuitCompleto(p.cuit)) return 'El CUIT debe tener 11 dígitos (XX-XXXXXXXX-X).';
+      if (!cuitValido(p.cuit)) return 'El CUIT no es válido. Revisá los números.';
+      if (!p.rubro) return 'Elegí tu rubro.';
+      if (!ubicacionProv) return 'Seleccioná tu dirección en el buscador.';
     }
     return null;
   };
@@ -352,22 +382,29 @@ export default function SignupScreen() {
                 />
                 <AuthInput
                   icon="document-text-outline"
-                  placeholder="CUIT"
+                  placeholder="CUIT (XX-XXXXXXXX-X)"
                   keyboardType="number-pad"
                   value={cuit}
-                  onChangeText={setCuit}
+                  onChangeText={(t) => setCuit(formatCuit(t))}
+                  maxLength={13}
                 />
-                <AuthInput
+                <AuthSelect
                   icon="cube-outline"
-                  placeholder="Rubro (insumos para uñas, cosmética...)"
-                  value={rubro}
-                  onChangeText={setRubro}
+                  placeholder={rubrosLoading ? 'Cargando rubros...' : 'Elegí tu rubro'}
+                  title="¿Qué rubro vendés?"
+                  value={rubro || null}
+                  loading={rubrosLoading}
+                  options={rubros.map((r) => ({
+                    label: r.nombre,
+                    value: r.nombre,
+                    emoji: r.emoji,
+                  }))}
+                  onChange={setRubro}
                 />
-                <AuthInput
-                  icon="location-outline"
-                  placeholder="Ciudad"
-                  value={ciudadProv}
-                  onChangeText={setCiudadProv}
+                <Text style={styles.sectionLabel}>Dirección del comercio</Text>
+                <DireccionAutocomplete
+                  onSelect={setUbicacionProv}
+                  placeholder="Buscá la dirección de tu comercio..."
                 />
               </>
             ) : null}

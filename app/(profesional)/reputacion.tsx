@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -13,6 +14,7 @@ import type { Valoracion } from '@/types/models';
 export default function ReputacionScreen() {
   const { user } = useSession();
   const { colors } = useTheme();
+  const router = useRouter();
   const [valoraciones, setValoraciones] = useState<Valoracion[]>([]);
   const [rating, setRating] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,13 @@ export default function ReputacionScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView contentContainerStyle={{ padding: spacing.xxl }}>
+          <Pressable
+            onPress={() => router.navigate('/(profesional)/perfil')}
+            style={styles.backBtn}
+            hitSlop={12}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.ink} />
+          </Pressable>
           <ScreenHeader eyebrow="Mi negocio" title="Mi reputación" />
           <ActivityIndicator style={{ marginTop: spacing.huge }} color={colors.primary} />
         </ScrollView>
@@ -56,6 +65,13 @@ export default function ReputacionScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xxl, paddingBottom: spacing.huge }}>
+        <Pressable
+          onPress={() => router.navigate('/(profesional)/perfil')}
+          style={styles.backBtn}
+          hitSlop={12}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.ink} />
+        </Pressable>
         <ScreenHeader eyebrow="Mi negocio" title="Mi reputación" />
 
         {/* Rating general */}
@@ -138,6 +154,7 @@ export default function ReputacionScreen() {
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
+    backBtn: { marginBottom: spacing.lg, alignSelf: 'flex-start' },
     ratingCard: {
       alignItems: 'center',
       backgroundColor: c.surface,

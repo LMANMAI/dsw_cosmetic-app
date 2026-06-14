@@ -1,6 +1,8 @@
 import React from 'react';
 import {
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -83,6 +85,98 @@ export function AuthInput({
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+export interface AuthSelectOption {
+  label: string;
+  value: string;
+  emoji?: string;
+}
+
+interface AuthSelectProps {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  placeholder: string;
+  value: string | null;
+  options: AuthSelectOption[];
+  onChange: (value: string) => void;
+  title?: string;
+  loading?: boolean;
+}
+
+export function AuthSelect({
+  icon,
+  placeholder,
+  value,
+  options,
+  onChange,
+  title,
+  loading,
+}: AuthSelectProps) {
+  const { colors } = useTheme();
+  const [open, setOpen] = React.useState(false);
+  const selected = options.find((o) => o.value === value) ?? null;
+
+  return (
+    <>
+      <Pressable
+        onPress={() => !loading && setOpen(true)}
+        style={[styles.inputWrap, { backgroundColor: colors.bone }]}
+      >
+        <Ionicons name={icon} size={18} color={colors.muted} style={{ marginRight: spacing.sm }} />
+        <Text
+          style={[
+            styles.input,
+            { color: selected ? colors.ink : colors.muted },
+          ]}
+          numberOfLines={1}
+        >
+          {selected ? `${selected.emoji ? `${selected.emoji} ` : ''}${selected.label}` : placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color={colors.muted} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.bone3 }]} />
+            <Text style={[styles.modalTitle, { color: colors.ink }]}>{title ?? placeholder}</Text>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {options.map((opt) => {
+                const active = opt.value === value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.optionRow,
+                      { borderColor: colors.bone3 },
+                      (active || pressed) && { backgroundColor: colors.primaryTint },
+                    ]}
+                  >
+                    {opt.emoji ? <Text style={styles.optionEmoji}>{opt.emoji}</Text> : null}
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        { color: active ? colors.primary : colors.ink },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                    {active ? (
+                      <Ionicons name="checkmark" size={18} color={colors.primary} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -190,6 +284,42 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingVertical: spacing.md,
   },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.huge,
+    ...shadow.raised,
+  },
+  modalHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.xs,
+  },
+  optionEmoji: { fontSize: 20 },
+  optionLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',

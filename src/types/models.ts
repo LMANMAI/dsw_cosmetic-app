@@ -31,7 +31,27 @@ export interface PerfilProveedor {
   cuit: string;
   rubro: string; // p. ej. "Insumos para uñas"
   ciudad: string;
+  direccion?: string; // dirección exacta seleccionada en el autocomplete
+  latitud?: number;
+  longitud?: number;
+
+  // Preferencias de ventas y envíos (default: ver PREFERENCIAS_PROVEEDOR_DEFAULT)
+  aceptaPedidos?: boolean;   // si false, no aparece en búsquedas / no recibe pedidos
+  envioPropio?: boolean;     // el proveedor entrega sus pedidos
+  retiroLocal?: boolean;     // permite retiro en el local
+  // Notificaciones
+  notifPush?: boolean;       // push por nuevos pedidos y mensajes
+  emailPedidos?: boolean;    // email por cada pedido
 }
+
+/** Valores por defecto de las preferencias del proveedor. */
+export const PREFERENCIAS_PROVEEDOR_DEFAULT = {
+  aceptaPedidos: true,
+  envioPropio: true,
+  retiroLocal: false,
+  notifPush: true,
+  emailPedidos: true,
+} as const;
 
 export type PerfilPorRol =
   | { rol: 'cliente'; perfil: PerfilCliente }
@@ -185,6 +205,10 @@ export interface Turno {
   notas?: string;
   /** Monto de comisión que corresponde a la plataforma. */
   comisionPlataforma?: number;
+  /** Anticipación del recordatorio que se le envía al cliente para este turno. */
+  recordatorioCliente?: '1h' | '2h' | '24h' | 'off';
+  /** true cuando la Cloud Function ya envió el recordatorio push (para no repetir). */
+  recordatorioEnviado?: boolean;
 }
 
 export interface Franja {
@@ -205,11 +229,18 @@ export interface Producto {
   stock: number;
   categoria: string;
   imagenUrl?: string;
-  proveedor?: string;
+  proveedorId: string;       // uid del proveedor dueño del producto
+  proveedorNombre?: string;  // razón social / nombre visible del comercio
   descripcion?: string;
 }
 
-export type EstadoPedido = 'pendiente' | 'confirmado' | 'enviado' | 'entregado' | 'cancelado';
+export type EstadoPedido =
+  | 'pendiente_pago' // creado, esperando que el comprador complete el pago
+  | 'pendiente'      // pagado, esperando que el proveedor lo confirme
+  | 'confirmado'
+  | 'enviado'
+  | 'entregado'
+  | 'cancelado';
 
 export interface ItemPedido {
   productoId: string;
@@ -218,14 +249,30 @@ export interface ItemPedido {
   precioUnitario: number;
 }
 
+/** Cómo viaja el pedido: envío propio del proveedor o por un correo. */
+export type MetodoEnvio = 'propio' | 'correo';
+
+export interface InfoEnvio {
+  metodo: MetodoEnvio;
+  correo?: string;          // nombre del correo (Correo Argentino, Andreani, OCA, etc.)
+  nroSeguimiento?: string;  // código de tracking
+  mensaje?: string;         // mensaje del proveedor para el comprador
+  fechaEnvio?: string;      // ISO datetime en que se marcó como enviado
+}
+
 export interface Pedido {
   id: string;
-  compradorId: string;
+  compradorId: string;             // uid de quien compra (profesional o cliente)
+  compradorNombre?: string;        // nombre visible del comprador (para el panel del proveedor)
+  compradorRol?: UserRole;         // rol de quien compra (profesional | cliente)
+  proveedorId: string;             // uid del proveedor al que pertenece el pedido
+  proveedorNombre?: string;        // razón social / nombre visible del proveedor
   fecha: string; // ISO
   estado: EstadoPedido;
   items: ItemPedido[];
   total: number;
   direccionEnvio?: string;
+  envio?: InfoEnvio;               // datos de envío (se cargan al marcar 'enviado')
 }
 
 export interface DetalleCobro {

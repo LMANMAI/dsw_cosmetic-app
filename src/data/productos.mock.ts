@@ -8,7 +8,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 24,
     categoria: 'unas',
     descripcion: 'Esmalte profesional de larga duración. 15ml.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-2',
@@ -17,7 +18,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 8,
     categoria: 'pestanas_cejas',
     descripcion: 'Kit completo con paletas de silicona y adhesivo profesional.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-3',
@@ -26,7 +28,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 15,
     categoria: 'pestanas_cejas',
     descripcion: 'Henna profesional, rinde 15-20 sesiones.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-4',
@@ -35,7 +38,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 12,
     categoria: 'corporal',
     descripcion: 'Mezcla de aceites esenciales para masajes terapéuticos.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-5',
@@ -44,7 +48,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 40,
     categoria: 'unas',
     descripcion: 'Lima reutilizable, no daña la lámina.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-6',
@@ -53,7 +58,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 18,
     categoria: 'unas',
     descripcion: 'Removedor sin acetona para uso profesional.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-7',
@@ -62,7 +68,8 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 6,
     categoria: 'pestanas_cejas',
     descripcion: 'Pinza italiana de alta precisión.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
   {
     id: 'p-8',
@@ -71,6 +78,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 22,
     categoria: 'pestanas_cejas',
     descripcion: 'Tintura permanente para pestañas. 15ml.',
-    proveedor: 'Almacén BeautyApp',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén BeautyApp',
   },
 ];

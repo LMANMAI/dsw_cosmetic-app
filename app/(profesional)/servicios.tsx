@@ -428,7 +428,7 @@ export default function ServiciosScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={() => router.navigate('/(profesional)/perfil')} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
           </Pressable>
         </View>

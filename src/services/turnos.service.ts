@@ -92,6 +92,14 @@ export const turnosService = {
     return { id: snap.id, ...snap.data() } as Turno;
   },
 
+  /** Actualiza la anticipación del recordatorio al cliente para un turno. */
+  async actualizarRecordatorio(
+    turnoId: string,
+    recordatorioCliente: NonNullable<Turno['recordatorioCliente']>,
+  ): Promise<void> {
+    await updateDoc(doc(db, COLLECTION, turnoId), { recordatorioCliente });
+  },
+
   /** Marca un turno como cancelado. */
   async cancelar(turnoId: string): Promise<void> {
     const ref = doc(db, COLLECTION, turnoId);

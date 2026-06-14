@@ -49,8 +49,9 @@ export default function MisTurnosScreen() {
       list.sort((a, b) => (prioridad[a.estado] ?? 9) - (prioridad[b.estado] ?? 9));
       setItems(list);
       setTurnosValorados(valorados);
-      // Reprogramar recordatorios locales según los turnos vigentes (no bloquea la UI)
-      notificacionesService.sincronizarRecordatorios(list, user.preferencias).catch(() => {});
+      // Los recordatorios ahora los envía el servidor (Cloud Function), así que
+      // limpiamos los recordatorios locales para no duplicar avisos.
+      notificacionesService.cancelarTodos().catch(() => {});
     } finally {
       setLoading(false);
     }

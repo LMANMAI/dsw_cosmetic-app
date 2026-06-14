@@ -114,10 +114,38 @@ export default function AgendaScreen() {
   const totalPendientes = items.filter((t) => t.estado === 'pendiente').length + pendientesFuturos.length;
   const confirmados = items.filter((t) => t.estado === 'confirmado').length;
 
+  const RECORDATORIO_OPCIONES: { label: string; value: NonNullable<Turno['recordatorioCliente']> }[] = [
+    { label: '1h antes', value: '1h' },
+    { label: '2h antes', value: '2h' },
+    { label: '24h antes', value: '24h' },
+    { label: 'Sin recordatorio', value: 'off' },
+  ];
+
+  const recordatorioLabel = (t: Turno) =>
+    RECORDATORIO_OPCIONES.find((o) => o.value === (t.recordatorioCliente ?? '24h'))?.label ?? '24h antes';
+
+  const elegirRecordatorio = (turno: Turno) => {
+    Alert.alert(
+      'Recordatorio al cliente',
+      `Cuánto antes le avisamos a ${turno.clienteNombre}.\nActual: ${recordatorioLabel(turno)}`,
+      [
+        ...RECORDATORIO_OPCIONES.map((opt) => ({
+          text: opt.label,
+          onPress: async () => {
+            await turnosService.actualizarRecordatorio(turno.id, opt.value);
+            cargar();
+          },
+        })),
+        { text: 'Cancelar', style: 'cancel' as const },
+      ],
+    );
+  };
+
   const accionarTurno = (turno: Turno) => {
     if (turno.estado === 'pendiente') {
       Alert.alert('Confirmar turno', `¿Confirmar el turno de ${turno.clienteNombre}?`, [
         { text: 'Cancelar', style: 'cancel' },
+        { text: 'Recordatorio al cliente', onPress: () => elegirRecordatorio(turno) },
         {
           text: 'Confirmar',
           onPress: async () => {
@@ -130,12 +158,13 @@ export default function AgendaScreen() {
     }
     if (turno.estado === 'confirmado') {
       Alert.alert(
-        'Registrar pago',
+        'Turno confirmado',
         `Cliente: ${turno.clienteNombre}\nMonto: ${formatARS(turno.monto)}`,
         [
-          { text: 'Efectivo', onPress: () => completar(turno, 'efectivo') },
-          { text: 'Transferencia', onPress: () => completar(turno, 'transferencia') },
-          { text: 'Mercado Pago', onPress: () => completar(turno, 'mercado_pago') },
+          { text: 'Cobrar en efectivo', onPress: () => completar(turno, 'efectivo') },
+          { text: 'Cobrar por transferencia', onPress: () => completar(turno, 'transferencia') },
+          { text: 'Cobrar con Mercado Pago', onPress: () => completar(turno, 'mercado_pago') },
+          { text: 'Recordatorio al cliente', onPress: () => elegirRecordatorio(turno) },
           { text: 'Cancelar', style: 'cancel' },
         ],
       );

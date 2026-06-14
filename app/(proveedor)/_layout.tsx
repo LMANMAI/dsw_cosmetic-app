@@ -45,12 +45,39 @@ export default function ProveedorLayout() {
         }}
       />
       <Tabs.Screen
+        name="pedidos"
+        options={{
+          title: 'Pedidos',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="receipt-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="editar-comercio"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
+      <Tabs.Screen
+        name="centro-ayuda"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
+      <Tabs.Screen
+        name="terminos"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
         }}
       />
     </Tabs>

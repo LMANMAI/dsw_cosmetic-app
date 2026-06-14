@@ -250,7 +250,7 @@ export default function HorariosScreen() {
     await disponibilidadService.guardar(profesionalId, slots);
     setSaving(false);
     Alert.alert('Agenda guardada', 'Tus horarios ya están disponibles para tus clientes.', [
-      { text: 'Genial', onPress: () => router.back() },
+      { text: 'Genial', onPress: () => router.navigate('/(profesional)/perfil') },
     ]);
   };
 
@@ -269,7 +269,7 @@ export default function HorariosScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.huge }}>
         {/* Header con botón atrás */}
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={() => router.navigate('/(profesional)/perfil')} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
           </Pressable>
         </View>

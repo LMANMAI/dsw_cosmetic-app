@@ -130,7 +130,7 @@ export default function EditarNegocioScreen() {
       }
       await updateUser(updatePayload);
       Alert.alert('Guardado', 'Los datos del negocio se actualizaron correctamente.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => router.navigate('/(profesional)/perfil') },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'No se pudo guardar.');
@@ -149,7 +149,7 @@ export default function EditarNegocioScreen() {
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Header con botón atrás */}
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Pressable onPress={() => router.navigate('/(profesional)/perfil')} style={styles.backBtn} hitSlop={12}>
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
           <ScreenHeader eyebrow="Tu negocio" title="Editar datos del negocio" />

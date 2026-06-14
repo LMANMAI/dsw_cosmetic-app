@@ -1,25 +1,44 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
 import { useTheme, radius, spacing } from '@/theme';
 import { confirm } from '@/utils/confirm';
-import type { PerfilProveedor } from '@/types/models';
+import { PREFERENCIAS_PROVEEDOR_DEFAULT, type PerfilProveedor } from '@/types/models';
 
 export default function PerfilProveedorScreen() {
   const { colors } = useTheme();
-  const { user, logout } = useSession();
+  const router = useRouter();
+  const { user, logout, updateUser } = useSession();
   const perfil = user?.perfil as PerfilProveedor | undefined;
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const [aceptaPedidos, setAceptaPedidos] = useState(true);
-  const [envioPropio, setEnvioPropio] = useState(true);
-  const [retiroLocal, setRetiroLocal] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailPedidos, setEmailPedidos] = useState(true);
+  const [aceptaPedidos, setAceptaPedidos] = useState(perfil?.aceptaPedidos ?? PREFERENCIAS_PROVEEDOR_DEFAULT.aceptaPedidos);
+  const [envioPropio, setEnvioPropio] = useState(perfil?.envioPropio ?? PREFERENCIAS_PROVEEDOR_DEFAULT.envioPropio);
+  const [retiroLocal, setRetiroLocal] = useState(perfil?.retiroLocal ?? PREFERENCIAS_PROVEEDOR_DEFAULT.retiroLocal);
+  const [pushEnabled, setPushEnabled] = useState(perfil?.notifPush ?? PREFERENCIAS_PROVEEDOR_DEFAULT.notifPush);
+  const [emailPedidos, setEmailPedidos] = useState(perfil?.emailPedidos ?? PREFERENCIAS_PROVEEDOR_DEFAULT.emailPedidos);
+
+  // Cambia un toggle en local y lo persiste en el perfil (Firestore).
+  const guardarPref = (cambios: Partial<PerfilProveedor>) => {
+    if (!perfil) return;
+    updateUser({ perfil: { ...perfil, ...cambios } }).catch(() => {
+      Alert.alert('No se pudo guardar', 'Revisá tu conexión e intentá de nuevo.');
+    });
+  };
+
+  const togglePref = (
+    setLocal: (v: boolean) => void,
+    key: keyof PerfilProveedor,
+    value: boolean,
+  ) => {
+    setLocal(value);
+    guardarPref({ [key]: value } as Partial<PerfilProveedor>);
+  };
 
   const confirmarLogout = async () => {
     const ok = await confirm({
@@ -53,6 +72,9 @@ export default function PerfilProveedorScreen() {
             <DataRow label="Razon social" value={perfil.razonSocial} styles={styles} />
             <DataRow label="CUIT" value={perfil.cuit} styles={styles} />
             <DataRow label="Rubro" value={perfil.rubro} styles={styles} />
+            {perfil.direccion ? (
+              <DataRow label="Direccion" value={perfil.direccion} styles={styles} />
+            ) : null}
             <DataRow label="Ciudad" value={perfil.ciudad} styles={styles} />
           </View>
         ) : null}
@@ -61,21 +83,15 @@ export default function PerfilProveedorScreen() {
           <SettingsRow
             icon="business-outline"
             label="Datos del comercio"
-            description="Razon social, CUIT, direccion"
-            onPress={() => Alert.alert('Proximamente', 'Edicion de datos del comercio.')}
+            description="Razon social, CUIT, rubro, direccion"
+            onPress={() => router.navigate('/(proveedor)/editar-comercio')}
           />
           <SettingsRow
             icon="cube-outline"
             label="Catalogo de productos"
             description="Crear, editar precios y stock"
-            onPress={() => Alert.alert('Catalogo', 'Anda a la pestana Productos abajo.')}
-          />
-          <SettingsRow
-            icon="cash-outline"
-            label="Datos bancarios"
-            description="CBU, alias para recibir cobros"
             isLast
-            onPress={() => Alert.alert('Proximamente', 'Datos bancarios.')}
+            onPress={() => router.navigate('/(proveedor)/productos')}
           />
         </SettingsGroup>
 
@@ -85,20 +101,20 @@ export default function PerfilProveedorScreen() {
             label="Acepto pedidos"
             description="Si esta apagado, no aparecemos en busqueda"
             toggle={aceptaPedidos}
-            onToggle={setAceptaPedidos}
+            onToggle={(v) => togglePref(setAceptaPedidos, 'aceptaPedidos', v)}
           />
           <SettingsRow
             icon="bicycle-outline"
             label="Envio propio"
             description="Llevas los pedidos vos"
             toggle={envioPropio}
-            onToggle={setEnvioPropio}
+            onToggle={(v) => togglePref(setEnvioPropio, 'envioPropio', v)}
           />
           <SettingsRow
             icon="location-outline"
             label="Retiro en local"
             toggle={retiroLocal}
-            onToggle={setRetiroLocal}
+            onToggle={(v) => togglePref(setRetiroLocal, 'retiroLocal', v)}
             isLast
           />
         </SettingsGroup>
@@ -109,13 +125,13 @@ export default function PerfilProveedorScreen() {
             label="Notificaciones push"
             description="Nuevos pedidos y mensajes"
             toggle={pushEnabled}
-            onToggle={setPushEnabled}
+            onToggle={(v) => togglePref(setPushEnabled, 'notifPush', v)}
           />
           <SettingsRow
             icon="mail-outline"
             label="Email por cada pedido"
             toggle={emailPedidos}
-            onToggle={setEmailPedidos}
+            onToggle={(v) => togglePref(setEmailPedidos, 'emailPedidos', v)}
             isLast
           />
         </SettingsGroup>
@@ -124,13 +140,13 @@ export default function PerfilProveedorScreen() {
           <SettingsRow
             icon="help-circle-outline"
             label="Centro de ayuda"
-            onPress={() => Alert.alert('Proximamente', 'Centro de ayuda.')}
+            onPress={() => router.navigate('/(proveedor)/centro-ayuda')}
           />
           <SettingsRow
             icon="shield-checkmark-outline"
             label="Terminos y privacidad"
             isLast
-            onPress={() => Alert.alert('Proximamente', 'Terminos y privacidad.')}
+            onPress={() => router.navigate('/(proveedor)/terminos')}
           />
         </SettingsGroup>
 

@@ -65,6 +65,24 @@ export const notificacionesService = {
     }
   },
 
+  /**
+   * Dispara una notificación local inmediata (p. ej. al entrar un pedido
+   * nuevo mientras la app está abierta). Pide permisos si hace falta.
+   */
+  async notificarLocal(title: string, body: string, data?: Record<string, unknown>): Promise<void> {
+    if (!soportado) return;
+    try {
+      const ok = await this.pedirPermisos();
+      if (!ok) return;
+      await Notifications.scheduleNotificationAsync({
+        content: { title, body, data: data ?? {} },
+        trigger: null, // inmediata
+      });
+    } catch {
+      // no bloqueamos la UI por errores de notificaciones
+    }
+  },
+
   /** Cancela todos los recordatorios programados. */
   async cancelarTodos(): Promise<void> {
     if (!soportado) return;

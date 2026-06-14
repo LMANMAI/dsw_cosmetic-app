@@ -71,7 +71,6 @@ export default function PerfilProfesionalScreen() {
   const [anticipo, setAnticipo] = useState<0 | 20 | 50 | 100>(perfil?.anticipoPorcentaje ?? 20);
   const [autoConfirmar, setAutoConfirmar] = useState(perfil?.autoConfirmarTurnos ?? false);
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [recordatorioCliente, setRecordatorioCliente] = useState('24h antes');
 
   const elegirAnticipo = () => {
     Alert.alert(
@@ -90,17 +89,6 @@ export default function PerfilProfesionalScreen() {
           }
         },
       })).concat([{ text: 'Cancelar', onPress: async () => {} }]),
-    );
-  };
-
-  const elegirRecordatorio = () => {
-    Alert.alert(
-      'Recordatorio al cliente',
-      'Cuanto antes le avisamos.',
-      ['1h antes', '2h antes', '24h antes'].map((opt) => ({
-        text: opt,
-        onPress: () => setRecordatorioCliente(opt),
-      })).concat([{ text: 'Cancelar', onPress: () => {} }]),
     );
   };
 
@@ -220,14 +208,8 @@ export default function PerfilProfesionalScreen() {
             icon="cash-outline"
             label="Anticipo al reservar"
             value={anticipoLabel(anticipo)}
-            onPress={elegirAnticipo}
-          />
-          <SettingsRow
-            icon="alarm-outline"
-            label="Recordatorio al cliente"
-            value={recordatorioCliente}
             isLast
-            onPress={elegirRecordatorio}
+            onPress={elegirAnticipo}
           />
         </SettingsGroup>
 

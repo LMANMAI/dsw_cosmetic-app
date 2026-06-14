@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { CartProvider } from '@/context/CartContext';
+import { useRegistrarPush } from '@/hooks/useRegistrarPush';
 import { ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -18,6 +19,9 @@ function AuthGate() {
   const { user, loading } = useSession();
   const segments = useSegments();
   const router = useRouter();
+
+  // Registra el token de push del dispositivo cuando hay sesión.
+  useRegistrarPush(user?.id ?? '');
 
   useEffect(() => {
     if (loading) return;

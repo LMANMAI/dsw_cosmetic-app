@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,50 +16,59 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
-import { productosService } from '@/services';
+import { productosService, catalogoService } from '@/services';
+import { uploadImage } from '@/services/upload.service';
 import { useTheme, radius, spacing } from '@/theme';
 import { formatARS } from '@/utils/format';
-import type { PerfilProveedor, Producto } from '@/types/models';
-
-const CATEGORIAS = ['Uñas', 'Cabello', 'Maquillaje', 'Skincare', 'Equipamiento', 'Otros'];
+import type { Categoria, PerfilProveedor, Producto } from '@/types/models';
 
 export default function ProductosProveedorScreen() {
   const { colors } = useTheme();
   const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const proveedorId = user?.id ?? '';
   const proveedorNombre = useMemo(
     () => (user?.perfil as PerfilProveedor | undefined)?.razonSocial ?? user?.nombre ?? '',
     [user],
   );
 
   const [items, setItems] = useState<Producto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Producto | null>(null);
   const [creating, setCreating] = useState(false);
 
+  useEffect(() => {
+    catalogoService.listarCategorias().then(setCategorias);
+  }, []);
+
   const refresh = useCallback(async () => {
-    if (!proveedorNombre) return;
+    if (!proveedorId) return;
     setLoading(true);
     try {
-      const list = await productosService.listarDelProveedor(proveedorNombre);
+      const list = await productosService.listarDelProveedor(proveedorId);
       setItems(list);
     } finally {
       setLoading(false);
     }
-  }, [proveedorNombre]);
+  }, [proveedorId]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  const onSave = async (data: Omit<Producto, 'id'>, id?: string) => {
+  const onSave = async (
+    data: Omit<Producto, 'id' | 'proveedorId' | 'proveedorNombre'>,
+    id?: string,
+  ) => {
     if (id) {
       await productosService.actualizar(id, data);
     } else {
-      await productosService.crear({ ...data, proveedor: proveedorNombre });
+      await productosService.crear({ ...data, proveedorId, proveedorNombre });
     }
     setEditing(null);
     setCreating(false);
@@ -109,6 +119,7 @@ export default function ProductosProveedorScreen() {
           renderItem={({ item }) => (
             <ProductRow
               producto={item}
+              categorias={categorias}
               onPress={() => setEditing(item)}
               onAdjust={(d) => onAdjustStock(item, d)}
               onDelete={() => onDelete(item)}
@@ -135,6 +146,7 @@ export default function ProductosProveedorScreen() {
       <ProductEditor
         visible={creating || !!editing}
         producto={editing}
+        categorias={categorias}
         onClose={() => {
           setCreating(false);
           setEditing(null);
@@ -151,6 +163,7 @@ export default function ProductosProveedorScreen() {
 
 function ProductRow({
   producto,
+  categorias,
   onPress,
   onAdjust,
   onDelete,
@@ -158,6 +171,7 @@ function ProductRow({
   styles,
 }: {
   producto: Producto;
+  categorias: Categoria[];
   onPress: () => void;
   onAdjust: (delta: number) => void;
   onDelete: () => void;
@@ -166,11 +180,12 @@ function ProductRow({
 }) {
   const stockTone =
     producto.stock === 0 ? colors.danger : producto.stock < 5 ? colors.warning : colors.success;
+  const cat = categorias.find((c) => c.slug === producto.categoria);
   return (
     <Pressable onPress={onPress} onLongPress={onDelete} style={styles.card}>
       <View style={{ flex: 1 }}>
         <Text style={styles.cardTitle}>{producto.nombre}</Text>
-        <Text style={styles.cardCat}>{producto.categoria}</Text>
+        <Text style={styles.cardCat}>{cat ? `${cat.emoji} ${cat.nombre}` : producto.categoria}</Text>
         <View style={styles.cardMeta}>
           <Text style={styles.cardPrice}>{formatARS(producto.precio)}</Text>
           <View style={[styles.stockPill, { backgroundColor: `${stockTone}22` }]}>
@@ -204,32 +219,58 @@ function ProductRow({
 interface EditorProps {
   visible: boolean;
   producto: Producto | null;
+  categorias: Categoria[];
   onClose: () => void;
-  onSave: (data: Omit<Producto, 'id'>, id?: string) => Promise<void> | void;
+  onSave: (data: Omit<Producto, 'id' | 'proveedorId' | 'proveedorNombre'>, id?: string) => Promise<void> | void;
   onDelete?: () => void;
   colors: ReturnType<typeof import('@/theme').useTheme>['colors'];
   styles: ReturnType<typeof createStyles>;
 }
 
-function ProductEditor({ visible, producto, onClose, onSave, onDelete, colors, styles }: EditorProps) {
+function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelete, colors, styles }: EditorProps) {
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
   const [stock, setStock] = useState('');
-  const [categoria, setCategoria] = useState(CATEGORIAS[0]);
+  const [categoria, setCategoria] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [imagenUrl, setImagenUrl] = useState('');
+  const [imagenUri, setImagenUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [subiendo, setSubiendo] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setNombre(producto?.nombre ?? '');
       setPrecio(producto?.precio?.toString() ?? '');
       setStock(producto?.stock?.toString() ?? '0');
-      setCategoria(producto?.categoria ?? CATEGORIAS[0]);
+      setCategoria(producto?.categoria ?? '');
       setDescripcion(producto?.descripcion ?? '');
-      setImagenUrl(producto?.imagenUrl ?? '');
+      setImagenUri(producto?.imagenUrl ?? null);
     }
   }, [visible, producto]);
+
+  // Categoría por defecto cuando cargan las categorías y todavía no hay una elegida.
+  useEffect(() => {
+    if (visible && !categoria && categorias.length) {
+      setCategoria(producto?.categoria ?? categorias[0].slug);
+    }
+  }, [visible, categoria, categorias, producto]);
+
+  const elegirImagen = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para subir la foto.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImagenUri(result.assets[0].uri);
+    }
+  };
 
   const handleSave = async () => {
     if (!nombre.trim()) {
@@ -246,8 +287,29 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete, colors, s
       Alert.alert('Stock inválido', 'Ingresá un número mayor o igual a 0.');
       return;
     }
+    if (!categoria) {
+      Alert.alert('Falta la categoría', 'Elegí una categoría para el producto.');
+      return;
+    }
     setSaving(true);
     try {
+      // Si la imagen es un archivo local recién elegido, lo subimos a Cloudinary.
+      let imagenUrl = producto?.imagenUrl;
+      if (imagenUri && !/^https?:\/\//.test(imagenUri)) {
+        setSubiendo(true);
+        try {
+          imagenUrl = await uploadImage(imagenUri, 'productos');
+        } catch (e) {
+          console.warn('[productos] upload error', e);
+          Alert.alert('Error al subir la imagen', 'Probá de nuevo en unos segundos.');
+          return;
+        } finally {
+          setSubiendo(false);
+        }
+      } else {
+        imagenUrl = imagenUri ?? undefined;
+      }
+
       await onSave(
         {
           nombre: nombre.trim(),
@@ -255,7 +317,7 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete, colors, s
           stock: stockNum,
           categoria,
           descripcion: descripcion.trim() || undefined,
-          imagenUrl: imagenUrl.trim() || undefined,
+          imagenUrl,
         },
         producto?.id,
       );
@@ -311,17 +373,19 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete, colors, s
               </Field>
             </View>
 
-            <Field label="Categoría" colors={colors} styles={styles}>
+            <Field label="Categoría" required colors={colors} styles={styles}>
               <View style={styles.chipsRow}>
-                {CATEGORIAS.map((c) => {
-                  const active = categoria === c;
+                {categorias.map((c) => {
+                  const active = categoria === c.slug;
                   return (
                     <Pressable
-                      key={c}
-                      onPress={() => setCategoria(c)}
+                      key={c.slug}
+                      onPress={() => setCategoria(c.slug)}
                       style={[styles.chip, active && styles.chipActive]}
                     >
-                      <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{c}</Text>
+                      <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+                        {c.emoji} {c.nombre}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -339,23 +403,37 @@ function ProductEditor({ visible, producto, onClose, onSave, onDelete, colors, s
               />
             </Field>
 
-            <Field label="URL de imagen (opcional)" colors={colors} styles={styles}>
-              <TextInput
-                style={styles.input}
-                value={imagenUrl}
-                onChangeText={setImagenUrl}
-                placeholder="https://..."
-                placeholderTextColor={colors.muted}
-                autoCapitalize="none"
-              />
+            <Field label="Imagen (opcional)" colors={colors} styles={styles}>
+              <Pressable style={styles.imagePicker} onPress={elegirImagen}>
+                {imagenUri ? (
+                  <Image source={{ uri: imagenUri }} style={styles.imagePreview} resizeMode="cover" />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="camera-outline" size={28} color={colors.muted} />
+                    <Text style={styles.imagePlaceholderText}>Tocá para elegir una foto</Text>
+                  </View>
+                )}
+              </Pressable>
+              {imagenUri ? (
+                <Pressable onPress={() => setImagenUri(null)} hitSlop={8} style={styles.removeImageLink}>
+                  <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                  <Text style={styles.removeImageText}>Quitar imagen</Text>
+                </Pressable>
+              ) : null}
             </Field>
 
             <View style={{ height: spacing.lg }} />
             <Button
               variant="dark"
-              label={producto ? 'Guardar cambios' : 'Crear producto'}
+              label={
+                subiendo
+                  ? 'Subiendo imagen...'
+                  : producto
+                    ? 'Guardar cambios'
+                    : 'Crear producto'
+              }
               onPress={handleSave}
-              loading={saving}
+              loading={saving || subiendo}
               fullWidth
             />
             {onDelete ? (
@@ -511,6 +589,30 @@ const createStyles = (colors: ReturnType<typeof import('@/theme').useTheme>['col
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     chipLabel: { fontSize: 12, fontWeight: '600', color: colors.muted },
     chipLabelActive: { color: colors.white },
+    imagePicker: {
+      borderRadius: radius.md,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: colors.bone3,
+      borderStyle: 'dashed',
+      backgroundColor: colors.bone,
+    },
+    imagePreview: { width: '100%', height: 160, borderRadius: radius.md },
+    imagePlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xxl,
+      gap: spacing.sm,
+    },
+    imagePlaceholderText: { fontSize: 13, color: colors.muted, fontWeight: '500' },
+    removeImageLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+      marginTop: spacing.sm,
+    },
+    removeImageText: { fontSize: 12, color: colors.danger, fontWeight: '600' },
     deleteLink: {
       flexDirection: 'row',
       alignItems: 'center',
