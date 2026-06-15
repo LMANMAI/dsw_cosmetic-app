@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,23 +15,43 @@ import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
-import { turnosService } from '@/services';
-import { colors, radius, spacing } from '@/theme';
+import { turnosService, valoracionesService, notificacionesService } from '@/services';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 import { formatARS, formatFecha } from '@/utils/format';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 
 export default function MisTurnosScreen() {
+  const { colors } = useTheme();
   const { user } = useSession();
   const [items, setItems] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState<{ turno: Turno; stars: number } | null>(null);
+  const [turnosValorados, setTurnosValorados] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const list = await turnosService.listarDelCliente(user.id);
+      const [list, valorados] = await Promise.all([
+        turnosService.listarDelCliente(user.id),
+        valoracionesService.turnosValoradosPorCliente(user.id).catch(() => new Set<string>()),
+      ]);
+      // Ordenar: pendiente_pago > pendiente > confirmado > completado > cancelado/no_asistio
+      const prioridad: Record<string, number> = {
+        pendiente_pago: 0,
+        pendiente: 1,
+        confirmado: 2,
+        completado: 3,
+        cancelado: 4,
+        no_asistio: 5,
+      };
+      list.sort((a, b) => (prioridad[a.estado] ?? 9) - (prioridad[b.estado] ?? 9));
       setItems(list);
+      setTurnosValorados(valorados);
+      // Los recordatorios ahora los envía el servidor (Cloud Function), así que
+      // limpiamos los recordatorios locales para no duplicar avisos.
+      notificacionesService.cancelarTodos().catch(() => {});
     } finally {
       setLoading(false);
     }
@@ -85,16 +105,50 @@ export default function MisTurnosScreen() {
     );
   };
 
+  const onPagarSena = (t: Turno) => {
+    Alert.alert(
+      'Pagar seña',
+      `Abonar ${formatARS(t.montoSena ?? 0)} con MercadoPago para confirmar tu turno.`,
+      [
+        {
+          text: 'Pagar con MercadoPago',
+          onPress: async () => {
+            // TODO: Integrar MercadoPago Checkout Pro
+            await turnosService.confirmarPagoSena(t.id);
+            Alert.alert('¡Seña pagada!', 'Tu turno fue confirmado.');
+            refresh();
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
+  };
+
   const onPuntuar = (t: Turno) => {
     setRating({ turno: t, stars: 5 });
   };
 
-  const guardarRating = () => {
-    if (!rating) return;
-    // TODO: persistir en backend cuando exista el endpoint de reseñas.
-    Alert.alert('¡Gracias!', `Calificaste con ${rating.stars} estrellas.`);
-    setRating(null);
+  const guardarRating = async () => {
+    if (!rating || !user) return;
+    try {
+      await valoracionesService.crear({
+        profesionalId: rating.turno.profesionalId,
+        clienteId: user.id,
+        clienteNombre: user.nombre ?? '',
+        turnoId: rating.turno.id,
+        puntuacion: rating.stars as 1 | 2 | 3 | 4 | 5,
+        fecha: new Date().toISOString().slice(0, 10),
+      });
+      Alert.alert('¡Gracias!', `Calificaste con ${rating.stars} estrellas.`);
+      setTurnosValorados((prev) => new Set(prev).add(rating.turno.id));
+    } catch (e: any) {
+      Alert.alert('Aviso', e.message ?? 'No se pudo guardar la valoración.');
+    } finally {
+      setRating(null);
+    }
   };
+
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -107,7 +161,7 @@ export default function MisTurnosScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.rose} style={{ marginTop: spacing.xxl }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
       ) : (
         <FlatList
           data={items}
@@ -116,7 +170,9 @@ export default function MisTurnosScreen() {
           renderItem={({ item }) => (
             <TurnoCard
               turno={item}
+              yaValorado={turnosValorados.has(item.id)}
               onPagar={() => onPagar(item)}
+              onPagarSena={() => onPagarSena(item)}
               onCancelar={() => onCancelar(item)}
               onReprogramar={() => onReprogramar(item)}
               onPuntuar={() => onPuntuar(item)}
@@ -149,23 +205,65 @@ export default function MisTurnosScreen() {
 
 function TurnoCard({
   turno,
+  yaValorado,
   onPagar,
+  onPagarSena,
   onCancelar,
   onReprogramar,
   onPuntuar,
 }: {
   turno: Turno;
+  yaValorado: boolean;
   onPagar: () => void;
+  onPagarSena: () => void;
   onCancelar: () => void;
   onReprogramar: () => void;
   onPuntuar: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const ya_pagado = turno.estado === 'completado';
+
+  const renderAcciones = () => {
+    if (turno.estado === 'pendiente_pago') {
+      return (
+        <>
+          <ActionBtn icon="card-outline" label={`Pagar seña ${formatARS(turno.montoSena ?? 0)}`} onPress={onPagarSena} primary />
+          <ActionBtn icon="close-outline" label="Cancelar" onPress={onCancelar} danger />
+        </>
+      );
+    }
+    if (ya_pagado) {
+      return yaValorado ? (
+        <View style={[styles.actionBtn, { backgroundColor: colors.background, borderColor: colors.bone3 }]}>
+          <Ionicons name="star" size={14} color={colors.warning} />
+          <Text style={[styles.actionLabel, { color: colors.muted }]}>Ya valorado</Text>
+        </View>
+      ) : (
+        <ActionBtn icon="star-outline" label="Puntuar" onPress={onPuntuar} primary />
+      );
+    }
+    if (turno.estado === 'cancelado' || turno.estado === 'no_asistio') return null;
+    // Si tiene seña pendiente de pago, mostrar "Pagar seña"
+    const senaPendiente = (turno.montoSena ?? 0) > 0 && !turno.senaPagada;
+    return (
+      <>
+        {senaPendiente ? (
+          <ActionBtn icon="card-outline" label={`Pagar seña ${formatARS(turno.montoSena ?? 0)}`} onPress={onPagarSena} primary />
+        ) : (
+          <ActionBtn icon="card-outline" label="Pagar" onPress={onPagar} primary />
+        )}
+        <ActionBtn icon="calendar-outline" label="Reprogramar" onPress={onReprogramar} />
+        <ActionBtn icon="close-outline" label="Cancelar" onPress={onCancelar} danger />
+      </>
+    );
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <Text style={styles.cardTitle}>{turno.servicioNombre}</Text>
-        <Badge label={turno.estado} tone={badgeTone(turno.estado)} />
+        <Badge label={badgeLabel(turno.estado)} tone={badgeTone(turno.estado)} />
       </View>
       <View style={styles.row}>
         <Ionicons name="calendar-outline" size={16} color={colors.muted} />
@@ -183,15 +281,7 @@ function TurnoCard({
 
       {/* Acciones */}
       <View style={styles.actionsRow}>
-        {ya_pagado ? (
-          <ActionBtn icon="star-outline" label="Puntuar" onPress={onPuntuar} primary />
-        ) : turno.estado === 'cancelado' || turno.estado === 'no_asistio' ? null : (
-          <>
-            <ActionBtn icon="card-outline" label="Pagar" onPress={onPagar} primary />
-            <ActionBtn icon="calendar-outline" label="Reprogramar" onPress={onReprogramar} />
-            <ActionBtn icon="close-outline" label="Cancelar" onPress={onCancelar} danger />
-          </>
-        )}
+        {renderAcciones()}
       </View>
     </View>
   );
@@ -210,8 +300,10 @@ function ActionBtn({
   primary?: boolean;
   danger?: boolean;
 }) {
-  const bg = primary ? colors.ink : danger ? 'transparent' : colors.bone;
-  const fg = primary ? colors.white : danger ? colors.danger : colors.ink;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const bg = primary ? colors.ink : danger ? 'transparent' : colors.background;
+  const fg = primary ? colors.surface : danger ? colors.danger : colors.ink;
   const border = primary ? colors.ink : danger ? colors.danger : colors.bone3;
   return (
     <Pressable
@@ -228,11 +320,18 @@ function ActionBtn({
   );
 }
 
+function badgeLabel(estado: EstadoTurno): string {
+  if (estado === 'pendiente_pago') return 'Pendiente de pago';
+  return estado;
+}
+
 function badgeTone(estado: EstadoTurno) {
   switch (estado) {
     case 'confirmado':
       return 'success' as const;
     case 'pendiente':
+      return 'warning' as const;
+    case 'pendiente_pago':
       return 'warning' as const;
     case 'completado':
       return 'info' as const;
@@ -261,6 +360,8 @@ function RatingModal({
   onSubmit: () => void;
   servicio: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -290,15 +391,15 @@ function RatingModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   headerWrap: { paddingHorizontal: spacing.xxl, paddingTop: spacing.lg },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     gap: spacing.sm,
   },
   cardHead: {
@@ -307,15 +408,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.ink, flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: c.ink, flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  meta: { fontSize: 14, color: colors.muted, textTransform: 'capitalize' },
+  meta: { fontSize: 14, color: c.muted, textTransform: 'capitalize' },
   empty: {
     alignItems: 'center',
     paddingVertical: spacing.huge,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  emptyText: { fontSize: 14, color: colors.muted, marginTop: 6, textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: c.ink },
+  emptyText: { fontSize: 14, color: c.muted, marginTop: 6, textAlign: 'center' },
   actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -345,13 +446,13 @@ const styles = StyleSheet.create({
   },
   ratingCard: {
     width: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.xl,
     padding: spacing.xxl,
     alignItems: 'center',
   },
-  ratingTitle: { fontSize: 18, fontWeight: '700', color: colors.ink, textAlign: 'center' },
-  ratingSub: { fontSize: 13, color: colors.muted, marginTop: 6, textAlign: 'center' },
+  ratingTitle: { fontSize: 18, fontWeight: '700', color: c.ink, textAlign: 'center' },
+  ratingSub: { fontSize: 13, color: c.muted, marginTop: 6, textAlign: 'center' },
   starsRow: {
     flexDirection: 'row',
     gap: spacing.sm,

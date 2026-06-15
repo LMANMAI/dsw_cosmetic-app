@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -15,9 +15,11 @@ import { useRouter } from 'expo-router';
 import { Button } from '@/components/Button';
 import { AuthCard, AuthHero, AuthInput } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
-import { colors, spacing } from '@/theme';
+import { useTheme, spacing } from '@/theme';
 
 export default function ForgotPasswordScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { sendPasswordReset } = useSession();
   const [email, setEmail] = useState('');
@@ -63,7 +65,7 @@ export default function ForgotPasswordScreen() {
           >
             <Text style={styles.title}>
               Recuperá{'\n'}
-              <Text style={{ color: colors.rose }}>tu acceso</Text>
+              <Text style={{ color: colors.primary }}>tu acceso</Text>
             </Text>
             <Text style={styles.subtitle}>
               Te enviamos un enlace al mail para que crees una contraseña nueva.
@@ -120,42 +122,43 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -0.4,
-    lineHeight: 32,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.muted,
-    lineHeight: 20,
-    marginBottom: spacing.xl,
-  },
-  backLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    justifyContent: 'center',
-    marginTop: spacing.xl,
-  },
-  backLinkLabel: { fontSize: 13, color: colors.muted },
-  successCard: {
-    backgroundColor: colors.bone,
-    borderRadius: 20,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: 6,
-  },
-  successTitle: { fontSize: 18, fontWeight: '700', color: colors.ink, marginTop: 4 },
-  successText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-});
+const createStyles = (colors: ReturnType<typeof import('@/theme').useTheme>['colors']) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bone },
+    title: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: colors.ink,
+      letterSpacing: -0.4,
+      lineHeight: 32,
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.muted,
+      lineHeight: 20,
+      marginBottom: spacing.xl,
+    },
+    backLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      justifyContent: 'center',
+      marginTop: spacing.xl,
+    },
+    backLinkLabel: { fontSize: 13, color: colors.muted },
+    successCard: {
+      backgroundColor: colors.bone,
+      borderRadius: 20,
+      padding: spacing.xl,
+      alignItems: 'center',
+      gap: 6,
+    },
+    successTitle: { fontSize: 18, fontWeight: '700', color: colors.ink, marginTop: 4 },
+    successText: {
+      fontSize: 13,
+      color: colors.muted,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+  });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '@/theme';
+import { useTheme, spacing } from '@/theme';
 
 interface ScreenHeaderProps {
   eyebrow?: string;
@@ -11,16 +11,17 @@ interface ScreenHeaderProps {
 }
 
 export function ScreenHeader({ eyebrow, title, subtitle, variant = 'light', right }: ScreenHeaderProps) {
+  const { colors } = useTheme();
   const isDark = variant === 'dark';
   return (
     <View style={styles.wrap}>
       <View style={{ flex: 1 }}>
         {eyebrow ? (
-          <Text style={[styles.eyebrow, { color: isDark ? colors.roseLight : colors.rose }]}>
+          <Text style={[styles.eyebrow, { color: isDark ? colors.primaryLight : colors.primary }]}>
             {eyebrow}
           </Text>
         ) : null}
-        <Text style={[styles.title, { color: isDark ? colors.white : colors.ink }]}>{title}</Text>
+        <Text style={[styles.title, { color: isDark ? '#F3F4F6' : colors.ink }]}>{title}</Text>
         {subtitle ? (
           <Text style={[styles.subtitle, { color: isDark ? colors.mutedDark : colors.muted }]}>
             {subtitle}

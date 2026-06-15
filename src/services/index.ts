@@ -1,6 +1,16 @@
 export { authService } from './auth.service';
 export type { SignupPayload } from './auth.service';
+export { catalogoService } from './catalogo.service';
+export { rubrosService } from './rubros.service';
+export { disponibilidadService } from './disponibilidad.service';
 export { profesionalesService } from './profesionales.service';
 export { turnosService } from './turnos.service';
+export { comisionesService } from './comisiones.service';
 export { productosService } from './productos.service';
+export { pedidosService } from './pedidos.service';
+export type { ItemCarrito, CrearPedidoInput } from './pedidos.service';
+export { pagosService, PAGOS_HABILITADOS } from './pagos.service';
+export type { EstadoPago } from './pagos.service';
+export { valoracionesService } from './valoraciones.service';
+export { notificacionesService, PREFERENCIAS_DEFAULT, RECORDATORIO_LABELS } from './notificaciones.service';
 export { API_BASE_URL, ApiError } from './api-client';

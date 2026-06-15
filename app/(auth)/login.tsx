@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -24,9 +24,11 @@ import {
 import { useSession } from '@/context/SessionContext';
 import { useGoogleSignIn } from '@/services/google-auth';
 import { DEMO_PASSWORD } from '@/services/demo-users';
-import { colors, radius, spacing } from '@/theme';
+import { useTheme, radius, spacing } from '@/theme';
+import type { ThemeColors } from '@/theme';
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const { loginWithEmail } = useSession();
   const [email, setEmail] = useState('');
@@ -69,6 +71,8 @@ export default function LoginScreen() {
     handleLogin(demoEmail, DEMO_PASSWORD);
   };
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
@@ -85,7 +89,7 @@ export default function LoginScreen() {
           >
             <Text style={styles.title}>
               Ingresa a tu{'\n'}
-              <Text style={{ color: colors.rose }}>BeautyApp</Text>
+              <Text style={{ color: colors.primary }}>Yopi</Text>
             </Text>
             <Text style={styles.subtitle}>
               Reserva turnos, gestiona tu agenda o vende insumos. Todo en un solo lugar.
@@ -121,7 +125,7 @@ export default function LoginScreen() {
               >
                 <View style={[styles.checkbox, remember && styles.checkboxOn]}>
                   {remember ? (
-                    <Ionicons name="checkmark" size={14} color={colors.white} />
+                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                   ) : null}
                 </View>
                 <Text style={styles.rememberLabel}>Recordarme</Text>
@@ -135,7 +139,7 @@ export default function LoginScreen() {
             </View>
 
             <Button
-              variant="dark"
+              variant="primary"
               label="Ingresar"
               onPress={() => handleLogin()}
               loading={loading}
@@ -154,7 +158,7 @@ export default function LoginScreen() {
 
             <View style={styles.demoBox}>
               <View style={styles.demoHeader}>
-                <Ionicons name="flash-outline" size={14} color={colors.rose} />
+                <Ionicons name="flash-outline" size={14} color={colors.primary} />
                 <Text style={styles.demoTitle}>Probar la app sin cuenta</Text>
               </View>
               <Text style={styles.demoHint}>
@@ -201,12 +205,15 @@ function DemoChip({
   icon: React.ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.demoChip, pressed && { opacity: 0.7 }]}
     >
-      <Ionicons name={icon} size={20} color={colors.rose} />
+      <Ionicons name={icon} size={20} color={colors.primary} />
       <Text style={styles.demoChipLabel}>{label}</Text>
     </Pressable>
   );
@@ -230,19 +237,19 @@ function mapAuthError(code?: string): string | null {
   }
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bone },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: colors.ink,
+    color: c.ink,
     letterSpacing: -0.4,
     lineHeight: 32,
     marginBottom: spacing.sm,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.muted,
+    color: c.muted,
     lineHeight: 20,
     marginBottom: spacing.xl,
   },
@@ -263,21 +270,21 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: colors.bone3,
+    borderColor: c.bone3,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
   },
   checkboxOn: {
-    backgroundColor: colors.rose,
-    borderColor: colors.rose,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
-  rememberLabel: { fontSize: 13, color: colors.ink },
-  forgotLabel: { fontSize: 13, color: colors.rose, fontWeight: '600' },
+  rememberLabel: { fontSize: 13, color: c.ink },
+  forgotLabel: { fontSize: 13, color: c.primary, fontWeight: '600' },
   demoBox: {
     marginTop: spacing.xl,
     padding: spacing.lg,
-    backgroundColor: colors.roseTint,
+    backgroundColor: c.primaryTint,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: 'rgba(184, 73, 104, 0.2)',
@@ -290,13 +297,13 @@ const styles = StyleSheet.create({
   demoTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.rose,
+    color: c.primary,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   demoHint: {
     fontSize: 12,
-    color: colors.muted,
+    color: c.muted,
     marginTop: 4,
     marginBottom: spacing.md,
     lineHeight: 16,
@@ -308,19 +315,19 @@ const styles = StyleSheet.create({
   demoChip: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.bone3,
+    borderColor: c.bone3,
     gap: 2,
   },
-  demoChipEmoji: { fontSize: 20, fontWeight: '700', color: colors.rose },
+  demoChipEmoji: { fontSize: 20, fontWeight: '700', color: c.primary },
   demoChipLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.ink,
+    color: c.ink,
   },
   footer: {
     flexDirection: 'row',
@@ -328,6 +335,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xl,
   },
-  footerText: { fontSize: 14, color: colors.muted },
-  footerLink: { fontSize: 14, color: colors.rose, fontWeight: '700' },
+  footerText: { fontSize: 14, color: c.muted },
+  footerLink: { fontSize: 14, color: c.primary, fontWeight: '700' },
 });

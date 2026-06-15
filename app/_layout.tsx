@@ -5,13 +5,23 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { CartProvider } from '@/context/CartContext';
+import { useRegistrarPush } from '@/hooks/useRegistrarPush';
+import { ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
 
 function AuthGate() {
   const { user, loading } = useSession();
   const segments = useSegments();
   const router = useRouter();
+
+  // Registra el token de push del dispositivo cuando hay sesión.
+  useRegistrarPush(user?.id ?? '');
 
   useEffect(() => {
     if (loading) return;
@@ -44,12 +54,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SessionProvider>
-          <CartProvider>
-            <StatusBar style="dark" />
-            <AuthGate />
-          </CartProvider>
-        </SessionProvider>
+        <ThemeProvider>
+          <SessionProvider>
+            <CartProvider>
+              <ThemedStatusBar />
+              <AuthGate />
+            </CartProvider>
+          </SessionProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
