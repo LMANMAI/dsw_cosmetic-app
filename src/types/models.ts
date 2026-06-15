@@ -222,6 +222,9 @@ export interface Disponibilidad {
   franjas: Franja[]; // una o más franjas horarias por día
 }
 
+/** Forma de entrega que ofrece el proveedor para un pedido. */
+export type MetodoEntrega = 'envio' | 'retiro';
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -232,6 +235,9 @@ export interface Producto {
   proveedorId: string;       // uid del proveedor dueño del producto
   proveedorNombre?: string;  // razón social / nombre visible del comercio
   descripcion?: string;
+  // Opciones de entrega del proveedor (denormalizadas para mostrar en la tienda)
+  entregaEnvio?: boolean;    // el proveedor hace envío propio
+  entregaRetiro?: boolean;   // se puede retirar en el local
 }
 
 export type EstadoPedido =
@@ -272,6 +278,8 @@ export interface Pedido {
   items: ItemPedido[];
   total: number;
   direccionEnvio?: string;
+  metodoEntrega?: MetodoEntrega;   // cómo eligió recibirlo el comprador
+  direccionRetiro?: string;        // dirección del local (se completa al pagarse, si es retiro)
   envio?: InfoEnvio;               // datos de envío (se cargan al marcar 'enviado')
 }
 

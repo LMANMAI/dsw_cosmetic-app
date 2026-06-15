@@ -9,7 +9,14 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { EstadoPedido, InfoEnvio, ItemPedido, Pedido, UserRole } from '@/types/models';
+import type {
+  EstadoPedido,
+  InfoEnvio,
+  ItemPedido,
+  MetodoEntrega,
+  Pedido,
+  UserRole,
+} from '@/types/models';
 
 const PEDIDOS = 'pedidos';
 const PRODUCTOS = 'productos';
@@ -24,6 +31,8 @@ export interface CrearPedidoInput {
   comprador: { id: string; nombre?: string; rol?: UserRole };
   items: ItemCarrito[];
   direccionEnvio?: string;
+  /** Método de entrega elegido por el comprador, por proveedor (uid). */
+  metodoPorProveedor?: Record<string, MetodoEntrega>;
 }
 
 function toPedido(id: string, data: any): Pedido {
@@ -39,6 +48,8 @@ function toPedido(id: string, data: any): Pedido {
     items: data.items ?? [],
     total: data.total,
     direccionEnvio: data.direccionEnvio,
+    metodoEntrega: data.metodoEntrega,
+    direccionRetiro: data.direccionRetiro,
     envio: data.envio,
   };
 }
@@ -89,6 +100,7 @@ export const pedidosService = {
         items: pedidoItems,
         total,
         direccionEnvio: input.direccionEnvio,
+        metodoEntrega: input.metodoPorProveedor?.[proveedorId],
       };
       await setDoc(pedidoRef, limpiar(data));
       creados.push(toPedido(pedidoRef.id, data));

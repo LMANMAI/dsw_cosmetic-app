@@ -79,17 +79,30 @@ exports.notificarPedidoProveedor = onDocumentWritten('pedidos/{pedidoId}', async
 
   const prov = await getUsuario(after.proveedorId);
   if (!prov) return;
-  if (prov.perfil && prov.perfil.notifPush === false) return;
+
+  // Si el comprador eligió "retiro en local", le revelamos la dirección del
+  // local recién ahora (al pagarse), copiándola al pedido.
+  if (
+    after.metodoEntrega === 'retiro' &&
+    prov.perfil &&
+    prov.perfil.direccion &&
+    !after.direccionRetiro
+  ) {
+    await event.data.after.ref.update({ direccionRetiro: prov.perfil.direccion });
+  }
 
   const total = Number(after.total || 0).toLocaleString('es-AR');
   const comprador = after.compradorNombre || 'Un profesional';
 
-  await enviarPush(prov.pushTokens, {
-    title: 'Nuevo pedido',
-    body: `${comprador} compró por $${total}.`,
-    data: { tipo: 'pedido', pedidoId: event.params.pedidoId },
-    channelId: 'pedidos',
-  });
+  // Push al proveedor (respeta el toggle "Notificaciones push").
+  if (!prov.perfil || prov.perfil.notifPush !== false) {
+    await enviarPush(prov.pushTokens, {
+      title: 'Nuevo pedido',
+      body: `${comprador} compró por $${total}.`,
+      data: { tipo: 'pedido', pedidoId: event.params.pedidoId },
+      channelId: 'pedidos',
+    });
+  }
 
   // Email al proveedor (respeta el toggle "Email por cada pedido").
   if (!prov.perfil || prov.perfil.emailPedidos !== false) {

@@ -31,9 +31,10 @@ export default function ProductosProveedorScreen() {
   const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const proveedorId = user?.id ?? '';
+  const perfilProv = user?.perfil as PerfilProveedor | undefined;
   const proveedorNombre = useMemo(
-    () => (user?.perfil as PerfilProveedor | undefined)?.razonSocial ?? user?.nombre ?? '',
-    [user],
+    () => perfilProv?.razonSocial ?? user?.nombre ?? '',
+    [perfilProv, user],
   );
 
   const [items, setItems] = useState<Producto[]>([]);
@@ -68,7 +69,13 @@ export default function ProductosProveedorScreen() {
     if (id) {
       await productosService.actualizar(id, data);
     } else {
-      await productosService.crear({ ...data, proveedorId, proveedorNombre });
+      await productosService.crear({
+        ...data,
+        proveedorId,
+        proveedorNombre,
+        entregaEnvio: perfilProv?.envioPropio ?? true,
+        entregaRetiro: perfilProv?.retiroLocal ?? false,
+      });
     }
     setEditing(null);
     setCreating(false);

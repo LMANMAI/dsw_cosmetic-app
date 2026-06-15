@@ -114,6 +114,28 @@ function PedidoCard({
         ))}
       </View>
 
+      {pedido.metodoEntrega ? (
+        <View style={styles.entregaBox}>
+          <View style={styles.entregaBoxRow}>
+            <Ionicons
+              name={pedido.metodoEntrega === 'retiro' ? 'storefront-outline' : 'bicycle-outline'}
+              size={15}
+              color={colors.primary}
+            />
+            <Text style={styles.entregaBoxTitle}>
+              {pedido.metodoEntrega === 'retiro' ? 'Retiro en local' : 'Envío a domicilio'}
+            </Text>
+          </View>
+          {pedido.metodoEntrega === 'retiro' ? (
+            <Text style={styles.entregaBoxText}>
+              {pedido.direccionRetiro
+                ? `Retirá en: ${pedido.direccionRetiro}`
+                : 'El proveedor te confirma la dirección de retiro.'}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
       {pedido.envio ? (
         <View style={styles.envioBox}>
           <View style={styles.envioBoxRow}>
@@ -174,6 +196,17 @@ const createStyles = (colors: ThemeColors) =>
     itemRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
     itemNombre: { flex: 1, fontSize: 13, color: colors.ink },
     itemPrecio: { fontSize: 13, color: colors.muted, fontWeight: '600' },
+
+    entregaBox: {
+      marginTop: spacing.md,
+      backgroundColor: colors.bone2,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      gap: 4,
+    },
+    entregaBoxRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    entregaBoxTitle: { fontSize: 13, fontWeight: '700', color: colors.ink },
+    entregaBoxText: { fontSize: 12, color: colors.muted, lineHeight: 17 },
 
     envioBox: {
       marginTop: spacing.md,

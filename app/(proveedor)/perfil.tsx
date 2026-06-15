@@ -6,6 +6,7 @@ import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
+import { productosService } from '@/services';
 import { useTheme, radius, spacing } from '@/theme';
 import { confirm } from '@/utils/confirm';
 import { PREFERENCIAS_PROVEEDOR_DEFAULT, type PerfilProveedor } from '@/types/models';
@@ -38,6 +39,15 @@ export default function PerfilProveedorScreen() {
   ) => {
     setLocal(value);
     guardarPref({ [key]: value } as Partial<PerfilProveedor>);
+    // Si cambió una opción de entrega, propagar a todos los productos del proveedor
+    // (es lo que ve el comprador en la tienda).
+    if (key === 'envioPropio' || key === 'retiroLocal') {
+      const entregaEnvio = key === 'envioPropio' ? value : envioPropio;
+      const entregaRetiro = key === 'retiroLocal' ? value : retiroLocal;
+      productosService
+        .sincronizarEntrega(user?.id ?? '', { entregaEnvio, entregaRetiro })
+        .catch(() => {});
+    }
   };
 
   const confirmarLogout = async () => {

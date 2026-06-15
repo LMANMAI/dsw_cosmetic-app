@@ -84,6 +84,12 @@ export default function ProfesionalLayout() {
           href: null, // oculta del tab bar — se accede desde la tienda de insumos
         }}
       />
+      <Tabs.Screen
+        name="carrito"
+        options={{
+          href: null, // oculta del tab bar — se accede desde la tienda de insumos
+        }}
+      />
     </Tabs>
   );
 }

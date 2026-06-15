@@ -14,10 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { productosService, pedidosService, pagosService, PAGOS_HABILITADOS } from '@/services';
-import type { Producto, Pedido } from '@/types/models';
+import { useFocusEffect } from '@react-navigation/native';
+import { productosService } from '@/services';
+import type { Producto } from '@/types/models';
 import { CATEGORIAS } from '@/data/categorias';
-import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useCart } from '@/context/CartContext';
@@ -40,8 +40,6 @@ export default function InsumosScreen() {
   const [loading, setLoading] = useState(true);
   const [categoria, setCategoria] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [carritoVisible, setCarritoVisible] = useState(false);
-  const [pagando, setPagando] = useState(false);
 
   const cargar = useCallback(() => {
     setLoading(true);
@@ -55,80 +53,8 @@ export default function InsumosScreen() {
     cargar();
   }, [cargar]);
 
-  const checkout = async () => {
-    if (!user || cart.items.length === 0) return;
-    const items = cart.items.map((it) => ({
-      productoId: it.producto.id,
-      productoNombre: it.producto.nombre,
-      cantidad: it.cantidad,
-      precioUnitario: it.producto.precio,
-      proveedorId: it.producto.proveedorId,
-      proveedorNombre: it.producto.proveedorNombre,
-    }));
-
-    setPagando(true);
-    let creados: Pedido[] = [];
-    try {
-      // 1) Crear los pedidos en espera de pago (todavía no se descuenta stock).
-      creados = await pedidosService.crearDesdeCarrito({
-        comprador: { id: user.id, nombre: user.nombre, rol: user.rol },
-        items,
-      });
-      const orderIds = creados.map((p) => p.id);
-
-      // Pago desactivado (modo pruebas): confirmamos directo sin pasar por MP.
-      if (!PAGOS_HABILITADOS) {
-        await pedidosService.marcarPagados(orderIds);
-        cart.clear();
-        setCarritoVisible(false);
-        cargar();
-        Alert.alert('Pedido confirmado', 'Tu compra fue registrada. Seguí el estado en Mis pedidos.');
-        return;
-      }
-
-      // 2) Crear la preferencia de Mercado Pago por el total del carrito.
-      const pedidoItems = items.map((it) => ({
-        productoId: it.productoId,
-        productoNombre: it.productoNombre,
-        cantidad: it.cantidad,
-        precioUnitario: it.precioUnitario,
-      }));
-      const { initPoint } = await pagosService.crearPreferenciaPedido({
-        orderIds,
-        items: pedidoItems,
-        email: user.email,
-      });
-
-      // 3) Abrir el checkout y esperar el resultado del pago.
-      const estado = await pagosService.abrirCheckout(initPoint);
-
-      if (estado === 'approved') {
-        await pedidosService.marcarPagados(orderIds);
-        cart.clear();
-        setCarritoVisible(false);
-        cargar();
-        Alert.alert('Pago aprobado', 'Tu compra fue registrada. Seguí el estado en Mis pedidos.');
-      } else if (estado === 'pending') {
-        Alert.alert(
-          'Pago pendiente',
-          'Tu pago quedó pendiente de acreditación. Cuando se confirme, el pedido se procesa. Lo ves en Mis pedidos.',
-        );
-      } else {
-        await pedidosService.cancelarImpagos(orderIds);
-        Alert.alert(
-          'Pago no completado',
-          'No se completó el pago, así que cancelamos el pedido. Podés intentarlo otra vez.',
-        );
-      }
-    } catch (e: any) {
-      if (creados.length) {
-        await pedidosService.cancelarImpagos(creados.map((p) => p.id)).catch(() => {});
-      }
-      Alert.alert('No pudimos procesar el pago', e?.message ?? 'Probá de nuevo en unos minutos.');
-    } finally {
-      setPagando(false);
-    }
-  };
+  // Refrescar stock al volver a la tienda (p. ej. tras comprar en el carrito).
+  useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -147,7 +73,10 @@ export default function InsumosScreen() {
               >
                 <Ionicons name="receipt-outline" size={20} color={colors.primary} />
               </Pressable>
-              <Pressable onPress={() => setCarritoVisible((v) => !v)} style={styles.cartBtn}>
+              <Pressable
+                onPress={() => router.navigate('/(profesional)/carrito')}
+                style={styles.cartBtn}
+              >
                 <Ionicons name="bag" size={20} color="#FFFFFF" />
                 {cart.items.length > 0 ? (
                   <View style={styles.cartBadge}>
@@ -187,58 +116,13 @@ export default function InsumosScreen() {
         ))}
       </ScrollView>
 
-      {carritoVisible && cart.items.length > 0 ? (
-        <View style={styles.cartPanel}>
-          <Text style={styles.cartTitle}>Tu carrito</Text>
-          {cart.items.map((it) => (
-            <View key={it.producto.id} style={styles.cartItem}>
-              <Text style={styles.cartItemName}>{it.producto.nombre}</Text>
-              <View style={styles.qtyRow}>
-                <Pressable
-                  onPress={() => cart.setQty(it.producto.id, it.cantidad - 1)}
-                  style={styles.qtyBtn}
-                >
-                  <Text style={styles.qtySign}>−</Text>
-                </Pressable>
-                <Text style={styles.qtyText}>{it.cantidad}</Text>
-                <Pressable
-                  onPress={() => cart.setQty(it.producto.id, it.cantidad + 1)}
-                  style={styles.qtyBtn}
-                >
-                  <Text style={styles.qtySign}>+</Text>
-                </Pressable>
-                <Text style={styles.cartItemPrice}>
-                  {formatARS(it.producto.precio * it.cantidad)}
-                </Text>
-              </View>
-            </View>
-          ))}
-          <View style={styles.cartFooter}>
-            <View>
-              <Text style={styles.cartTotalLbl}>Total</Text>
-              <Text style={styles.cartTotalVal}>{formatARS(cart.total)}</Text>
-            </View>
-            <Button
-              label={
-                pagando
-                  ? 'Procesando…'
-                  : PAGOS_HABILITADOS
-                    ? 'Pagar y confirmar'
-                    : 'Confirmar pedido'
-              }
-              onPress={checkout}
-              loading={pagando}
-            />
-          </View>
-        </View>
-      ) : null}
-
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
       ) : (
         <FlatList
           style={{ flex: 1 }}
           data={productos}
+          extraData={cart.items}
           keyExtractor={(p) => p.id}
           numColumns={2}
           columnWrapperStyle={{ gap: spacing.md, paddingHorizontal: spacing.xxl }}
@@ -253,7 +137,10 @@ export default function InsumosScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const enCarrito = cart.items.find((it) => it.producto.id === item.id);
+            const cantidad = enCarrito?.cantidad ?? 0;
+            return (
             <View style={styles.productCard}>
               <View style={styles.productThumb}>
                 {item.imagenUrl ? (
@@ -268,18 +155,56 @@ export default function InsumosScreen() {
               <Text style={styles.productStock}>
                 {item.stock > 0 ? `${item.stock} en stock` : 'Sin stock'}
               </Text>
+              {item.entregaEnvio || item.entregaRetiro ? (
+                <View style={styles.entregaRow}>
+                  {item.entregaEnvio ? (
+                    <View style={styles.entregaBadge}>
+                      <Ionicons name="bicycle-outline" size={11} color={colors.primary} />
+                      <Text style={styles.entregaBadgeText}>Envío</Text>
+                    </View>
+                  ) : null}
+                  {item.entregaRetiro ? (
+                    <View style={styles.entregaBadge}>
+                      <Ionicons name="storefront-outline" size={11} color={colors.primary} />
+                      <Text style={styles.entregaBadgeText}>Retiro</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
               <View style={styles.productFooter}>
                 <Text style={styles.productPrice}>{formatARS(item.precio)}</Text>
-                <Pressable
-                  disabled={item.stock === 0}
-                  onPress={() => cart.add(item)}
-                  style={[styles.addBtn, item.stock === 0 && { opacity: 0.4 }]}
-                >
-                  <Ionicons name="add" size={20} color="#FFFFFF" />
-                </Pressable>
+                {cantidad > 0 ? (
+                  <View style={styles.cardStepper}>
+                    <Pressable
+                      onPress={() => cart.setQty(item.id, cantidad - 1)}
+                      style={styles.cardStepBtn}
+                      hitSlop={4}
+                    >
+                      <Ionicons name="remove" size={16} color={colors.primary} />
+                    </Pressable>
+                    <Text style={styles.cardStepQty}>{cantidad}</Text>
+                    <Pressable
+                      onPress={() => cart.setQty(item.id, cantidad + 1)}
+                      disabled={cantidad >= item.stock}
+                      style={[styles.cardStepBtn, cantidad >= item.stock && { opacity: 0.35 }]}
+                      hitSlop={4}
+                    >
+                      <Ionicons name="add" size={16} color={colors.primary} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    disabled={item.stock === 0}
+                    onPress={() => cart.add(item)}
+                    style={[styles.addBtn, item.stock === 0 && { opacity: 0.4 }]}
+                  >
+                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                  </Pressable>
+                )}
               </View>
             </View>
-          )}
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -424,6 +349,40 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   productThumbEmoji: { fontSize: 32 },
   productName: { fontSize: 14, fontWeight: '600', color: c.ink, lineHeight: 18 },
   productStock: { fontSize: 11, color: c.muted, marginTop: 4 },
+  entregaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
+  entregaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: c.primaryTint,
+    borderRadius: radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  entregaBadgeText: { fontSize: 10, fontWeight: '700', color: c.primary },
+
+  // Selección de entrega en el carrito (sobre fondo navy)
+  entregaSelTitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  entregaSelBlock: { marginBottom: spacing.sm },
+  entregaSelProv: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  entregaSelNota: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  entregaSelChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  entregaSelChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  entregaSelChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  entregaSelChipText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
+  entregaSelChipTextActive: { color: '#FFFFFF' },
   productFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -439,6 +398,24 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: c.primaryTint,
+    borderRadius: radius.pill,
+    paddingHorizontal: 3,
+    paddingVertical: 2,
+  },
+  cardStepBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardStepQty: { fontSize: 14, fontWeight: '700', color: c.ink, minWidth: 20, textAlign: 'center' },
   empty: { alignItems: 'center', paddingVertical: spacing.huge, gap: spacing.sm, paddingHorizontal: spacing.xxl },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: c.ink, textAlign: 'center' },
   emptyText: { fontSize: 13, color: c.muted, textAlign: 'center', lineHeight: 19 },

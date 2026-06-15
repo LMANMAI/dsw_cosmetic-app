@@ -9,6 +9,7 @@ import {
   runTransaction,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PRODUCTOS_MOCK } from '@/data/productos.mock';
@@ -28,6 +29,8 @@ function toProducto(id: string, data: any): Producto {
     proveedorId: data.proveedorId,
     proveedorNombre: data.proveedorNombre,
     descripcion: data.descripcion,
+    entregaEnvio: data.entregaEnvio,
+    entregaRetiro: data.entregaRetiro,
   };
 }
 
@@ -86,6 +89,23 @@ export const productosService = {
 
   async eliminar(id: string): Promise<void> {
     await deleteDoc(doc(db, COLLECTION, id));
+  },
+
+  /**
+   * Propaga las opciones de entrega del proveedor a todos sus productos.
+   * Se llama cuando el proveedor cambia los toggles de envío/retiro en su perfil.
+   */
+  async sincronizarEntrega(
+    proveedorId: string,
+    entrega: { entregaEnvio: boolean; entregaRetiro: boolean },
+  ): Promise<void> {
+    if (!proveedorId) return;
+    const q = query(collection(db, COLLECTION), where('proveedorId', '==', proveedorId));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.update(d.ref, entrega));
+    await batch.commit();
   },
 
   /** Ajusta el stock de forma atómica (no baja de 0). */
