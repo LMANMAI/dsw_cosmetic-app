@@ -15,7 +15,7 @@ import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
-import { turnosService, valoracionesService, notificacionesService } from '@/services';
+import { turnosService, valoracionesService, notificacionesService, pagosService } from '@/services';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS, formatFecha } from '@/utils/format';
@@ -105,23 +105,30 @@ export default function MisTurnosScreen() {
     );
   };
 
-  const onPagarSena = (t: Turno) => {
-    Alert.alert(
-      'Pagar seña',
-      `Abonar ${formatARS(t.montoSena ?? 0)} con MercadoPago para confirmar tu turno.`,
-      [
-        {
-          text: 'Pagar con MercadoPago',
-          onPress: async () => {
-            // TODO: Integrar MercadoPago Checkout Pro
-            await turnosService.confirmarPagoSena(t.id);
-            Alert.alert('¡Seña pagada!', 'Tu turno fue confirmado.');
-            refresh();
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ],
-    );
+  const onPagarSena = async (t: Turno) => {
+    try {
+      // El backend crea la preferencia con la cuenta de MP del profesional.
+      const { initPoint } = await pagosService.crearPreferenciaSena(t.id);
+      const estado = await pagosService.abrirCheckoutSena(initPoint);
+
+      if (estado === 'approved') {
+        await turnosService.confirmarPagoSena(t.id, t.autoConfirmar);
+        Alert.alert('¡Seña acreditada!', 'Tu turno quedó confirmado.');
+        refresh();
+      } else if (estado === 'pending') {
+        Alert.alert(
+          'Pago pendiente',
+          'Tu pago quedó pendiente de acreditación. Cuando se confirme, el turno se confirma solo.',
+        );
+        refresh();
+      } else if (estado === 'cancelado') {
+        Alert.alert('Pago no completado', 'No se completó el pago. Podés intentarlo de nuevo.');
+      } else {
+        Alert.alert('No se pudo procesar el pago', 'Intentá de nuevo en unos minutos.');
+      }
+    } catch (e: any) {
+      Alert.alert('No pudimos iniciar el pago', e?.message ?? 'Probá de nuevo en unos minutos.');
+    }
   };
 
   const onPuntuar = (t: Turno) => {

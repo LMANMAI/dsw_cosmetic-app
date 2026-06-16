@@ -85,40 +85,49 @@ export default function CarritoScreen() {
         ]);
       };
 
-      // Pago desactivado (modo pruebas): confirmamos directo sin pasar por MP.
+      // Modo pruebas sin MP: confirmamos directo sin pasar por el checkout.
       if (!PAGOS_HABILITADOS) {
         await pedidosService.marcarPagados(orderIds);
         exito();
         return;
       }
 
-      const pedidoItems = items.map((it) => ({
-        productoId: it.productoId,
-        productoNombre: it.productoNombre,
-        cantidad: it.cantidad,
-        precioUnitario: it.precioUnitario,
-      }));
-      const { initPoint } = await pagosService.crearPreferenciaPedido({
-        orderIds,
-        items: pedidoItems,
-        email: user.email,
-      });
-      const estado = await pagosService.abrirCheckout(initPoint);
+      // Split: un checkout por proveedor (cada pago va a su cuenta de MP).
+      const restantes = [...creados];
+      let huboPendiente = false;
+      let fallo = false;
+      while (restantes.length) {
+        const pedido = restantes.shift()!;
+        const { initPoint } = await pagosService.crearPreferenciaPedidoSplit(pedido.id);
+        const estado = await pagosService.abrirCheckout(initPoint);
+        if (estado === 'approved') {
+          await pedidosService.marcarPagados([pedido.id]);
+        } else if (estado === 'pending') {
+          huboPendiente = true;
+        } else {
+          // Cancelamos el pedido actual y los que faltaban pagar.
+          await pedidosService.cancelarImpagos([pedido.id, ...restantes.map((p) => p.id)]);
+          fallo = true;
+          break;
+        }
+      }
 
-      if (estado === 'approved') {
-        await pedidosService.marcarPagados(orderIds);
-        exito();
-      } else if (estado === 'pending') {
-        Alert.alert(
-          'Pago pendiente',
-          'Tu pago quedó pendiente de acreditación. Cuando se confirme, el pedido se procesa. Lo ves en Mis pedidos.',
-        );
-      } else {
-        await pedidosService.cancelarImpagos(orderIds);
+      if (fallo) {
+        cart.clear();
         Alert.alert(
           'Pago no completado',
-          'No se completó el pago, así que cancelamos el pedido. Podés intentarlo otra vez.',
+          'No se completó uno de los pagos, así que cancelamos ese pedido. Lo que ya pagaste lo ves en Mis pedidos.',
+          [{ text: 'Ver mis pedidos', onPress: () => router.replace('/(profesional)/mis-pedidos') }],
         );
+      } else if (huboPendiente) {
+        cart.clear();
+        Alert.alert(
+          'Pago pendiente',
+          'Algún pago quedó pendiente de acreditación. Cuando se confirme, el pedido se procesa. Lo ves en Mis pedidos.',
+          [{ text: 'Ver mis pedidos', onPress: () => router.replace('/(profesional)/mis-pedidos') }],
+        );
+      } else {
+        exito();
       }
     } catch (e: any) {
       if (creados.length) {

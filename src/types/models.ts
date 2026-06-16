@@ -202,6 +202,8 @@ export interface Turno {
   monto: number;
   montoSena?: number;          // monto de la seña/anticipo
   senaPagada?: boolean;        // true cuando se pagó la seña por MercadoPago
+  /** true si el profesional auto-confirma; lo usa el webhook al acreditar la seña. */
+  autoConfirmar?: boolean;
   metodoPago?: MetodoPago;
   notas?: string;
   /** Monto de comisión que corresponde a la plataforma. */

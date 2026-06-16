@@ -54,7 +54,7 @@ export const turnosService = {
     } else {
       estado = autoConfirmar ? 'confirmado' : 'pendiente';
     }
-    const nuevo = { ...input, estado, senaPagada: false };
+    const nuevo = { ...input, estado, senaPagada: false, autoConfirmar: !!autoConfirmar };
     const ref = await addDoc(collection(db, COLLECTION), nuevo);
     return { ...nuevo, id: ref.id };
   },

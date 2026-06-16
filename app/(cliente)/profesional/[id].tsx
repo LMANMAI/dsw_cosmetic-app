@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { profesionalesService, turnosService } from '@/services';
+import { profesionalesService, turnosService, pagosService } from '@/services';
 import { disponibilidadService } from '@/services/disponibilidad.service';
 import type { Disponibilidad, PerfilProfesional, Servicio } from '@/types/models';
 import { Avatar } from '@/components/Avatar';
@@ -67,6 +67,7 @@ export default function PerfilProfesionalScreen() {
   const [error, setError] = useState(false);
   const [reservando, setReservando] = useState(false);
   const [pagoModal, setPagoModal] = useState<{ turnoId: string; monto: number; servicio: string } | null>(null);
+  const [pagandoSena, setPagandoSena] = useState(false);
 
   // Cargar profesional, servicios y disponibilidad
   useEffect(() => {
@@ -182,16 +183,41 @@ export default function PerfilProfesionalScreen() {
     }
   };
 
-  const simularPagoMP = async () => {
+  const pagarSenaMP = async () => {
     if (!pagoModal || !profesional) return;
-    // TODO: Reemplazar con integración real de MercadoPago Checkout Pro
-    await turnosService.confirmarPagoSena(pagoModal.turnoId, profesional.autoConfirmarTurnos);
-    setPagoModal(null);
-    Alert.alert(
-      '¡Pago confirmado!',
-      'Tu seña fue registrada. El turno está confirmado.',
-      [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
-    );
+    setPagandoSena(true);
+    try {
+      // 1) El backend crea la preferencia con la cuenta de MP del profesional.
+      const { initPoint } = await pagosService.crearPreferenciaSena(pagoModal.turnoId);
+      // 2) Abrimos el checkout de Mercado Pago y esperamos el retorno.
+      const estado = await pagosService.abrirCheckoutSena(initPoint);
+
+      if (estado === 'approved') {
+        // Confirmación rápida en el cliente; el webhook también lo confirma.
+        await turnosService.confirmarPagoSena(pagoModal.turnoId, profesional.autoConfirmarTurnos);
+        setPagoModal(null);
+        Alert.alert(
+          '¡Pago confirmado!',
+          'Tu seña fue acreditada. El turno quedó confirmado.',
+          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+        );
+      } else if (estado === 'pending') {
+        setPagoModal(null);
+        Alert.alert(
+          'Pago pendiente',
+          'Tu pago quedó pendiente de acreditación. Cuando se confirme, el turno se confirma solo. Lo seguís en "Mis turnos".',
+          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+        );
+      } else if (estado === 'cancelado') {
+        Alert.alert('Pago no completado', 'No se completó el pago. Podés intentarlo de nuevo o pagar más tarde desde "Mis turnos".');
+      } else {
+        Alert.alert('No se pudo procesar el pago', 'Intentá de nuevo en unos minutos.');
+      }
+    } catch (e: any) {
+      Alert.alert('No pudimos iniciar el pago', e?.message ?? 'Probá de nuevo en unos minutos.');
+    } finally {
+      setPagandoSena(false);
+    }
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -393,14 +419,21 @@ export default function PerfilProfesionalScreen() {
             </View>
 
             <Pressable
-              style={styles.mpButton}
-              onPress={simularPagoMP}
+              style={[styles.mpButton, pagandoSena && { opacity: 0.6 }]}
+              onPress={pagarSenaMP}
+              disabled={pagandoSena}
             >
-              <Text style={styles.mpButtonText}>Pagar con </Text>
-              <Text style={[styles.mpButtonText, { fontWeight: '800' }]}>Mercado Pago</Text>
+              {pagandoSena ? (
+                <Text style={styles.mpButtonText}>Abriendo Mercado Pago…</Text>
+              ) : (
+                <>
+                  <Text style={styles.mpButtonText}>Pagar con </Text>
+                  <Text style={[styles.mpButtonText, { fontWeight: '800' }]}>Mercado Pago</Text>
+                </>
+              )}
             </Pressable>
 
-            <Pressable onPress={() => {
+            <Pressable disabled={pagandoSena} onPress={() => {
               setPagoModal(null);
               Alert.alert(
                 'Turno reservado sin pago',

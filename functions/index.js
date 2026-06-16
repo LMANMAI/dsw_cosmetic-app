@@ -21,6 +21,7 @@ const db = getFirestore();
 const mp = require('./mercadopago');
 exports.mpCallback = mp.mpCallback;
 exports.crearPreferenciaPedido = mp.crearPreferenciaPedido;
+exports.crearPreferenciaSena = mp.crearPreferenciaSena;
 exports.mpWebhook = mp.mpWebhook;
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
