@@ -551,4 +551,28 @@ const createStyles = (colors: ReturnType<typeof import('@/theme').useTheme>['col
     footerText: { fontSize: 14, color: colors.muted },
     footerLink: { fontSize: 14, color: colors.primary, fontWeight: '700' },
     fotoPicker: {
-      bo
+      borderRadius: radius.lg,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: colors.bone3,
+      borderStyle: 'dashed',
+      marginBottom: spacing.md,
+    },
+    fotoPreview: {
+      width: '100%',
+      height: 180,
+      borderRadius: radius.lg,
+    },
+    fotoPlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xxl,
+      backgroundColor: colors.bone,
+      gap: spacing.sm,
+    },
+    fotoPlaceholderText: {
+      fontSize: 13,
+      color: colors.muted,
+      fontWeight: '500',
+    },
+  });
