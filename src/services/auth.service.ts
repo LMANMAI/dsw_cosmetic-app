@@ -78,6 +78,7 @@ interface UsuarioDoc {
   perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
   direcciones?: Direccion[];
   preferencias?: PreferenciasNotificaciones;
+  mpConectado?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -93,6 +94,7 @@ function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
     perfil: d.perfil,
     direcciones: d.direcciones,
     preferencias: d.preferencias,
+    mpConectado: d.mpConectado,
   };
 }
 
@@ -147,7 +149,7 @@ async function loginWithGoogleCredential(credential: AuthCredential): Promise<Us
   if (existing) return existing;
   return upsertUsuario(fbUser.uid, {
     email: fbUser.email ?? '',
-    nombre: fbUser.displayName ?? 'Usuaria BeautyApp',
+    nombre: fbUser.displayName ?? 'Usuaria YOFI',
     telefono: fbUser.phoneNumber ?? '',
     rol: 'cliente',
     avatarUrl: fbUser.photoURL ?? undefined,
@@ -171,7 +173,7 @@ export const authService = {
     if (!usuario) {
       usuario = await upsertUsuario(cred.user.uid, {
         email: cred.user.email ?? email.trim(),
-        nombre: cred.user.displayName ?? 'Usuaria BeautyApp',
+        nombre: cred.user.displayName ?? 'Usuaria YOFI',
         telefono: cred.user.phoneNumber ?? '',
         rol: 'cliente',
         avatarUrl: cred.user.photoURL ?? undefined,
@@ -235,6 +237,11 @@ export const authService = {
     }
   },
 
+  /** Re-lee el usuario desde Firestore (p. ej. tras conectar Mercado Pago). */
+  async recargarUsuario(uid: string): Promise<Usuario | null> {
+    return fetchUsuario(uid);
+  },
+
   subscribe(cb: (user: Usuario | null) => void): () => void {
     let cancelled = false;
     let firstFirebaseEmit = true;
@@ -268,7 +275,7 @@ export const authService = {
         if (!u) {
           u = await upsertUsuario(fbUser.uid, {
             email: fbUser.email ?? '',
-            nombre: fbUser.displayName ?? 'Usuaria BeautyApp',
+            nombre: fbUser.displayName ?? 'Usuaria YOFI',
             telefono: fbUser.phoneNumber ?? '',
             rol: 'cliente',
             avatarUrl: fbUser.photoURL ?? undefined,
@@ -308,14 +315,4 @@ export const authService = {
 
   async updateRol(uid: string, rol: UserRole): Promise<void> {
     const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
-    if (demoMatch) {
-      const updated: Usuario = { ...demoMatch, rol };
-      await setDemoSession(updated);
-      return;
-    }
-    await updateDoc(doc(db, USERS_COLLECTION, uid), {
-      rol,
-      updatedAt: serverTimestamp(),
-    });
-  },
-};
+    if (demoMatc

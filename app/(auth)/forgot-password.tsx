@@ -76,7 +76,7 @@ export default function ForgotPasswordScreen() {
                 <Ionicons name="checkmark-circle" size={28} color={colors.success} />
                 <Text style={styles.successTitle}>¡Listo!</Text>
                 <Text style={styles.successText}>
-                  Si {email.trim()} corresponde a una cuenta de BeautyApp, te llegó un enlace para
+                  Si {email.trim()} corresponde a una cuenta de YOFI, te llegó un enlace para
                   resetear tu contraseña. Revisá también la carpeta de spam.
                 </Text>
                 <Button

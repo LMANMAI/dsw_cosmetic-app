@@ -1,5 +1,5 @@
 /**
- * BeautyApp — Paleta de marca (violeta índigo)
+ * YOFI — Paleta de marca (violeta índigo)
  * Sistema de temas con soporte light / dark.
  */
 

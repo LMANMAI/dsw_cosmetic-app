@@ -7,6 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
+import { conectarMercadoPago } from '@/services/mp-connect.service';
 import { disponibilidadService } from '@/services/disponibilidad.service';
 import { serviciosService } from '@/services/servicios.service';
 import { valoracionesService } from '@/services/valoraciones.service';
@@ -28,10 +29,11 @@ function anticipoLabel(pct: number): string {
 }
 
 export default function PerfilProfesionalScreen() {
-  const { user, logout, switchRole, updateUser } = useSession();
+  const { user, logout, switchRole, updateUser, refreshUser } = useSession();
   const { colors, isDark, toggleTheme } = useTheme();
   const router = useRouter();
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
+  const [conectandoMP, setConectandoMP] = useState(false);
   const [horariosLabel, setHorariosLabel] = useState('Sin configurar');
   const [cantServicios, setCantServicios] = useState(0);
   const [cantResenas, setCantResenas] = useState(0);
@@ -57,6 +59,19 @@ export default function PerfilProfesionalScreen() {
       });
     }, [user?.id]),
   );
+
+  const conectarMP = async () => {
+    if (!user) return;
+    setConectandoMP(true);
+    const res = await conectarMercadoPago(user.id);
+    setConectandoMP(false);
+    if (res === 'ok') {
+      await refreshUser();
+      Alert.alert('Cuenta conectada', 'Tu cuenta de Mercado Pago quedó vinculada. Ya podés cobrar las señas.');
+    } else if (res === 'error') {
+      Alert.alert('No se pudo conectar', 'Hubo un problema al vincular tu cuenta. Probá de nuevo.');
+    }
+  };
 
   const modalidadLabel =
     perfil?.modalidad === 'salon'
@@ -210,6 +225,22 @@ export default function PerfilProfesionalScreen() {
             value={anticipoLabel(anticipo)}
             isLast
             onPress={elegirAnticipo}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Cobros">
+          <SettingsRow
+            icon="card-outline"
+            label={user?.mpConectado ? 'Mercado Pago conectado' : 'Conectar Mercado Pago'}
+            description={
+              conectandoMP
+                ? 'Abriendo Mercado Pago…'
+                : user?.mpConectado
+                  ? 'Tu cuenta está vinculada para cobrar señas'
+                  : 'Vinculá tu cuenta para cobrar las señas'
+            }
+            isLast
+            onPress={conectarMP}
           />
         </SettingsGroup>
 

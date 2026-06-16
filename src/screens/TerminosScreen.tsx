@@ -13,9 +13,9 @@ const ULTIMA_ACTUALIZACION = 'Junio 2026';
 // antes del lanzamiento. Editá las secciones según corresponda.
 const SECCIONES: { titulo: string; texto: string }[] = [
   {
-    titulo: '1. Sobre BeautyApp',
+    titulo: '1. Sobre YOFI',
     texto:
-      'BeautyApp es una plataforma que conecta a personas que buscan servicios de belleza y bienestar con profesionales independientes que los ofrecen, y a proveedores de insumos con esos profesionales. BeautyApp actúa como intermediaria: no presta los servicios ni vende los insumos.',
+      'YOFI es una plataforma que conecta a personas que buscan servicios de belleza y bienestar con profesionales independientes que los ofrecen, y a proveedores de insumos con esos profesionales. YOFI actúa como intermediaria: no presta los servicios ni vende los insumos.',
   },
   {
     titulo: '2. Cuentas y registro',
@@ -25,7 +25,7 @@ const SECCIONES: { titulo: string; texto: string }[] = [
   {
     titulo: '3. Reservas, compras y pagos',
     texto:
-      'Al reservar un turno te comprometés a asistir o cancelarlo con anticipación razonable. Al comprar insumos, el pedido se confirma una vez acreditado el pago. Los pagos dentro de la plataforma se procesan a través de MercadoPago; BeautyApp no almacena datos de tarjetas. Las políticas de devolución dependen de cada profesional o proveedor.',
+      'Al reservar un turno te comprometés a asistir o cancelarlo con anticipación razonable. Al comprar insumos, el pedido se confirma una vez acreditado el pago. Los pagos dentro de la plataforma se procesan a través de MercadoPago; YOFI no almacena datos de tarjetas. Las políticas de devolución dependen de cada profesional o proveedor.',
   },
   {
     titulo: '4. Cancelaciones',
@@ -35,7 +35,7 @@ const SECCIONES: { titulo: string; texto: string }[] = [
   {
     titulo: '5. Responsabilidad por los servicios y productos',
     texto:
-      'Los servicios son prestados por profesionales independientes y los insumos vendidos por proveedores independientes, quienes son responsables de su calidad, seguridad e higiene. BeautyApp no garantiza resultados ni se responsabiliza por daños derivados de la prestación del servicio o del uso de los productos, sin perjuicio de los derechos que te correspondan como consumidor.',
+      'Los servicios son prestados por profesionales independientes y los insumos vendidos por proveedores independientes, quienes son responsables de su calidad, seguridad e higiene. YOFI no garantiza resultados ni se responsabiliza por daños derivados de la prestación del servicio o del uso de los productos, sin perjuicio de los derechos que te correspondan como consumidor.',
   },
   {
     titulo: '6. Valoraciones',
@@ -60,7 +60,7 @@ const SECCIONES: { titulo: string; texto: string }[] = [
   {
     titulo: '10. Cambios en estos términos',
     texto:
-      'Podemos actualizar estos términos para reflejar cambios en la plataforma o en la normativa. Si el cambio es significativo te lo informaremos dentro de la app. El uso continuado de BeautyApp implica la aceptación de los términos vigentes.',
+      'Podemos actualizar estos términos para reflejar cambios en la plataforma o en la normativa. Si el cambio es significativo te lo informaremos dentro de la app. El uso continuado de YOFI implica la aceptación de los términos vigentes.',
   },
 ];
 

@@ -60,7 +60,7 @@ export default function PerfilClienteScreen() {
       if (!ok) {
         Alert.alert(
           'Permiso requerido',
-          'Activá las notificaciones para BeautyApp desde la configuración de tu teléfono.',
+          'Activá las notificaciones para YOFI desde la configuración de tu teléfono.',
         );
         return;
       }

@@ -7,6 +7,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
 import { useSession } from '@/context/SessionContext';
 import { productosService } from '@/services';
+import { conectarMercadoPago } from '@/services/mp-connect.service';
 import { useTheme, radius, spacing } from '@/theme';
 import { confirm } from '@/utils/confirm';
 import { PREFERENCIAS_PROVEEDOR_DEFAULT, type PerfilProveedor } from '@/types/models';
@@ -14,7 +15,8 @@ import { PREFERENCIAS_PROVEEDOR_DEFAULT, type PerfilProveedor } from '@/types/mo
 export default function PerfilProveedorScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { user, logout, updateUser } = useSession();
+  const { user, logout, updateUser, refreshUser } = useSession();
+  const [conectandoMP, setConectandoMP] = useState(false);
   const perfil = user?.perfil as PerfilProveedor | undefined;
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -47,6 +49,19 @@ export default function PerfilProveedorScreen() {
       productosService
         .sincronizarEntrega(user?.id ?? '', { entregaEnvio, entregaRetiro })
         .catch(() => {});
+    }
+  };
+
+  const conectarMP = async () => {
+    if (!user) return;
+    setConectandoMP(true);
+    const res = await conectarMercadoPago(user.id);
+    setConectandoMP(false);
+    if (res === 'ok') {
+      await refreshUser();
+      Alert.alert('Cuenta conectada', 'Tu cuenta de Mercado Pago quedó vinculada. Ya podés recibir cobros.');
+    } else if (res === 'error') {
+      Alert.alert('No se pudo conectar', 'Hubo un problema al vincular tu cuenta. Probá de nuevo.');
     }
   };
 
@@ -102,6 +117,22 @@ export default function PerfilProveedorScreen() {
             description="Crear, editar precios y stock"
             isLast
             onPress={() => router.navigate('/(proveedor)/productos')}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Cobros">
+          <SettingsRow
+            icon="card-outline"
+            label={user?.mpConectado ? 'Mercado Pago conectado' : 'Conectar Mercado Pago'}
+            description={
+              conectandoMP
+                ? 'Abriendo Mercado Pago…'
+                : user?.mpConectado
+                  ? 'Tu cuenta está vinculada para recibir cobros'
+                  : 'Vinculá tu cuenta para recibir tus pagos'
+            }
+            isLast
+            onPress={conectarMP}
           />
         </SettingsGroup>
 

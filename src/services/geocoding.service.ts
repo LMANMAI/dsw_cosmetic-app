@@ -37,7 +37,7 @@ export async function buscarDirecciones(texto: string): Promise<DireccionSugerid
       })}`,
       {
         headers: {
-          'User-Agent': 'BeautyApp/1.0 (contacto: lcasmanmaidana@gmail.com)',
+          'User-Agent': 'YOFI/1.0 (contacto: lcasmanmaidana@gmail.com)',
         },
       },
     );
@@ -85,7 +85,7 @@ export async function geocodificarDireccion(
       {
         headers: {
           // Nominatim requiere un User-Agent identificable
-          'User-Agent': 'BeautyApp/1.0 (contacto: lcasmanmaidana@gmail.com)',
+          'User-Agent': 'YOFI/1.0 (contacto: lcasmanmaidana@gmail.com)',
         },
       },
     );

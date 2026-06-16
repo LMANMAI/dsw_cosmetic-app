@@ -232,7 +232,7 @@ export default function SignupScreen() {
           >
             <Text style={styles.title}>
               Sumate a{'\n'}
-              <Text style={{ color: colors.primary }}>BeautyApp</Text>
+              <Text style={{ color: colors.primary }}>YOFI</Text>
             </Text>
             <Text style={styles.subtitle}>Elegí cómo querés usar la app y completá tus datos.</Text>
 
@@ -551,28 +551,4 @@ const createStyles = (colors: ReturnType<typeof import('@/theme').useTheme>['col
     footerText: { fontSize: 14, color: colors.muted },
     footerLink: { fontSize: 14, color: colors.primary, fontWeight: '700' },
     fotoPicker: {
-      borderRadius: radius.lg,
-      overflow: 'hidden',
-      borderWidth: 1.5,
-      borderColor: colors.bone3,
-      borderStyle: 'dashed',
-      marginBottom: spacing.md,
-    },
-    fotoPreview: {
-      width: '100%',
-      height: 180,
-      borderRadius: radius.lg,
-    },
-    fotoPlaceholder: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.xxl,
-      backgroundColor: colors.bone,
-      gap: spacing.sm,
-    },
-    fotoPlaceholderText: {
-      fontSize: 13,
-      color: colors.muted,
-      fontWeight: '500',
-    },
-  });
+      bo

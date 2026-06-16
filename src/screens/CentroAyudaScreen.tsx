@@ -10,7 +10,7 @@ import type { ThemeColors } from '@/theme';
 
 // TODO: reemplazar por el número real de soporte (código de país + número, sin "+" ni espacios)
 const SOPORTE_WHATSAPP = '5493510000000';
-const MENSAJE_INICIAL = 'Hola! Necesito ayuda con BeautyApp.';
+const MENSAJE_INICIAL = 'Hola! Necesito ayuda con YOFI.';
 
 export interface Faq {
   pregunta: string;

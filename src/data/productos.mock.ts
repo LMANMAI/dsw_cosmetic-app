@@ -9,7 +9,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     categoria: 'unas',
     descripcion: 'Esmalte profesional de larga duración. 15ml.',
     proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
+    proveedorNombre: 'Almacén YOFI',
   },
   {
     id: 'p-2',
@@ -19,7 +19,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     categoria: 'pestanas_cejas',
     descripcion: 'Kit completo con paletas de silicona y adhesivo profesional.',
     proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
+    proveedorNombre: 'Almacén YOFI',
   },
   {
     id: 'p-3',
@@ -29,7 +29,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     categoria: 'pestanas_cejas',
     descripcion: 'Henna profesional, rinde 15-20 sesiones.',
     proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
+    proveedorNombre: 'Almacén YOFI',
   },
   {
     id: 'p-4',
@@ -39,7 +39,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     categoria: 'corporal',
     descripcion: 'Mezcla de aceites esenciales para masajes terapéuticos.',
     proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
+    proveedorNombre: 'Almacén YOFI',
   },
   {
     id: 'p-5',
@@ -49,7 +49,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     categoria: 'unas',
     descripcion: 'Lima reutilizable, no daña la lámina.',
     proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
+    proveedorNombre: 'Almacén YOFI',
   },
   {
     id: 'p-6',
@@ -59,7 +59,7 @@ export const PRODUCTOS_MOCK: Producto[] = [
     categoria: 'unas',
     descripcion: 'Removedor sin acetona para uso profesional.',
     proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
+    proveedorNombre: 'Almacén YOFI',
   },
   {
     id: 'p-7',
@@ -68,17 +68,4 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 6,
     categoria: 'pestanas_cejas',
     descripcion: 'Pinza italiana de alta precisión.',
-    proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
-  },
-  {
-    id: 'p-8',
-    nombre: 'Tintura para pestañas — Negro',
-    precio: 4900,
-    stock: 22,
-    categoria: 'pestanas_cejas',
-    descripcion: 'Tintura permanente para pestañas. 15ml.',
-    proveedorId: 'almacen-beautyapp',
-    proveedorNombre: 'Almacén BeautyApp',
-  },
-];
+    proveedorId: 'almac

@@ -115,7 +115,7 @@ export const comisionesService = {
     const body = {
       items: [
         {
-          title: `Comisión BeautyApp - ${nombreMes} ${comision.anio}`,
+          title: `Comisión YOFI - ${nombreMes} ${comision.anio}`,
           description: `Comisión de servicios del mes de ${nombreMes} ${comision.anio}`,
           quantity: 1,
           unit_price: comision.montoTotal,
@@ -252,12 +252,4 @@ export const comisionesService = {
   async obtenerVencidas(profesionalId: string): Promise<ComisionMensual[]> {
     const q = query(
       collection(db, COLLECTION),
-      where('profesionalId', '==', profesionalId),
-      where('estado', '==', 'vencida'),
-    );
-    const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => ({ id: d.id, ...d.data() } as ComisionMensual))
-      .sort((a, b) => (a.anio * 12 + a.mes < b.anio * 12 + b.mes ? -1 : 1));
-  },
-};
+      where('profesionalId', '==', profesionalId),

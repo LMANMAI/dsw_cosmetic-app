@@ -38,7 +38,7 @@ export default function CentroAyudaProveedorScreen() {
   return (
     <CentroAyudaScreen
       faqs={FAQS_PROVEEDOR}
-      subtitle="Todo lo que necesitás para vender en BeautyApp"
+      subtitle="Todo lo que necesitás para vender en YOFI"
     />
   );
 }

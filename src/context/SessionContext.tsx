@@ -11,6 +11,7 @@ interface SessionState {
   loginWithGoogleAccessToken: (accessToken: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   switchRole: (rol: UserRole) => Promise<void>;
   updateUser: (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor; direcciones?: Direccion[]; preferencias?: PreferenciasNotificaciones }>) => Promise<void>;
 }
@@ -58,6 +59,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    if (!user) return;
+    const fresh = await authService.recargarUsuario(user.id);
+    if (fresh) setUser(fresh);
+  }, [user]);
+
   const updateUser = useCallback(
     async (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor; direcciones?: Direccion[]; preferencias?: PreferenciasNotificaciones }>) => {
       if (!user) return;
@@ -86,6 +93,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       loginWithGoogleAccessToken,
       sendPasswordReset,
       logout,
+      refreshUser,
       switchRole,
       updateUser,
     }),
@@ -98,6 +106,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       loginWithGoogleAccessToken,
       sendPasswordReset,
       logout,
+      refreshUser,
       switchRole,
       updateUser,
     ],

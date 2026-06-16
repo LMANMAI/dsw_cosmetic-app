@@ -135,6 +135,7 @@ export interface Usuario {
   perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
   direcciones?: Direccion[];
   preferencias?: PreferenciasNotificaciones;
+  mpConectado?: boolean; // true si conectó su cuenta de Mercado Pago (OAuth)
 }
 
 export type ModalidadTrabajo = 'salon' | 'domicilio' | 'ambos';
