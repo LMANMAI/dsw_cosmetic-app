@@ -12,7 +12,7 @@
 const { onDocumentWritten, onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 
 initializeApp();
 const db = getFirestore();
@@ -156,4 +156,53 @@ exports.notificarTurnoProfesional = onDocumentCreated('turnos/{turnoId}', async 
 
 /* ──────────────────────────────────────────────────────────────────────────
  * 3. Recordatorio de turno → push al cliente (corre cada 15 min)
- * ────────────────────────────────────────────────────────────�
+ * ──────────────────────────────────────────────────────────────────────── */
+const OFFSET_MIN = { '1h': 60, '2h': 120, '24h': 1440 };
+const ESTADOS_ACTIVOS = ['pendiente', 'confirmado'];
+
+exports.recordatoriosTurnosCliente = onSchedule(
+  { schedule: 'every 15 minutes', timeZone: 'America/Argentina/Buenos_Aires' },
+  async () => {
+    const ahora = Date.now();
+    // Traemos turnos de hoy en adelante (incluye ayer por seguridad de zona horaria).
+    const desde = new Date(ahora - 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const snap = await db.collection('turnos').where('fecha', '>=', desde).get();
+
+    const cacheUsuarios = new Map();
+
+    for (const docu of snap.docs) {
+      const t = docu.data();
+      if (!ESTADOS_ACTIVOS.includes(t.estado)) continue;
+      if (t.recordatorioEnviado) continue;
+
+      const offsetKey = t.recordatorioCliente || '24h';
+      if (offsetKey === 'off') continue;
+      const offsetMin = OFFSET_MIN[offsetKey] ?? 1440;
+
+      // Instante del turno en horario de Argentina (UTC-3).
+      const turnoInstant = new Date(`${t.fecha}T${t.hora}:00-03:00`).getTime();
+      if (Number.isNaN(turnoInstant)) continue;
+      const recordatorioInstant = turnoInstant - offsetMin * 60 * 1000;
+
+      // Solo si ya pasó el momento del recordatorio y el turno todavía no ocurrió.
+      if (ahora < recordatorioInstant || ahora >= turnoInstant) continue;
+
+      let cliente = cacheUsuarios.get(t.clienteId);
+      if (cliente === undefined) {
+        cliente = await getUsuario(t.clienteId);
+        cacheUsuarios.set(t.clienteId, cliente);
+      }
+      if (!cliente) continue;
+      if (cliente.preferencias && cliente.preferencias.pushEnabled === false) continue;
+
+      await enviarPush(cliente.pushTokens, {
+        title: 'Recordatorio de turno',
+        body: `${t.servicioNombre || 'Tu turno'} el ${t.fecha} a las ${t.hora} hs.`,
+        data: { tipo: 'recordatorio', turnoId: docu.id },
+        channelId: 'recordatorios',
+      });
+
+      await docu.ref.update({ recordatorioEnviado: true });
+    }
+  },
+);
