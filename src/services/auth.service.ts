@@ -302,17 +302,13 @@ export const authService = {
   ): Promise<Usuario> {
     const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
     if (demoMatch) {
-      const updated: Usuario = { ...demoMatch, ...data };
+      const updated: Usuario = { ...demoMatch, rol };
       await setDemoSession(updated);
-      return updated;
+      return;
     }
-    const ref = doc(db, USERS_COLLECTION, uid);
-    const cleanData = stripUndefined(data);
-    await updateDoc(ref, { ...cleanData, updatedAt: serverTimestamp() });
-    const fresh = await getDoc(ref);
-    return buildUsuario(uid, fresh.data() as UsuarioDoc);
+    await updateDoc(doc(db, USERS_COLLECTION, uid), {
+      rol,
+      updatedAt: serverTimestamp(),
+    });
   },
-
-  async updateRol(uid: string, rol: UserRole): Promise<void> {
-    const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
-    if (demoMatc
+};

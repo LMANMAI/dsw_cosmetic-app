@@ -68,4 +68,17 @@ export const PRODUCTOS_MOCK: Producto[] = [
     stock: 6,
     categoria: 'pestanas_cejas',
     descripcion: 'Pinza italiana de alta precisión.',
-    proveedorId: 'almac
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén YOFI',
+  },
+  {
+    id: 'p-8',
+    nombre: 'Tintura para pestañas — Negro',
+    precio: 4900,
+    stock: 22,
+    categoria: 'pestanas_cejas',
+    descripcion: 'Tintura permanente para pestañas. 15ml.',
+    proveedorId: 'almacen-beautyapp',
+    proveedorNombre: 'Almacén YOFI',
+  },
+];
