@@ -24,11 +24,14 @@ import {
 import { useSession } from '@/context/SessionContext';
 import { useGoogleSignIn } from '@/services/google-auth';
 import { DEMO_PASSWORD } from '@/services/demo-users';
+import { LanguageButton } from '@/components/LanguageSelector';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 
 export default function LoginScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { loginWithEmail } = useSession();
   const [email, setEmail] = useState('');
@@ -40,7 +43,7 @@ export default function LoginScreen() {
   const { request: googleRequest, promptAsync: promptGoogle } = useGoogleSignIn({
     onError: (e) => {
       console.warn('[google] login error', e);
-      Alert.alert('Google Sign-In', 'No pudimos completar el ingreso con Google.');
+      Alert.alert(t('auth.googleErrorTitulo'), t('auth.googleErrorMsg'));
     },
   });
 
@@ -48,7 +51,7 @@ export default function LoginScreen() {
     const useEmail = overrideEmail ?? email;
     const usePass = overridePass ?? password;
     if (!useEmail || !usePass) {
-      Alert.alert('Datos incompletos', 'Ingresa tu email y contrasena.');
+      Alert.alert(t('auth.login.datosIncompletosTitulo'), t('auth.login.datosIncompletosMsg'));
       return;
     }
     setLoading(true);
@@ -57,8 +60,8 @@ export default function LoginScreen() {
     } catch (err: any) {
       console.warn('[auth] login error', err);
       Alert.alert(
-        'No pudimos ingresar',
-        mapAuthError(err?.code) ?? 'Revisa tus credenciales e intenta de nuevo.',
+        t('auth.login.errorTitulo'),
+        mapAuthError(err?.code, t) ?? t('auth.login.errorFallback'),
       );
     } finally {
       setLoading(false);
@@ -80,6 +83,9 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <AuthHero icon="sparkles" />
+        <View style={styles.langButtonWrap}>
+          <LanguageButton />
+        </View>
 
         <AuthCard>
           <ScrollView
@@ -88,16 +94,14 @@ export default function LoginScreen() {
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.title}>
-              Ingresa a tu{'\n'}
+              {t('auth.login.tituloPrefijo')}{'\n'}
               <Text style={{ color: colors.primary }}>Yopi</Text>
             </Text>
-            <Text style={styles.subtitle}>
-              Reserva turnos, gestiona tu agenda o vende insumos. Todo en un solo lugar.
-            </Text>
+            <Text style={styles.subtitle}>{t('auth.login.subtitulo')}</Text>
 
             <AuthInput
               icon="mail-outline"
-              placeholder="Tu email"
+              placeholder={t('auth.login.emailPlaceholder')}
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
@@ -106,7 +110,7 @@ export default function LoginScreen() {
             />
             <AuthInput
               icon="lock-closed-outline"
-              placeholder="Tu contrasena"
+              placeholder={t('auth.login.passwordPlaceholder')}
               secureTextEntry={!showPassword}
               showToggle
               secureVisible={showPassword}
@@ -128,29 +132,29 @@ export default function LoginScreen() {
                     <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                   ) : null}
                 </View>
-                <Text style={styles.rememberLabel}>Recordarme</Text>
+                <Text style={styles.rememberLabel}>{t('auth.login.recordarme')}</Text>
               </Pressable>
 
               <Link href="/(auth)/forgot-password" asChild>
                 <Pressable hitSlop={6}>
-                  <Text style={styles.forgotLabel}>Olvide mi contrasena</Text>
+                  <Text style={styles.forgotLabel}>{t('auth.login.olvidePassword')}</Text>
                 </Pressable>
               </Link>
             </View>
 
             <Button
               variant="primary"
-              label="Ingresar"
+              label={t('auth.login.ingresar')}
               onPress={() => handleLogin()}
               loading={loading}
               fullWidth
               style={{ marginTop: spacing.lg }}
             />
 
-            <AuthDivider />
+            <AuthDivider label={t('auth.dividerLabel')} />
 
             <SocialButton
-              label="Continuar con Google"
+              label={t('auth.continuarGoogle')}
               iconRender={<GoogleGlyph />}
               disabled={!googleRequest}
               onPress={() => promptGoogle()}
@@ -159,24 +163,22 @@ export default function LoginScreen() {
             <View style={styles.demoBox}>
               <View style={styles.demoHeader}>
                 <Ionicons name="flash-outline" size={14} color={colors.primary} />
-                <Text style={styles.demoTitle}>Probar la app sin cuenta</Text>
+                <Text style={styles.demoTitle}>{t('auth.login.demoTitulo')}</Text>
               </View>
-              <Text style={styles.demoHint}>
-                Usuarios de prueba con datos cargados. No tocan Firebase.
-              </Text>
+              <Text style={styles.demoHint}>{t('auth.login.demoHint')}</Text>
               <View style={styles.demoChips}>
                 <DemoChip
-                  label="Cliente"
+                  label={t('comun.roles.cliente')}
                   icon="person-outline"
                   onPress={() => loginAsDemo('cliente@demo.beautyapp.com')}
                 />
                 <DemoChip
-                  label="Profesional"
+                  label={t('comun.roles.profesional')}
                   icon="brush-outline"
                   onPress={() => loginAsDemo('profesional@demo.beautyapp.com')}
                 />
                 <DemoChip
-                  label="Proveedor"
+                  label={t('comun.roles.proveedor')}
                   icon="cube-outline"
                   onPress={() => loginAsDemo('proveedor@demo.beautyapp.com')}
                 />
@@ -184,9 +186,9 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>No tenes cuenta? </Text>
+              <Text style={styles.footerText}>{t('auth.login.noCuenta')}</Text>
               <Pressable onPress={() => router.push('/(auth)/signup')} hitSlop={6}>
-                <Text style={styles.footerLink}>Crear cuenta</Text>
+                <Text style={styles.footerLink}>{t('auth.login.crearCuenta')}</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -219,19 +221,19 @@ function DemoChip({
   );
 }
 
-function mapAuthError(code?: string): string | null {
+function mapAuthError(code: string | undefined, t: TranslateFn): string | null {
   switch (code) {
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
-      return 'Email o contrasena incorrectos.';
+      return t('auth.login.errores.credenciales');
     case 'auth/user-not-found':
-      return 'No encontramos una cuenta con ese email.';
+      return t('auth.login.errores.usuarioNoEncontrado');
     case 'auth/too-many-requests':
-      return 'Demasiados intentos. Proba en unos minutos.';
+      return t('auth.login.errores.demasiadosIntentos');
     case 'auth/network-request-failed':
-      return 'Sin conexion. Revisa tu internet.';
+      return t('auth.login.errores.sinConexion');
     case 'auth/operation-not-allowed':
-      return 'Email/Password no esta habilitado en tu proyecto Firebase. Activalo en la consola.';
+      return t('auth.login.errores.operacionNoPermitida');
     default:
       return null;
   }
@@ -239,6 +241,12 @@ function mapAuthError(code?: string): string | null {
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
+  langButtonWrap: {
+    position: 'absolute',
+    top: 14,
+    right: 16,
+    zIndex: 10,
+  },
   title: {
     fontSize: 26,
     fontWeight: '700',

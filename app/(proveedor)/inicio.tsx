@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { pedidosService } from '@/services';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
@@ -15,6 +16,7 @@ import type { Pedido } from '@/types/models';
 
 export default function ProveedorInicioScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -57,7 +59,7 @@ export default function ProveedorInicioScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xxl, paddingBottom: spacing.huge }}>
-        <ScreenHeader eyebrow="Panel proveedor" title={`Hola, ${user?.nombre ?? ''}`} />
+        <ScreenHeader eyebrow={t('proveedor.inicio.eyebrow')} title={t('proveedor.inicio.hola', { nombre: user?.nombre ?? '' })} />
 
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.huge }} />
@@ -67,17 +69,14 @@ export default function ProveedorInicioScreen() {
               <View style={styles.iconWrap}>
                 <Ionicons name="receipt-outline" size={28} color={colors.primary} />
               </View>
-              <Text style={styles.heroTitle}>Todavía no recibiste pedidos</Text>
-              <Text style={styles.heroBody}>
-                Cuando un profesional te compre, vas a ver acá un resumen rápido y vas a poder
-                gestionar los envíos desde la pestaña Pedidos.
-              </Text>
+              <Text style={styles.heroTitle}>{t('proveedor.inicio.sinPedidosTitulo')}</Text>
+              <Text style={styles.heroBody}>{t('proveedor.inicio.sinPedidosMsg')}</Text>
               <Pressable
                 style={styles.heroBtn}
                 onPress={() => router.navigate('/(proveedor)/productos')}
               >
                 <Ionicons name="cube-outline" size={16} color={colors.white} />
-                <Text style={styles.heroBtnText}>Cargar productos</Text>
+                <Text style={styles.heroBtnText}>{t('proveedor.inicio.cargarProductos')}</Text>
               </Pressable>
             </View>
           </>
@@ -85,22 +84,22 @@ export default function ProveedorInicioScreen() {
           <>
             {/* A cobrar */}
             <View style={styles.cobrarCard}>
-              <Text style={styles.cobrarLabel}>A cobrar (pedidos abiertos)</Text>
+              <Text style={styles.cobrarLabel}>{t('proveedor.inicio.aCobrar')}</Text>
               <Text style={styles.cobrarValue}>{formatARS(resumen.aCobrar)}</Text>
             </View>
 
             {/* Contadores por estado */}
             <View style={styles.statsRow}>
-              <StatCard label="Pendientes" value={resumen.pendientes} tone="warning" colors={colors} styles={styles} />
-              <StatCard label="En curso" value={resumen.enCurso} tone="info" colors={colors} styles={styles} />
-              <StatCard label="Entregados" value={resumen.entregados} tone="success" colors={colors} styles={styles} />
+              <StatCard label={t('proveedor.inicio.pendientes')} value={resumen.pendientes} tone="warning" colors={colors} styles={styles} />
+              <StatCard label={t('proveedor.inicio.enCurso')} value={resumen.enCurso} tone="info" colors={colors} styles={styles} />
+              <StatCard label={t('proveedor.inicio.entregados')} value={resumen.entregados} tone="success" colors={colors} styles={styles} />
             </View>
 
             {/* Últimos pedidos */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Últimos pedidos</Text>
+              <Text style={styles.sectionTitle}>{t('proveedor.inicio.ultimosPedidos')}</Text>
               <Pressable onPress={() => router.navigate('/(proveedor)/pedidos')} hitSlop={6}>
-                <Text style={styles.verTodos}>Ver todos</Text>
+                <Text style={styles.verTodos}>{t('proveedor.inicio.verTodos')}</Text>
               </Pressable>
             </View>
 
@@ -111,6 +110,7 @@ export default function ProveedorInicioScreen() {
                   pedido={p}
                   colors={colors}
                   styles={styles}
+                  t={t}
                   onPress={() => router.navigate('/(proveedor)/pedidos')}
                 />
               ))}
@@ -148,11 +148,13 @@ function PedidoMiniRow({
   pedido,
   colors,
   styles,
+  t,
   onPress,
 }: {
   pedido: Pedido;
   colors: ThemeColors;
   styles: ReturnType<typeof createStyles>;
+  t: TranslateFn;
   onPress: () => void;
 }) {
   const meta = ESTADO_PEDIDO[pedido.estado];
@@ -162,14 +164,14 @@ function PedidoMiniRow({
     <Pressable onPress={onPress} style={styles.pedidoRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.pedidoNombre} numberOfLines={1}>
-          {pedido.compradorNombre ?? 'Pedido'}
+          {pedido.compradorNombre ?? t('proveedor.inicio.pedido')}
         </Text>
         <Text style={styles.pedidoMeta}>
-          {cantidad} {cantidad === 1 ? 'producto' : 'productos'} · {formatARS(pedido.total)}
+          {cantidad} {cantidad === 1 ? t('proveedor.inicio.producto') : t('proveedor.inicio.productos')} · {formatARS(pedido.total)}
         </Text>
       </View>
       <View style={[styles.estadoChip, { backgroundColor: `${tone}1A` }]}>
-        <Text style={[styles.estadoChipText, { color: tone }]}>{meta.label}</Text>
+        <Text style={[styles.estadoChipText, { color: tone }]}>{t(`estadosPedido.${pedido.estado}`)}</Text>
       </View>
     </Pressable>
   );

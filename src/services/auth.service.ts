@@ -300,15 +300,20 @@ export const authService = {
     uid: string,
     data: Partial<Pick<UsuarioDoc, 'nombre' | 'telefono' | 'avatarUrl' | 'perfil' | 'direcciones' | 'preferencias'>>,
   ): Promise<Usuario> {
+    const cleanData = stripUndefined(data);
     const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
     if (demoMatch) {
-      const updated: Usuario = { ...demoMatch, rol };
+      const current = (await getDemoSession()) ?? demoMatch;
+      const updated: Usuario = { ...current, ...cleanData };
       await setDemoSession(updated);
-      return;
+      return updated;
     }
-    await updateDoc(doc(db, USERS_COLLECTION, uid), {
-      rol,
+    const ref = doc(db, USERS_COLLECTION, uid);
+    await updateDoc(ref, {
+      ...cleanData,
       updatedAt: serverTimestamp(),
     });
+    const fresh = await getDoc(ref);
+    return buildUsuario(uid, fresh.data() as UsuarioDoc);
   },
 };

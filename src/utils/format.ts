@@ -1,3 +1,19 @@
+/* ─── Locale actual para formateo (lo setea el LanguageProvider) ─── */
+let currentLocale = 'es-AR';
+let metodoLabels: Record<string, string> = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  mercado_pago: 'Mercado Pago',
+  mixto: 'Mixto',
+  sin_registrar: 'Sin registrar',
+};
+
+/** Configura el locale (y etiquetas traducidas) que usan las funciones de formato. */
+export function setFormatLocale(locale: string, labels?: Record<string, string>) {
+  currentLocale = locale;
+  if (labels) metodoLabels = { ...metodoLabels, ...labels };
+}
+
 export function formatARS(value: number): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -44,7 +60,7 @@ export function formatHora(hhmm: string): string {
 
 export function formatFecha(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('es-AR', {
+  return d.toLocaleDateString(currentLocale, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -52,20 +68,9 @@ export function formatFecha(iso: string): string {
 }
 
 export function nombreMes(mes: number): string {
-  return new Date(2024, mes, 1).toLocaleDateString('es-AR', { month: 'long' });
+  return new Date(2024, mes, 1).toLocaleDateString(currentLocale, { month: 'long' });
 }
 
 export function metodoPagoLabel(m?: string): string {
-  switch (m) {
-    case 'efectivo':
-      return 'Efectivo';
-    case 'transferencia':
-      return 'Transferencia';
-    case 'mercado_pago':
-      return 'Mercado Pago';
-    case 'mixto':
-      return 'Mixto';
-    default:
-      return 'Sin registrar';
-  }
+  return metodoLabels[m ?? 'sin_registrar'] ?? metodoLabels.sin_registrar;
 }

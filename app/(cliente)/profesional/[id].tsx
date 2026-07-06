@@ -21,12 +21,10 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
-
-const NOMBRE_DIA_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const NOMBRE_DIA_LARGO = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 /** Genera las próximas N fechas que coinciden con los días de disponibilidad. */
 function generarProximasFechas(disponibilidad: Disponibilidad[], cantidad = 7): { fecha: Date; diaSemana: number }[] {
@@ -56,6 +54,9 @@ export default function PerfilProfesionalScreen() {
   const router = useRouter();
   const { user } = useSession();
   const { colors } = useTheme();
+  const { t } = useTranslation();
+  const NOMBRE_DIA_CORTO = t('comun.diasCortos').split(',');
+  const NOMBRE_DIA_LARGO = t('comun.dias').split(',');
   const [profesional, setProfesional] = useState<PerfilProfesional | null>(null);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad[]>([]);
@@ -171,11 +172,19 @@ export default function PerfilProfesionalScreen() {
       if (montoSena > 0) {
         setPagoModal({ turnoId: turno.id, monto: montoSena, servicio: servicioElegido.nombre });
       } else {
-        const estadoMsg = profesional.autoConfirmarTurnos ? 'confirmado' : 'pendiente de confirmación';
+        const estadoMsg = profesional.autoConfirmarTurnos
+          ? t('cliente.proDetalle.estadoConfirmado')
+          : t('cliente.proDetalle.estadoPendiente');
         Alert.alert(
-          '¡Turno reservado!',
-          `${servicioElegido.nombre} el ${NOMBRE_DIA_LARGO[fechaElegida.diaSemana]} ${fd.getDate()}/${fd.getMonth() + 1} a las ${horarioElegido} (${estadoMsg}).`,
-          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+          t('cliente.proDetalle.turnoReservadoTitulo'),
+          t('cliente.proDetalle.turnoReservadoMsg', {
+            servicio: servicioElegido.nombre,
+            dia: NOMBRE_DIA_LARGO[fechaElegida.diaSemana],
+            fecha: `${fd.getDate()}/${fd.getMonth() + 1}`,
+            hora: horarioElegido,
+            estado: estadoMsg,
+          }),
+          [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
         );
       }
     } finally {
@@ -197,24 +206,24 @@ export default function PerfilProfesionalScreen() {
         await turnosService.confirmarPagoSena(pagoModal.turnoId, profesional.autoConfirmarTurnos);
         setPagoModal(null);
         Alert.alert(
-          '¡Pago confirmado!',
-          'Tu seña fue acreditada. El turno quedó confirmado.',
-          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+          t('cliente.proDetalle.pagoConfirmadoTitulo'),
+          t('cliente.proDetalle.pagoConfirmadoMsg'),
+          [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
         );
       } else if (estado === 'pending') {
         setPagoModal(null);
         Alert.alert(
-          'Pago pendiente',
-          'Tu pago quedó pendiente de acreditación. Cuando se confirme, el turno se confirma solo. Lo seguís en "Mis turnos".',
-          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+          t('cliente.turnos.pagoPendienteTitulo'),
+          t('cliente.proDetalle.pagoPendienteMsg'),
+          [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
         );
       } else if (estado === 'cancelado') {
-        Alert.alert('Pago no completado', 'No se completó el pago. Podés intentarlo de nuevo o pagar más tarde desde "Mis turnos".');
+        Alert.alert(t('cliente.turnos.pagoNoCompletadoTitulo'), t('cliente.proDetalle.pagoNoCompletadoMsg'));
       } else {
-        Alert.alert('No se pudo procesar el pago', 'Intentá de nuevo en unos minutos.');
+        Alert.alert(t('cliente.turnos.pagoErrorTitulo'), t('cliente.turnos.pagoErrorMsg'));
       }
     } catch (e: any) {
-      Alert.alert('No pudimos iniciar el pago', e?.message ?? 'Probá de nuevo en unos minutos.');
+      Alert.alert(t('cliente.turnos.pagoIniciarErrorTitulo'), e?.message ?? t('cliente.turnos.pagoIniciarErrorMsg'));
     } finally {
       setPagandoSena(false);
     }
@@ -241,11 +250,11 @@ export default function PerfilProfesionalScreen() {
         </Pressable>
         <View style={styles.empty}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.muted} />
-          <Text style={[styles.emptyTitle, { color: colors.ink }]}>Profesional no encontrado</Text>
+          <Text style={[styles.emptyTitle, { color: colors.ink }]}>{t('cliente.proDetalle.noEncontrado')}</Text>
           <Text style={[styles.emptyText, { color: colors.muted }]}>
-            No pudimos cargar este perfil. Intentá de nuevo.
+            {t('cliente.proDetalle.noEncontradoMsg')}
           </Text>
-          <Button label="Volver" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
+          <Button label={t('comun.volver')} onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
         </View>
       </SafeAreaView>
     );
@@ -279,28 +288,36 @@ export default function PerfilProfesionalScreen() {
             <View style={styles.heroStats}>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>⭐ {profesional.rating}</Text>
-                <Text style={styles.statLabel}>{profesional.reviews} reseñas</Text>
+                <Text style={styles.statLabel}>{profesional.reviews} {t('cliente.proDetalle.resenas')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{servicios.length}</Text>
-                <Text style={styles.statLabel}>servicios</Text>
+                <Text style={styles.statLabel}>{t('cliente.proDetalle.servicios')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Badge label="Verificada" tone="success" />
+                <Badge label={t('cliente.proDetalle.verificada')} tone="success" />
               </View>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sobre {profesional.nombre.split(' ')[0]}</Text>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.sobre', { nombre: profesional.nombre.split(' ')[0] })}</Text>
           <Text style={styles.descripcion}>{profesional.descripcion}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Servicios y precios</Text>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.serviciosPrecios')}</Text>
+          {servicios.length === 0 && (
+            <View style={styles.sinDisponibilidad}>
+              <Ionicons name="pricetags-outline" size={28} color={colors.muted} />
+              <Text style={styles.sinDisponibilidadTxt}>
+                {t('cliente.proDetalle.sinServicios')}
+              </Text>
+            </View>
+          )}
           {servicios.map((s) => {
             const elegido = servicioElegido?.id === s.id;
             return (
@@ -311,7 +328,7 @@ export default function PerfilProfesionalScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.servicioNombre}>{s.nombre}</Text>
-                  <Text style={styles.servicioMeta}>{s.duracionMin} min</Text>
+                  <Text style={styles.servicioMeta}>{t('cliente.proDetalle.minutos', { min: s.duracionMin })}</Text>
                 </View>
                 <Text style={styles.servicioPrecio}>{formatARS(s.precio)}</Text>
               </Pressable>
@@ -321,12 +338,12 @@ export default function PerfilProfesionalScreen() {
 
         {/* Selección de día */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Elegí un día</Text>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.elegiDia')}</Text>
           {disponibilidad.length === 0 ? (
             <View style={styles.sinDisponibilidad}>
               <Ionicons name="calendar-outline" size={28} color={colors.muted} />
               <Text style={styles.sinDisponibilidadTxt}>
-                Esta profesional aún no configuró sus horarios de atención.
+                {t('cliente.proDetalle.sinHorariosConfig')}
               </Text>
             </View>
           ) : (
@@ -358,10 +375,13 @@ export default function PerfilProfesionalScreen() {
         {fechaElegida && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Horarios disponibles — {NOMBRE_DIA_LARGO[fechaElegida.diaSemana]} {fechaElegida.fecha.getDate()}/{fechaElegida.fecha.getMonth() + 1}
+              {t('cliente.proDetalle.horariosDisponibles', {
+                dia: NOMBRE_DIA_LARGO[fechaElegida.diaSemana],
+                fecha: `${fechaElegida.fecha.getDate()}/${fechaElegida.fecha.getMonth() + 1}`,
+              })}
             </Text>
             {slotsDisponibles.length === 0 ? (
-              <Text style={styles.sinSlots}>No hay horarios disponibles para este día.</Text>
+              <Text style={styles.sinSlots}>{t('cliente.proDetalle.sinSlots')}</Text>
             ) : (
               <View style={styles.horariosGrid}>
                 {slotsDisponibles.map((h) => {
@@ -384,10 +404,10 @@ export default function PerfilProfesionalScreen() {
 
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.footerLabel}>Servicio: {servicioElegido ? formatARS(servicioElegido.precio) : '—'}</Text>
+          <Text style={styles.footerLabel}>{t('cliente.proDetalle.servicioLabel', { monto: servicioElegido ? formatARS(servicioElegido.precio) : '—' })}</Text>
           <View style={styles.footerRow}>
             <Text style={styles.footerTotal}>
-              Seña: {montoSena > 0 ? formatARS(montoSena) : '—'}
+              {t('cliente.proDetalle.senaLabel', { monto: montoSena > 0 ? formatARS(montoSena) : '—' })}
             </Text>
             {montoSena > 0 && (
               <Text style={styles.footerPct}>({profesional?.anticipoPorcentaje ?? 20}%)</Text>
@@ -395,7 +415,7 @@ export default function PerfilProfesionalScreen() {
           </View>
         </View>
         <Button
-          label={horarioElegido ? `Reservar ${horarioElegido}` : 'Elegí un horario'}
+          label={horarioElegido ? t('cliente.proDetalle.reservarHora', { hora: horarioElegido }) : t('cliente.proDetalle.elegiHorario')}
           onPress={reservar}
           loading={reservando}
           disabled={!horarioElegido || !servicioElegido || !fechaElegida}
@@ -410,11 +430,11 @@ export default function PerfilProfesionalScreen() {
             <View style={styles.pagoIconWrap}>
               <Ionicons name="card-outline" size={40} color={colors.primary} />
             </View>
-            <Text style={styles.pagoTitle}>Pagar seña</Text>
+            <Text style={styles.pagoTitle}>{t('cliente.proDetalle.pagarSena')}</Text>
             <Text style={styles.pagoSub}>{pagoModal?.servicio}</Text>
 
             <View style={styles.pagoMontoBox}>
-              <Text style={styles.pagoMontoLabel}>Monto a pagar</Text>
+              <Text style={styles.pagoMontoLabel}>{t('cliente.proDetalle.montoAPagar')}</Text>
               <Text style={styles.pagoMonto}>{formatARS(pagoModal?.monto ?? 0)}</Text>
             </View>
 
@@ -424,10 +444,10 @@ export default function PerfilProfesionalScreen() {
               disabled={pagandoSena}
             >
               {pagandoSena ? (
-                <Text style={styles.mpButtonText}>Abriendo Mercado Pago…</Text>
+                <Text style={styles.mpButtonText}>{t('cliente.proDetalle.abriendoMP')}</Text>
               ) : (
                 <>
-                  <Text style={styles.mpButtonText}>Pagar con </Text>
+                  <Text style={styles.mpButtonText}>{t('cliente.proDetalle.pagarCon')}</Text>
                   <Text style={[styles.mpButtonText, { fontWeight: '800' }]}>Mercado Pago</Text>
                 </>
               )}
@@ -436,12 +456,12 @@ export default function PerfilProfesionalScreen() {
             <Pressable disabled={pagandoSena} onPress={() => {
               setPagoModal(null);
               Alert.alert(
-                'Turno reservado sin pago',
-                'Tu turno quedó como pendiente de pago. Podés pagar la seña desde "Mis turnos".',
-                [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
+                t('cliente.proDetalle.reservadoSinPagoTitulo'),
+                t('cliente.proDetalle.reservadoSinPagoMsg'),
+                [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
               );
             }} style={styles.pagoLater}>
-              <Text style={styles.pagoLaterTxt}>Pagar más tarde</Text>
+              <Text style={styles.pagoLaterTxt}>{t('cliente.proDetalle.pagarMasTarde')}</Text>
             </Pressable>
           </View>
         </View>

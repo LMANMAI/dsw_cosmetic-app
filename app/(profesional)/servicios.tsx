@@ -20,6 +20,7 @@ import { Button } from '@/components/Button';
 import { useSession } from '@/context/SessionContext';
 import { catalogoService } from '@/services/catalogo.service';
 import { serviciosService } from '@/services/servicios.service';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { CategoriaSlug, Categoria, ServicioCatalogo, ServicioProfesional } from '@/types/models';
@@ -41,6 +42,7 @@ interface DraftServicio {
 
 export default function ServiciosScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const profesionalId = user?.id ?? '';
@@ -124,11 +126,11 @@ export default function ServiciosScreen() {
     const p = Number(precio.replace(/\D/g, ''));
     const d = Number(duracion);
     if (!p || p <= 0) {
-      Alert.alert('Precio inválido', 'Ingresá un precio mayor a 0.');
+      Alert.alert(t('profesional.servicios.precioInvalidoTitulo'), t('profesional.servicios.precioInvalidoMsg'));
       return;
     }
     if (!d || d <= 0) {
-      Alert.alert('Duración inválida', 'Ingresá una duración en minutos.');
+      Alert.alert(t('profesional.servicios.duracionInvalidaTitulo'), t('profesional.servicios.duracionInvalidaMsg'));
       return;
     }
     setSaving(true);
@@ -160,7 +162,7 @@ export default function ServiciosScreen() {
     const p = Number(editPrecio.replace(/\D/g, ''));
     const d = Number(editDuracion);
     if (!p || p <= 0 || !d || d <= 0) {
-      Alert.alert('Datos inválidos', 'Revisá el precio y la duración.');
+      Alert.alert(t('profesional.servicios.datosInvalidosTitulo'), t('profesional.servicios.datosInvalidosMsg'));
       return;
     }
     setSaving(true);
@@ -177,12 +179,12 @@ export default function ServiciosScreen() {
 
   const confirmarEliminacion = (svc: ServicioProfesional) => {
     Alert.alert(
-      'Eliminar servicio',
-      `¿Eliminar "${svc.nombre}" de tu catálogo?`,
+      t('profesional.servicios.eliminarTitulo'),
+      t('profesional.servicios.eliminarMsg', { nombre: svc.nombre }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('comun.cancelar'), style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: t('comun.eliminar'),
           style: 'destructive',
           onPress: async () => {
             await serviciosService.eliminar(svc.id);
@@ -216,7 +218,7 @@ export default function ServiciosScreen() {
             </Pressable>
           </View>
           <View style={styles.content}>
-            <ScreenHeader eyebrow="Agregar servicio" title="¿En qué categoría?" />
+            <ScreenHeader eyebrow={t('profesional.servicios.agregarEyebrow')} title={t('profesional.servicios.queCategoria')} />
             <View style={styles.grid}>
               {categorias.map((cat) => (
                 <Pressable
@@ -228,7 +230,7 @@ export default function ServiciosScreen() {
                   ]}
                 >
                   <Text style={styles.catEmoji}>{cat.emoji}</Text>
-                  <Text style={[styles.catNombre, { color: colors.ink }]}>{cat.nombre}</Text>
+                  <Text style={[styles.catNombre, { color: colors.ink }]}>{t(`categorias.${cat.slug}`)}</Text>
                 </Pressable>
               ))}
             </View>
@@ -250,13 +252,13 @@ export default function ServiciosScreen() {
           </View>
           <View style={styles.content}>
             <ScreenHeader
-              eyebrow={`${categoriaElegida?.emoji} ${categoriaElegida?.nombre}`}
-              title="Elegí el servicio"
+              eyebrow={`${categoriaElegida?.emoji} ${categoriaElegida ? t(`categorias.${categoriaElegida.slug}`) : ''}`}
+              title={t('profesional.servicios.elegiServicio')}
             />
             {catalogoFiltrado.length === 0 ? (
               <View style={styles.emptyBox}>
                 <Text style={[styles.emptyTxt, { color: colors.muted }]}>
-                  Ya agregaste todos los servicios de esta categoría.
+                  {t('profesional.servicios.yaAgregasteTodos')}
                 </Text>
               </View>
             ) : (
@@ -275,7 +277,7 @@ export default function ServiciosScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.catalogoNombre, { color: colors.ink }]}>{svc.nombre}</Text>
                     <Text style={[styles.catalogoMeta, { color: colors.muted }]}>
-                      {svc.duracionEstimadaMin} min sugeridos
+                      {t('profesional.servicios.minSugeridos', { min: svc.duracionEstimadaMin })}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colors.muted} />
@@ -304,18 +306,18 @@ export default function ServiciosScreen() {
             </View>
             <View style={styles.content}>
               <ScreenHeader
-                eyebrow={`${draft.categoriaEmoji} ${categoriaElegida?.nombre}`}
+                eyebrow={`${draft.categoriaEmoji} ${categoriaElegida ? t(`categorias.${categoriaElegida.slug}`) : ''}`}
                 title={draft.nombre}
-                subtitle="Configurá el precio y la duración para tu agenda."
+                subtitle={t('profesional.servicios.configuraSubtitulo')}
               />
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.muted }]}>Precio ($)</Text>
+                <Text style={[styles.inputLabel, { color: colors.muted }]}>{t('profesional.servicios.precioLabel')}</Text>
                 <TextInput
                   style={[styles.input, { color: colors.ink, borderColor: colors.border, backgroundColor: colors.surface }]}
                   value={precio}
                   onChangeText={setPrecio}
-                  placeholder="Ej: 5000"
+                  placeholder={t('profesional.servicios.precioPlaceholder')}
                   placeholderTextColor={colors.muted}
                   keyboardType="numeric"
                   autoFocus
@@ -324,7 +326,7 @@ export default function ServiciosScreen() {
 
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.muted }]}>
-                  Duración (minutos)
+                  {t('profesional.servicios.duracionLabel')}
                 </Text>
                 <TextInput
                   style={[styles.input, { color: colors.ink, borderColor: colors.border, backgroundColor: colors.surface }]}
@@ -335,7 +337,7 @@ export default function ServiciosScreen() {
                   keyboardType="numeric"
                 />
                 <Text style={[styles.inputHint, { color: colors.muted }]}>
-                  Catálogo sugiere {draft.duracionEstimadaMin} min
+                  {t('profesional.servicios.catalogoSugiere', { min: draft.duracionEstimadaMin })}
                 </Text>
               </View>
             </View>
@@ -343,7 +345,7 @@ export default function ServiciosScreen() {
 
           <View style={styles.bottomBar}>
             <Button
-              label={saving ? 'Guardando...' : 'Agregar servicio'}
+              label={saving ? t('profesional.servicios.guardando') : t('profesional.servicios.agregarServicio')}
               onPress={guardar}
               loading={saving}
               fullWidth
@@ -370,12 +372,12 @@ export default function ServiciosScreen() {
             </View>
             <View style={styles.content}>
               <ScreenHeader
-                eyebrow="Editar servicio"
+                eyebrow={t('profesional.servicios.editarEyebrow')}
                 title={editando.nombre}
               />
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.muted }]}>Precio ($)</Text>
+                <Text style={[styles.inputLabel, { color: colors.muted }]}>{t('profesional.servicios.precioLabel')}</Text>
                 <TextInput
                   style={[styles.input, { color: colors.ink, borderColor: colors.border, backgroundColor: colors.surface }]}
                   value={editPrecio}
@@ -386,7 +388,7 @@ export default function ServiciosScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.muted }]}>Duración (minutos)</Text>
+                <Text style={[styles.inputLabel, { color: colors.muted }]}>{t('profesional.servicios.duracionLabel')}</Text>
                 <TextInput
                   style={[styles.input, { color: colors.ink, borderColor: colors.border, backgroundColor: colors.surface }]}
                   value={editDuracion}
@@ -404,7 +406,7 @@ export default function ServiciosScreen() {
               >
                 <Ionicons name="trash-outline" size={16} color={colors.danger} />
                 <Text style={[styles.deleteLinkTxt, { color: colors.danger }]}>
-                  Eliminar este servicio
+                  {t('profesional.servicios.eliminarEste')}
                 </Text>
               </Pressable>
             </View>
@@ -412,7 +414,7 @@ export default function ServiciosScreen() {
 
           <View style={styles.bottomBar}>
             <Button
-              label={saving ? 'Guardando...' : 'Guardar cambios'}
+              label={saving ? t('profesional.servicios.guardando') : t('profesional.servicios.guardarCambios')}
               onPress={guardarEdicion}
               loading={saving}
               fullWidth
@@ -435,19 +437,19 @@ export default function ServiciosScreen() {
 
         <View style={styles.content}>
           <ScreenHeader
-            eyebrow="Mi catálogo"
-            title="Servicios y precios"
-            subtitle="Los clientes verán estos servicios al visitar tu perfil."
+            eyebrow={t('profesional.servicios.eyebrow')}
+            title={t('profesional.servicios.titulo')}
+            subtitle={t('profesional.servicios.subtitulo')}
           />
 
           {servicios.length === 0 ? (
             <View style={styles.emptyBox}>
               <Ionicons name="cut-outline" size={48} color={colors.muted} />
               <Text style={[styles.emptyTitle, { color: colors.ink }]}>
-                Todavía no cargaste servicios
+                {t('profesional.servicios.vacioTitulo')}
               </Text>
               <Text style={[styles.emptyTxt, { color: colors.muted }]}>
-                Agregá los servicios que ofrecés con su precio y duración.
+                {t('profesional.servicios.vacioMsg')}
               </Text>
             </View>
           ) : (
@@ -472,7 +474,7 @@ export default function ServiciosScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.svcNombre, { color: colors.ink }]}>{svc.nombre}</Text>
                       <Text style={[styles.svcMeta, { color: colors.muted }]}>
-                        {svc.duracionMin} min
+                        {t('profesional.servicios.min', { min: svc.duracionMin })}
                       </Text>
                     </View>
                     <Text style={[styles.svcPrecio, { color: colors.primary }]}>
@@ -489,7 +491,7 @@ export default function ServiciosScreen() {
 
       <View style={styles.bottomBar}>
         <Button
-          label="Agregar servicio"
+          label={t('profesional.servicios.agregarServicio')}
           onPress={iniciarAgregado}
           fullWidth
         />

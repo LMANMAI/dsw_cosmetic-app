@@ -11,6 +11,7 @@ import {
 import { db } from './firebase';
 import type { CierreCaja, DetalleCobro, EstadoTurno, MetodoPago, Turno } from '@/types/models';
 import { COMISION_PLATAFORMA } from '@/types/models';
+import { configService } from './config.service';
 
 const COLLECTION = 'turnos';
 
@@ -81,10 +82,13 @@ export const turnosService = {
     if (metodo) cambios.metodoPago = metodo;
 
     // Al completar, calcular comisión de la plataforma
+    // (global de config/plataforma, personalizada del profesional, o 0 si
+    // tiene exención vigente por premio de competencia)
     if (estado === 'completado') {
       const snap = await getDoc(ref);
       const turno = snap.data() as Turno;
-      cambios.comisionPlataforma = Math.round(turno.monto * COMISION_PLATAFORMA);
+      const pct = await configService.comisionPara(turno.profesionalId);
+      cambios.comisionPlataforma = Math.round(turno.monto * pct);
     }
 
     await updateDoc(ref, cambios);

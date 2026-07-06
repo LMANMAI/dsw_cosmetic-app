@@ -16,12 +16,14 @@ import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useCart } from '@/context/CartContext';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
 
 export default function CarritoScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const cart = useCart();
@@ -37,7 +39,7 @@ export default function CarritoScreen() {
       const p = it.producto;
       if (!map.has(p.proveedorId)) {
         map.set(p.proveedorId, {
-          nombre: p.proveedorNombre ?? 'Proveedor',
+          nombre: p.proveedorNombre ?? t('profesional.carrito.proveedor'),
           envio: !!p.entregaEnvio,
           retiro: !!p.entregaRetiro,
         });
@@ -79,9 +81,9 @@ export default function CarritoScreen() {
 
       const exito = () => {
         cart.clear();
-        Alert.alert('Pedido confirmado', 'Tu compra fue registrada. Seguí el estado en Mis pedidos.', [
-          { text: 'Ver mis pedidos', onPress: () => router.replace('/(profesional)/mis-pedidos') },
-          { text: 'Seguir comprando', style: 'cancel', onPress: () => router.back() },
+        Alert.alert(t('profesional.carrito.pedidoConfirmadoTitulo'), t('profesional.carrito.pedidoConfirmadoMsg'), [
+          { text: t('profesional.carrito.verMisPedidos'), onPress: () => router.replace('/(profesional)/mis-pedidos') },
+          { text: t('profesional.carrito.seguirComprando'), style: 'cancel', onPress: () => router.back() },
         ]);
       };
 
@@ -115,16 +117,16 @@ export default function CarritoScreen() {
       if (fallo) {
         cart.clear();
         Alert.alert(
-          'Pago no completado',
-          'No se completó uno de los pagos, así que cancelamos ese pedido. Lo que ya pagaste lo ves en Mis pedidos.',
-          [{ text: 'Ver mis pedidos', onPress: () => router.replace('/(profesional)/mis-pedidos') }],
+          t('profesional.carrito.pagoNoCompletadoTitulo'),
+          t('profesional.carrito.pagoNoCompletadoMsg'),
+          [{ text: t('profesional.carrito.verMisPedidos'), onPress: () => router.replace('/(profesional)/mis-pedidos') }],
         );
       } else if (huboPendiente) {
         cart.clear();
         Alert.alert(
-          'Pago pendiente',
-          'Algún pago quedó pendiente de acreditación. Cuando se confirme, el pedido se procesa. Lo ves en Mis pedidos.',
-          [{ text: 'Ver mis pedidos', onPress: () => router.replace('/(profesional)/mis-pedidos') }],
+          t('profesional.carrito.pagoPendienteTitulo'),
+          t('profesional.carrito.pagoPendienteMsg'),
+          [{ text: t('profesional.carrito.verMisPedidos'), onPress: () => router.replace('/(profesional)/mis-pedidos') }],
         );
       } else {
         exito();
@@ -133,7 +135,7 @@ export default function CarritoScreen() {
       if (creados.length) {
         await pedidosService.cancelarImpagos(creados.map((p) => p.id)).catch(() => {});
       }
-      Alert.alert('No pudimos procesar el pago', e?.message ?? 'Probá de nuevo en unos minutos.');
+      Alert.alert(t('profesional.carrito.pagoErrorTitulo'), e?.message ?? t('profesional.carrito.pagoErrorMsg'));
     } finally {
       setPagando(false);
     }
@@ -149,15 +151,15 @@ export default function CarritoScreen() {
         </Pressable>
       </View>
       <View style={styles.headerWrap}>
-        <ScreenHeader eyebrow="Tienda" title="Tu carrito" />
+        <ScreenHeader eyebrow={t('profesional.carrito.eyebrow')} title={t('profesional.carrito.titulo')} />
       </View>
 
       {vacio ? (
         <View style={styles.empty}>
           <Ionicons name="bag-handle-outline" size={40} color={colors.muted} />
-          <Text style={styles.emptyTitle}>Tu carrito está vacío</Text>
-          <Text style={styles.emptyText}>Agregá insumos desde la tienda para empezar tu compra.</Text>
-          <Button label="Ir a la tienda" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
+          <Text style={styles.emptyTitle}>{t('profesional.carrito.vacioTitulo')}</Text>
+          <Text style={styles.emptyText}>{t('profesional.carrito.vacioMsg')}</Text>
+          <Button label={t('profesional.carrito.irTienda')} onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
         </View>
       ) : (
         <>
@@ -167,7 +169,7 @@ export default function CarritoScreen() {
               <View key={it.producto.id} style={styles.itemCard}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName} numberOfLines={2}>{it.producto.nombre}</Text>
-                  <Text style={styles.itemUnit}>{formatARS(it.producto.precio)} c/u</Text>
+                  <Text style={styles.itemUnit}>{t('profesional.carrito.cadaUno', { precio: formatARS(it.producto.precio) })}</Text>
                 </View>
                 <View style={styles.itemRight}>
                   <View style={styles.qtyRow}>
@@ -191,7 +193,7 @@ export default function CarritoScreen() {
             ))}
 
             {/* Entrega */}
-            <Text style={styles.sectionTitle}>Entrega</Text>
+            <Text style={styles.sectionTitle}>{t('profesional.carrito.entrega')}</Text>
             {proveedoresCarrito.map((p) => {
               const disponibles: MetodoEntrega[] = [
                 ...(p.envio ? (['envio'] as MetodoEntrega[]) : []),
@@ -203,7 +205,7 @@ export default function CarritoScreen() {
                     <Text style={styles.entregaProv}>{p.nombre}</Text>
                   ) : null}
                   {disponibles.length === 0 ? (
-                    <Text style={styles.entregaNota}>El proveedor coordina la entrega.</Text>
+                    <Text style={styles.entregaNota}>{t('profesional.carrito.proveedorCoordina')}</Text>
                   ) : (
                     <View style={styles.entregaChips}>
                       {disponibles.map((m) => {
@@ -222,7 +224,7 @@ export default function CarritoScreen() {
                             <Text
                               style={[styles.entregaChipText, active && styles.entregaChipTextActive]}
                             >
-                              {m === 'envio' ? 'Envío a domicilio' : 'Retiro en local'}
+                              {m === 'envio' ? t('profesional.carrito.envioDomicilio') : t('profesional.carrito.retiroLocal')}
                             </Text>
                           </Pressable>
                         );
@@ -237,11 +239,11 @@ export default function CarritoScreen() {
           {/* Barra inferior */}
           <View style={styles.bottomBar}>
             <View>
-              <Text style={styles.totalLbl}>Total</Text>
+              <Text style={styles.totalLbl}>{t('profesional.carrito.total')}</Text>
               <Text style={styles.totalVal}>{formatARS(cart.total)}</Text>
             </View>
             <Button
-              label={pagando ? 'Procesando…' : PAGOS_HABILITADOS ? 'Pagar y confirmar' : 'Confirmar pedido'}
+              label={pagando ? t('profesional.carrito.procesando') : PAGOS_HABILITADOS ? t('profesional.carrito.pagarConfirmar') : t('profesional.carrito.confirmarPedido')}
               onPress={checkout}
               loading={pagando}
             />

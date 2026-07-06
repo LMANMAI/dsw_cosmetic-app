@@ -5,10 +5,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { CartProvider } from '@/context/CartContext';
+import { LanguageProvider } from '@/i18n';
 import { useRegistrarPush } from '@/hooks/useRegistrarPush';
 import { ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
 
 function ThemedStatusBar() {
   const { isDark } = useTheme();
@@ -55,12 +57,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <SessionProvider>
-            <CartProvider>
-              <ThemedStatusBar />
-              <AuthGate />
-            </CartProvider>
-          </SessionProvider>
+          <LanguageProvider>
+            <SessionProvider>
+              <CartProvider>
+                <ThemedStatusBar />
+                <AuthGate />
+              </CartProvider>
+            </SessionProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

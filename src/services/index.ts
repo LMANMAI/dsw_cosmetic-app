@@ -6,6 +6,7 @@ export { disponibilidadService } from './disponibilidad.service';
 export { profesionalesService } from './profesionales.service';
 export { turnosService } from './turnos.service';
 export { comisionesService } from './comisiones.service';
+export { configService } from './config.service';
 export { productosService } from './productos.service';
 export { pedidosService } from './pedidos.service';
 export type { ItemCarrito, CrearPedidoInput } from './pedidos.service';

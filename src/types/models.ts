@@ -24,6 +24,10 @@ export interface PerfilProfesionalSignup {
   perfilVisible?: boolean;    // si false, no aparece en búsquedas de clientes
   autoConfirmarTurnos?: boolean; // si true, los turnos se confirman sin revisión manual
   anticipoPorcentaje?: 0 | 20 | 50 | 100; // porcentaje de anticipo que se pide al reservar
+  /** Comisión personalizada (0-100). Si falta, se usa la global de config/plataforma. */
+  comisionPorcentaje?: number;
+  /** Premio de competencia: hasta esta fecha (YYYY-MM-DD) no paga comisión. */
+  comisionExentaHasta?: string;
 }
 
 export interface PerfilProveedor {
@@ -185,7 +189,11 @@ export type EstadoTurno =
 
 export type MetodoPago = 'efectivo' | 'transferencia' | 'mercado_pago' | 'mixto';
 
-/** Porcentaje de comisión que cobra la plataforma sobre cada servicio (0-1). */
+/**
+ * Porcentaje de comisión por defecto (0-1). Es solo el FALLBACK:
+ * el valor real se lee de Firestore config/plataforma.comisionPorcentaje
+ * (editable desde el panel admin) vía configService.
+ */
 export const COMISION_PLATAFORMA = 0.20;
 
 export interface Turno {

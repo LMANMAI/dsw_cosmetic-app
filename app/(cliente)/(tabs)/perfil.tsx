@@ -5,8 +5,10 @@ import { useRouter } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
+import { LanguageModal, useLanguageLabel } from '@/components/LanguageSelector';
 import { useSession } from '@/context/SessionContext';
-import { turnosService, notificacionesService, PREFERENCIAS_DEFAULT, RECORDATORIO_LABELS } from '@/services';
+import { turnosService, notificacionesService, PREFERENCIAS_DEFAULT } from '@/services';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { PreferenciasNotificaciones, RecordatorioTurnos } from '@/types/models';
@@ -17,7 +19,10 @@ const RECORDATORIO_VALUES: RecordatorioTurnos[] = ['30m', '1h', '2h', '24h', 'of
 export default function PerfilClienteScreen() {
   const { user, logout, switchRole, updateUser } = useSession();
   const { colors, isDark, setMode } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
+  const idiomaActual = useLanguageLabel();
+  const [idiomaModal, setIdiomaModal] = useState(false);
 
   const prefs: PreferenciasNotificaciones = user?.preferencias ?? PREFERENCIAS_DEFAULT;
   const [guardandoPrefs, setGuardandoPrefs] = useState(false);
@@ -35,7 +40,7 @@ export default function PerfilClienteScreen() {
       const turnos = await turnosService.listarDelCliente(user.id).catch(() => []);
       await notificacionesService.sincronizarRecordatorios(turnos, nuevas);
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo guardar la preferencia.');
+      Alert.alert(t('comun.error'), err.message ?? t('perfil.cliente.errorPrefMsg'));
     } finally {
       setGuardandoPrefs(false);
     }
@@ -43,14 +48,14 @@ export default function PerfilClienteScreen() {
 
   const elegirRecordatorio = () => {
     Alert.alert(
-      'Recordatorio de turnos',
-      'Cuanto antes queres que te avisemos?',
+      t('perfil.cliente.recordatorio'),
+      t('perfil.cliente.recordatorioPrompt'),
       RECORDATORIO_VALUES.map((value) => ({
-        text: RECORDATORIO_LABELS[value],
+        text: t(`perfil.cliente.recordatorios.${value}`),
         onPress: async () => {
           await guardarPrefs({ ...prefs, recordatorioTurnos: value });
         },
-      })).concat([{ text: 'Cancelar', onPress: async () => {} }]),
+      })).concat([{ text: t('comun.cancelar'), onPress: async () => {} }]),
     );
   };
 
@@ -59,8 +64,8 @@ export default function PerfilClienteScreen() {
       const ok = await notificacionesService.pedirPermisos();
       if (!ok) {
         Alert.alert(
-          'Permiso requerido',
-          'Activá las notificaciones para YOFI desde la configuración de tu teléfono.',
+          t('perfil.cliente.permisoRequeridoTitulo'),
+          t('perfil.cliente.permisoNotifMsg'),
         );
         return;
       }
@@ -72,9 +77,10 @@ export default function PerfilClienteScreen() {
 
   const confirmarLogout = async () => {
     const ok = await confirm({
-      title: 'Cerrar sesion',
-      message: 'Seguro queres salir?',
-      confirmLabel: 'Cerrar sesion',
+      title: t('perfil.compartido.cerrarSesion'),
+      message: t('perfil.compartido.cerrarSesionMsg'),
+      confirmLabel: t('perfil.compartido.cerrarSesion'),
+      cancelLabel: t('comun.cancelar'),
       destructive: true,
     });
     if (ok) await logout();
@@ -85,7 +91,7 @@ export default function PerfilClienteScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xxl, paddingBottom: spacing.huge }}>
-        <ScreenHeader eyebrow="Tu cuenta" title="Mi perfil" />
+        <ScreenHeader eyebrow={t('perfil.compartido.tuCuenta')} title={t('perfil.compartido.miPerfil')} />
 
         <View style={styles.userBox}>
           <Avatar nombre={user?.nombre ?? '-'} size={72} />
@@ -96,87 +102,95 @@ export default function PerfilClienteScreen() {
           </View>
         </View>
 
-        <SettingsGroup title="Personal">
+        <SettingsGroup title={t('perfil.cliente.grupoPersonal')}>
           <SettingsRow
             icon="person-outline"
-            label="Datos personales"
-            description="Nombre, email, telefono"
+            label={t('perfil.cliente.datosPersonales')}
+            description={t('perfil.cliente.datosPersonalesDesc')}
             onPress={() => router.push('/(cliente)/datos-personales')}
           />
           <SettingsRow
             icon="location-outline"
-            label="Direcciones guardadas"
-            description="Para que las profesionales sepan donde atenderte"
+            label={t('perfil.cliente.direcciones')}
+            description={t('perfil.cliente.direccionesDesc')}
             onPress={() => router.push('/(cliente)/direcciones')}
           />
           <SettingsRow
             icon="card-outline"
-            label="Metodos de pago"
-            description="Por el momento, MercadoPago"
+            label={t('perfil.cliente.metodosPago')}
+            description={t('perfil.cliente.metodosPagoDesc')}
             isLast
             onPress={() =>
               Alert.alert(
-                'Metodos de pago',
-                'Por el momento operamos unicamente a traves de MercadoPago. Los pagos y senas de tus turnos se procesan de forma segura desde la app de MercadoPago.',
+                t('perfil.cliente.metodosPago'),
+                t('perfil.cliente.metodosPagoMsg'),
               )
             }
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Configuracion">
+        <SettingsGroup title={t('perfil.compartido.grupoConfiguracion')}>
           <SettingsRow
             icon="alarm-outline"
-            label="Recordatorio de turnos"
-            description="Cuanto antes te avisamos"
-            value={RECORDATORIO_LABELS[prefs.recordatorioTurnos]}
+            label={t('perfil.cliente.recordatorio')}
+            description={t('perfil.cliente.recordatorioDesc')}
+            value={t(`perfil.cliente.recordatorios.${prefs.recordatorioTurnos}`)}
             onPress={elegirRecordatorio}
           />
           <SettingsRow
             icon="notifications-outline"
-            label="Notificaciones push"
-            description="Recordatorios de tus turnos"
+            label={t('perfil.compartido.notifPush')}
+            description={t('perfil.cliente.notifPushDesc')}
             toggle={prefs.pushEnabled}
             onToggle={togglePush}
           />
           <SettingsRow
+            icon="language-outline"
+            label={t('idioma.titulo')}
+            description={t('idioma.descripcion')}
+            value={idiomaActual}
+            onPress={() => setIdiomaModal(true)}
+          />
+          <SettingsRow
             icon="moon-outline"
-            label="Modo oscuro"
+            label={t('perfil.compartido.modoOscuro')}
             toggle={isDark}
             onToggle={handleToggleDark}
             isLast
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Ayuda">
+        <SettingsGroup title={t('perfil.compartido.grupoAyuda')}>
           <SettingsRow
             icon="help-circle-outline"
-            label="Centro de ayuda"
+            label={t('perfil.compartido.centroAyuda')}
             onPress={() => router.push('/(cliente)/centro-ayuda')}
           />
           <SettingsRow
             icon="shield-checkmark-outline"
-            label="Terminos y privacidad"
+            label={t('perfil.compartido.terminos')}
             isLast
             onPress={() => router.push('/(cliente)/terminos')}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Cuenta">
+        <SettingsGroup title={t('perfil.compartido.grupoCuenta')}>
           <SettingsRow
             icon="briefcase-outline"
-            label="Entrar como profesional"
-            description="Si tambien ofreces servicios"
+            label={t('perfil.cliente.entrarProfesional')}
+            description={t('perfil.cliente.entrarProfesionalDesc')}
             onPress={() => switchRole('profesional')}
           />
           <SettingsRow
             icon="log-out-outline"
-            label="Cerrar sesion"
+            label={t('perfil.compartido.cerrarSesion')}
             destructive
             isLast
             onPress={confirmarLogout}
           />
         </SettingsGroup>
       </ScrollView>
+      <LanguageModal visible={idiomaModal} onClose={() => setIdiomaModal(false)} />
     </SafeAreaView>
   );
 }

@@ -22,18 +22,20 @@ import { Button } from '@/components/Button';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
 import { useSession } from '@/context/SessionContext';
 import { uploadImage } from '@/services/upload.service';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { PerfilProfesionalSignup, ModalidadTrabajo } from '@/types/models';
 
-const MODALIDAD_OPTIONS: { value: ModalidadTrabajo; label: string }[] = [
-  { value: 'salon', label: 'Salón' },
-  { value: 'domicilio', label: 'A domicilio' },
-  { value: 'ambos', label: 'Ambos' },
+const MODALIDAD_OPTIONS: { value: ModalidadTrabajo; labelKey: string }[] = [
+  { value: 'salon', labelKey: 'profesional.editarNegocio.modalidadSalon' },
+  { value: 'domicilio', labelKey: 'profesional.editarNegocio.modalidadDomicilio' },
+  { value: 'ambos', labelKey: 'profesional.editarNegocio.modalidadAmbos' },
 ];
 
 export default function EditarNegocioScreen() {
   const { user, updateUser } = useSession();
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const router = useRouter();
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
@@ -67,7 +69,7 @@ export default function EditarNegocioScreen() {
   ) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para cambiar la foto.');
+      Alert.alert(t('profesional.editarNegocio.permisoTitulo'), t('profesional.editarNegocio.permisoMsg'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -90,7 +92,7 @@ export default function EditarNegocioScreen() {
         setFotoSalonUri(url);
       }
     } catch {
-      Alert.alert('Error', 'No se pudo subir la imagen. Intentá de nuevo.');
+      Alert.alert(t('comun.error'), t('profesional.editarNegocio.errorSubirMsg'));
     } finally {
       setLoading(false);
     }
@@ -98,7 +100,7 @@ export default function EditarNegocioScreen() {
 
   const guardar = async () => {
     if (!nombreNegocio.trim()) {
-      Alert.alert('Campo requerido', 'El nombre del negocio no puede estar vacío.');
+      Alert.alert(t('profesional.editarNegocio.faltaNombreTitulo'), t('profesional.editarNegocio.faltaNombreMsg'));
       return;
     }
     setSaving(true);
@@ -129,11 +131,11 @@ export default function EditarNegocioScreen() {
         updatedPerfil.fotoSalonUrl = fotoSalonUri;
       }
       await updateUser(updatePayload);
-      Alert.alert('Guardado', 'Los datos del negocio se actualizaron correctamente.', [
-        { text: 'OK', onPress: () => router.navigate('/(profesional)/perfil') },
+      Alert.alert(t('profesional.editarNegocio.guardadoTitulo'), t('profesional.editarNegocio.guardadoMsg'), [
+        { text: t('comun.aceptar'), onPress: () => router.navigate('/(profesional)/perfil') },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo guardar.');
+      Alert.alert(t('comun.error'), err.message ?? t('profesional.editarNegocio.errorGuardarMsg'));
     } finally {
       setSaving(false);
     }
@@ -152,11 +154,11 @@ export default function EditarNegocioScreen() {
           <Pressable onPress={() => router.navigate('/(profesional)/perfil')} style={styles.backBtn} hitSlop={12}>
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
-          <ScreenHeader eyebrow="Tu negocio" title="Editar datos del negocio" />
+          <ScreenHeader eyebrow={t('profesional.editarNegocio.eyebrow')} title={t('profesional.editarNegocio.titulo')} />
 
           {/* Foto de perfil */}
-          <Text style={styles.label}>Foto de perfil</Text>
-          <Text style={styles.hint}>La imagen que verán tus clientes en búsquedas y tu perfil</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.fotoPerfil')}</Text>
+          <Text style={styles.hint}>{t('profesional.editarNegocio.fotoPerfilHint')}</Text>
           <Pressable style={styles.avatarPicker} onPress={() => elegirImagen('avatar')}>
             {uploadingAvatar ? (
               <View style={styles.avatarPlaceholder}>
@@ -173,8 +175,8 @@ export default function EditarNegocioScreen() {
           </Pressable>
 
           {/* Foto del salón */}
-          <Text style={styles.label}>Foto del salón / espacio de trabajo</Text>
-          <Text style={styles.hint}>Mostrá tu espacio para generar confianza</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.fotoSalon')}</Text>
+          <Text style={styles.hint}>{t('profesional.editarNegocio.fotoSalonHint')}</Text>
           <Pressable style={styles.salonPicker} onPress={() => elegirImagen('salon')}>
             {uploadingSalon ? (
               <View style={styles.salonPlaceholder}>
@@ -186,7 +188,7 @@ export default function EditarNegocioScreen() {
               <View style={styles.salonPlaceholder}>
                 <Ionicons name="image-outline" size={32} color={colors.muted} />
                 <Text style={{ color: colors.muted, fontSize: 13, marginTop: 8 }}>
-                  Tocar para agregar foto
+                  {t('profesional.editarNegocio.tocarAgregarFoto')}
                 </Text>
               </View>
             )}
@@ -196,24 +198,24 @@ export default function EditarNegocioScreen() {
           </Pressable>
 
           {/* Nombre del negocio */}
-          <Text style={styles.label}>Nombre del negocio</Text>
-          <Text style={styles.hint}>Es el nombre que verán tus clientes</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.nombre')}</Text>
+          <Text style={styles.hint}>{t('profesional.editarNegocio.nombreHint')}</Text>
           <TextInput
             style={styles.input}
             value={nombreNegocio}
             onChangeText={setNombreNegocio}
-            placeholder="Ej: Nails by Ana"
+            placeholder={t('profesional.editarNegocio.nombrePlaceholder')}
             placeholderTextColor={colors.muted}
           />
 
           {/* Descripción */}
-          <Text style={styles.label}>Descripción / Bio</Text>
-          <Text style={styles.hint}>Contá brevemente qué hacés y qué te diferencia</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.descripcion')}</Text>
+          <Text style={styles.hint}>{t('profesional.editarNegocio.descripcionHint')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={descripcion}
             onChangeText={setDescripcion}
-            placeholder="Ej: Especialista en diseño de uñas con 5 años de experiencia..."
+            placeholder={t('profesional.editarNegocio.descripcionPlaceholder')}
             placeholderTextColor={colors.muted}
             multiline
             numberOfLines={4}
@@ -221,17 +223,17 @@ export default function EditarNegocioScreen() {
           />
 
           {/* Especialidad */}
-          <Text style={styles.label}>Especialidad</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.especialidad')}</Text>
           <TextInput
             style={styles.input}
             value={especialidad}
             onChangeText={setEspecialidad}
-            placeholder="Ej: Manicura, Pestañas"
+            placeholder={t('profesional.editarNegocio.especialidadPlaceholder')}
             placeholderTextColor={colors.muted}
           />
 
           {/* Modalidad */}
-          <Text style={styles.label}>Modalidad de trabajo</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.modalidad')}</Text>
           <View style={styles.chipRow}>
             {MODALIDAD_OPTIONS.map((opt) => (
               <Pressable
@@ -252,14 +254,14 @@ export default function EditarNegocioScreen() {
                     fontSize: 14,
                   }}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </Text>
               </Pressable>
             ))}
           </View>
 
           {/* Dirección */}
-          <Text style={styles.label}>Dirección</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.direccion')}</Text>
           {direccionData ? (
             <View style={styles.direccionActual}>
               <View style={{ flex: 1 }}>
@@ -268,39 +270,39 @@ export default function EditarNegocioScreen() {
                 </Text>
               </View>
               <Pressable onPress={() => setDireccionData(null)} hitSlop={8}>
-                <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>Cambiar</Text>
+                <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>{t('profesional.editarNegocio.cambiar')}</Text>
               </Pressable>
             </View>
           ) : (
             <DireccionAutocomplete
               onSelect={(d) => setDireccionData(d)}
-              placeholder="Buscá tu nueva dirección..."
+              placeholder={t('profesional.editarNegocio.buscarDireccionPlaceholder')}
             />
           )}
 
           {/* Instagram */}
-          <Text style={styles.label}>Instagram</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.instagram')}</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="logo-instagram" size={18} color={colors.muted} />
             <TextInput
               style={[styles.input, { flex: 1, marginBottom: 0 }]}
               value={instagram}
               onChangeText={setInstagram}
-              placeholder="tu_usuario"
+              placeholder={t('profesional.editarNegocio.instagramPlaceholder')}
               placeholderTextColor={colors.muted}
               autoCapitalize="none"
             />
           </View>
 
           {/* Sitio web */}
-          <Text style={styles.label}>Sitio web o link</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.sitioWeb')}</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="globe-outline" size={18} color={colors.muted} />
             <TextInput
               style={[styles.input, { flex: 1, marginBottom: 0 }]}
               value={sitioWeb}
               onChangeText={setSitioWeb}
-              placeholder="https://mi-sitio.com"
+              placeholder={t('profesional.editarNegocio.sitioWebPlaceholder')}
               placeholderTextColor={colors.muted}
               autoCapitalize="none"
               keyboardType="url"
@@ -308,15 +310,15 @@ export default function EditarNegocioScreen() {
           </View>
 
           {/* Teléfono de contacto */}
-          <Text style={styles.label}>Teléfono de contacto</Text>
-          <Text style={styles.hint}>Número público que verán tus clientes</Text>
+          <Text style={styles.label}>{t('profesional.editarNegocio.telefono')}</Text>
+          <Text style={styles.hint}>{t('profesional.editarNegocio.telefonoHint')}</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="call-outline" size={18} color={colors.muted} />
             <TextInput
               style={[styles.input, { flex: 1, marginBottom: 0 }]}
               value={telefonoContacto}
               onChangeText={setTelefonoContacto}
-              placeholder="Ej: 3515551234"
+              placeholder={t('profesional.editarNegocio.telefonoPlaceholder')}
               placeholderTextColor={colors.muted}
               keyboardType="phone-pad"
             />
@@ -324,7 +326,7 @@ export default function EditarNegocioScreen() {
 
           {/* Botón guardar */}
           <Button
-            label="Guardar cambios"
+            label={t('profesional.editarNegocio.guardarCambios')}
             onPress={guardar}
             loading={saving}
             disabled={saving}

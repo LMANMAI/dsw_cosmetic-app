@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarDirecciones, type DireccionSugerida } from '@/services/geocoding.service';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 
 // react-native-maps no soporta web, lo cargamos solo en nativo
@@ -27,9 +28,10 @@ interface DireccionAutocompleteProps {
 
 export function DireccionAutocomplete({
   onSelect,
-  placeholder = 'Buscá tu dirección...',
+  placeholder,
 }: DireccionAutocompleteProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [texto, setTexto] = useState('');
   const [sugerencias, setSugerencias] = useState<DireccionSugerida[]>([]);
   const [seleccionada, setSeleccionada] = useState<DireccionSugerida | null>(null);
@@ -81,7 +83,7 @@ export function DireccionAutocomplete({
         <Ionicons name="search-outline" size={18} color={colors.muted} style={{ marginRight: spacing.sm }} />
         <TextInput
           style={[styles.input, { color: colors.ink }]}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('componentes.direccion.buscarPlaceholder')}
           placeholderTextColor={colors.muted}
           value={texto}
           onChangeText={(t) => {
@@ -98,7 +100,7 @@ export function DireccionAutocomplete({
 
       {/* Indicador de búsqueda */}
       {buscando ? (
-        <Text style={[styles.hint, { color: colors.muted }]}>Buscando direcciones...</Text>
+        <Text style={[styles.hint, { color: colors.muted }]}>{t('componentes.direccion.buscando')}</Text>
       ) : null}
 
       {/* Lista de sugerencias */}
@@ -153,14 +155,17 @@ export function DireccionAutocomplete({
             </MapView>
             <View style={[styles.mapOverlay, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-              <Text style={[styles.mapOverlayText, { color: colors.success }]}>Ubicación confirmada</Text>
+              <Text style={[styles.mapOverlayText, { color: colors.success }]}>{t('componentes.direccion.ubicacionConfirmada')}</Text>
             </View>
           </View>
         ) : (
           <View style={[styles.confirmBadge, { backgroundColor: colors.bone }]}>
             <Ionicons name="checkmark-circle" size={18} color={colors.success} />
             <Text style={[styles.confirmText, { color: colors.ink }]}>
-              Ubicación confirmada: {seleccionada.direccion}, {seleccionada.ciudad}
+              {t('componentes.direccion.ubicacionConfirmadaDetalle', {
+                direccion: seleccionada.direccion,
+                ciudad: seleccionada.ciudad,
+              })}
             </Text>
           </View>
         )

@@ -22,6 +22,7 @@ import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useCart } from '@/context/CartContext';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
@@ -33,6 +34,7 @@ import { formatARS } from '@/utils/format';
  */
 export default function InsumosScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const cart = useCart();
@@ -62,9 +64,9 @@ export default function InsumosScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerWrap}>
         <ScreenHeader
-          eyebrow="Tienda integrada"
-          title="Insumos para tu trabajo"
-          subtitle="Comprá a proveedores · seguí el estado en Mis pedidos"
+          eyebrow={t('profesional.insumos.eyebrow')}
+          title={t('profesional.insumos.titulo')}
+          subtitle={t('profesional.insumos.subtitulo')}
           right={
             <View style={styles.headerActions}>
               <Pressable
@@ -91,7 +93,7 @@ export default function InsumosScreen() {
           <Ionicons name="search" size={18} color={colors.muted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar producto…"
+            placeholder={t('profesional.insumos.buscarPlaceholder')}
             placeholderTextColor={colors.muted}
             value={query}
             onChangeText={setQuery}
@@ -105,11 +107,11 @@ export default function InsumosScreen() {
         style={styles.chipsScroll}
         contentContainerStyle={styles.chipsRow}
       >
-        <Chip label="Todos" active={!categoria} onPress={() => setCategoria(null)} />
+        <Chip label={t('profesional.insumos.todos')} active={!categoria} onPress={() => setCategoria(null)} />
         {CATEGORIAS.map((c) => (
           <Chip
             key={c.slug}
-            label={`${c.emoji}  ${c.nombre}`}
+            label={`${c.emoji}  ${t(`categorias.${c.slug}`)}`}
             active={categoria === c.slug}
             onPress={() => setCategoria(c.slug)}
           />
@@ -131,10 +133,8 @@ export default function InsumosScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="cube-outline" size={36} color={colors.muted} />
-              <Text style={styles.emptyTitle}>Todavía no hay productos</Text>
-              <Text style={styles.emptyText}>
-                Cuando los proveedores carguen su catálogo, vas a poder comprar acá.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('profesional.insumos.vacioTitulo')}</Text>
+              <Text style={styles.emptyText}>{t('profesional.insumos.vacioMsg')}</Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -153,20 +153,20 @@ export default function InsumosScreen() {
                 {item.nombre}
               </Text>
               <Text style={styles.productStock}>
-                {item.stock > 0 ? `${item.stock} en stock` : 'Sin stock'}
+                {item.stock > 0 ? t('profesional.insumos.enStock', { count: item.stock }) : t('profesional.insumos.sinStock')}
               </Text>
               {item.entregaEnvio || item.entregaRetiro ? (
                 <View style={styles.entregaRow}>
                   {item.entregaEnvio ? (
                     <View style={styles.entregaBadge}>
                       <Ionicons name="bicycle-outline" size={11} color={colors.primary} />
-                      <Text style={styles.entregaBadgeText}>Envío</Text>
+                      <Text style={styles.entregaBadgeText}>{t('profesional.insumos.envio')}</Text>
                     </View>
                   ) : null}
                   {item.entregaRetiro ? (
                     <View style={styles.entregaBadge}>
                       <Ionicons name="storefront-outline" size={11} color={colors.primary} />
-                      <Text style={styles.entregaBadgeText}>Retiro</Text>
+                      <Text style={styles.entregaBadgeText}>{t('profesional.insumos.retiro')}</Text>
                     </View>
                   ) : null}
                 </View>

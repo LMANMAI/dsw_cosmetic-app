@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 
@@ -67,6 +68,7 @@ const SECCIONES: { titulo: string; texto: string }[] = [
 /** Pantalla de Términos y privacidad reutilizable por todos los roles. */
 export function TerminosScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -77,9 +79,9 @@ export function TerminosScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.ink} />
         </Pressable>
         <ScreenHeader
-          eyebrow="Legal"
-          title="Términos y privacidad"
-          subtitle={`Última actualización: ${ULTIMA_ACTUALIZACION}`}
+          eyebrow={t('legal.eyebrow')}
+          title={t('legal.titulo')}
+          subtitle={t('legal.ultimaActualizacion', { fecha: ULTIMA_ACTUALIZACION })}
         />
 
         {SECCIONES.map((s) => (
@@ -89,10 +91,7 @@ export function TerminosScreen() {
           </View>
         ))}
 
-        <Text style={styles.nota}>
-          Si tenés preguntas sobre estos términos o el tratamiento de tus datos, escribinos desde
-          el Centro de ayuda.
-        </Text>
+        <Text style={styles.nota}>{t('legal.nota')}</Text>
       </ScrollView>
     </SafeAreaView>
   );

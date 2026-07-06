@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/Button';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 
@@ -15,6 +16,7 @@ import type { ThemeColors } from '@/theme';
  */
 export default function MpConectadoScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, refreshUser } = useSession();
   const { status } = useLocalSearchParams<{ status?: string }>();
@@ -48,16 +50,14 @@ export default function MpConectadoScreen() {
         </View>
 
         <Text style={styles.title}>
-          {ok ? 'Cuenta conectada' : 'No se pudo conectar'}
+          {ok ? t('pagos.mp.conectadaTitulo') : t('pagos.mp.errorTitulo')}
         </Text>
         <Text style={styles.sub}>
-          {ok
-            ? 'Tu cuenta de Mercado Pago quedó vinculada. Ya vas a recibir los pagos directamente en tu cuenta.'
-            : 'Hubo un problema al vincular tu cuenta de Mercado Pago. Podés intentarlo de nuevo desde tu perfil.'}
+          {ok ? t('pagos.mp.conectadaSub') : t('pagos.mp.errorSub')}
         </Text>
 
         <Button
-          label={ok ? 'Volver a mi perfil' : 'Volver e intentar de nuevo'}
+          label={ok ? t('pagos.mp.volverPerfil') : t('pagos.mp.volverIntentar')}
           onPress={volver}
           fullWidth
           style={{ marginTop: spacing.xxl }}

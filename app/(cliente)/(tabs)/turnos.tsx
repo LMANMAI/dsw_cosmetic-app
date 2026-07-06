@@ -16,6 +16,7 @@ import { Badge } from '@/components/Badge';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { turnosService, valoracionesService, notificacionesService, pagosService } from '@/services';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS, formatFecha } from '@/utils/format';
@@ -23,6 +24,7 @@ import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 
 export default function MisTurnosScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const [items, setItems] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,36 +63,36 @@ export default function MisTurnosScreen() {
     refresh();
   }, [refresh]);
 
-  const onPagar = (t: Turno) => {
+  const onPagar = (turno: Turno) => {
     Alert.alert(
-      'Pagar turno',
-      `Elegí cómo pagar ${formatARS(t.monto)}`,
+      t('cliente.turnos.pagarTitulo'),
+      t('cliente.turnos.pagarMsg', { monto: formatARS(turno.monto) }),
       [
-        { text: 'Efectivo', onPress: () => marcarPagado(t, 'efectivo') },
-        { text: 'Transferencia', onPress: () => marcarPagado(t, 'transferencia') },
-        { text: 'MercadoPago', onPress: () => marcarPagado(t, 'mercado_pago') },
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('cliente.turnos.efectivo'), onPress: () => marcarPagado(turno, 'efectivo') },
+        { text: t('cliente.turnos.transferencia'), onPress: () => marcarPagado(turno, 'transferencia') },
+        { text: t('cliente.turnos.mercadoPago'), onPress: () => marcarPagado(turno, 'mercado_pago') },
+        { text: t('comun.cancelar'), style: 'cancel' },
       ],
     );
   };
 
-  const marcarPagado = async (t: Turno, metodo: MetodoPago) => {
-    await turnosService.actualizarEstado(t.id, 'completado', metodo);
-    Alert.alert('¡Listo!', 'Pago registrado correctamente.');
+  const marcarPagado = async (turno: Turno, metodo: MetodoPago) => {
+    await turnosService.actualizarEstado(turno.id, 'completado', metodo);
+    Alert.alert(t('comun.listo'), t('cliente.turnos.pagoRegistrado'));
     refresh();
   };
 
-  const onCancelar = (t: Turno) => {
+  const onCancelar = (turno: Turno) => {
     Alert.alert(
-      'Cancelar turno',
-      `¿Cancelar el turno de ${t.servicioNombre} el ${formatFecha(t.fecha)}?`,
+      t('cliente.turnos.cancelarTitulo'),
+      t('cliente.turnos.cancelarMsg', { servicio: turno.servicioNombre, fecha: formatFecha(turno.fecha) }),
       [
-        { text: 'No', style: 'cancel' },
+        { text: t('comun.no'), style: 'cancel' },
         {
-          text: 'Sí, cancelar',
+          text: t('cliente.turnos.siCancelar'),
           style: 'destructive',
           onPress: async () => {
-            await turnosService.cancelar(t.id);
+            await turnosService.cancelar(turno.id);
             refresh();
           },
         },
@@ -100,34 +102,34 @@ export default function MisTurnosScreen() {
 
   const onReprogramar = (_t: Turno) => {
     Alert.alert(
-      'Reprogramar turno',
-      'Pronto vas a poder elegir un nuevo horario sin necesidad de cancelar y reservar de nuevo.',
+      t('cliente.turnos.reprogramarTitulo'),
+      t('cliente.turnos.reprogramarMsg'),
     );
   };
 
-  const onPagarSena = async (t: Turno) => {
+  const onPagarSena = async (turno: Turno) => {
     try {
       // El backend crea la preferencia con la cuenta de MP del profesional.
-      const { initPoint } = await pagosService.crearPreferenciaSena(t.id);
+      const { initPoint } = await pagosService.crearPreferenciaSena(turno.id);
       const estado = await pagosService.abrirCheckoutSena(initPoint);
 
       if (estado === 'approved') {
-        await turnosService.confirmarPagoSena(t.id, t.autoConfirmar);
-        Alert.alert('¡Seña acreditada!', 'Tu turno quedó confirmado.');
+        await turnosService.confirmarPagoSena(turno.id, turno.autoConfirmar);
+        Alert.alert(t('cliente.turnos.senaAcreditadaTitulo'), t('cliente.turnos.senaAcreditadaMsg'));
         refresh();
       } else if (estado === 'pending') {
         Alert.alert(
-          'Pago pendiente',
-          'Tu pago quedó pendiente de acreditación. Cuando se confirme, el turno se confirma solo.',
+          t('cliente.turnos.pagoPendienteTitulo'),
+          t('cliente.turnos.pagoPendienteMsg'),
         );
         refresh();
       } else if (estado === 'cancelado') {
-        Alert.alert('Pago no completado', 'No se completó el pago. Podés intentarlo de nuevo.');
+        Alert.alert(t('cliente.turnos.pagoNoCompletadoTitulo'), t('cliente.turnos.pagoNoCompletadoMsg'));
       } else {
-        Alert.alert('No se pudo procesar el pago', 'Intentá de nuevo en unos minutos.');
+        Alert.alert(t('cliente.turnos.pagoErrorTitulo'), t('cliente.turnos.pagoErrorMsg'));
       }
     } catch (e: any) {
-      Alert.alert('No pudimos iniciar el pago', e?.message ?? 'Probá de nuevo en unos minutos.');
+      Alert.alert(t('cliente.turnos.pagoIniciarErrorTitulo'), e?.message ?? t('cliente.turnos.pagoIniciarErrorMsg'));
     }
   };
 
@@ -146,10 +148,10 @@ export default function MisTurnosScreen() {
         puntuacion: rating.stars as 1 | 2 | 3 | 4 | 5,
         fecha: new Date().toISOString().slice(0, 10),
       });
-      Alert.alert('¡Gracias!', `Calificaste con ${rating.stars} estrellas.`);
+      Alert.alert(t('cliente.turnos.graciasTitulo'), t('cliente.turnos.graciasMsg', { stars: rating.stars }));
       setTurnosValorados((prev) => new Set(prev).add(rating.turno.id));
     } catch (e: any) {
-      Alert.alert('Aviso', e.message ?? 'No se pudo guardar la valoración.');
+      Alert.alert(t('cliente.turnos.avisoTitulo'), e.message ?? t('cliente.turnos.valoracionErrorMsg'));
     } finally {
       setRating(null);
     }
@@ -161,9 +163,9 @@ export default function MisTurnosScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerWrap}>
         <ScreenHeader
-          eyebrow="Tu agenda personal"
-          title="Mis turnos"
-          subtitle="Recordatorios automáticos · 24h y 2h antes"
+          eyebrow={t('cliente.turnos.eyebrow')}
+          title={t('cliente.turnos.titulo')}
+          subtitle={t('cliente.turnos.subtitulo')}
         />
       </View>
 
@@ -187,10 +189,8 @@ export default function MisTurnosScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Todavía no reservaste turnos</Text>
-              <Text style={styles.emptyText}>
-                Buscá una profesional cerca tuyo y reservá en un toque.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('cliente.turnos.vacioTitulo')}</Text>
+              <Text style={styles.emptyText}>{t('cliente.turnos.vacioMsg')}</Text>
             </View>
           }
         />
@@ -228,6 +228,7 @@ function TurnoCard({
   onPuntuar: () => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const ya_pagado = turno.estado === 'completado';
 
@@ -235,8 +236,8 @@ function TurnoCard({
     if (turno.estado === 'pendiente_pago') {
       return (
         <>
-          <ActionBtn icon="card-outline" label={`Pagar seña ${formatARS(turno.montoSena ?? 0)}`} onPress={onPagarSena} primary />
-          <ActionBtn icon="close-outline" label="Cancelar" onPress={onCancelar} danger />
+          <ActionBtn icon="card-outline" label={t('cliente.turnos.pagarSena', { monto: formatARS(turno.montoSena ?? 0) })} onPress={onPagarSena} primary />
+          <ActionBtn icon="close-outline" label={t('comun.cancelar')} onPress={onCancelar} danger />
         </>
       );
     }
@@ -244,10 +245,10 @@ function TurnoCard({
       return yaValorado ? (
         <View style={[styles.actionBtn, { backgroundColor: colors.background, borderColor: colors.bone3 }]}>
           <Ionicons name="star" size={14} color={colors.warning} />
-          <Text style={[styles.actionLabel, { color: colors.muted }]}>Ya valorado</Text>
+          <Text style={[styles.actionLabel, { color: colors.muted }]}>{t('cliente.turnos.yaValorado')}</Text>
         </View>
       ) : (
-        <ActionBtn icon="star-outline" label="Puntuar" onPress={onPuntuar} primary />
+        <ActionBtn icon="star-outline" label={t('cliente.turnos.puntuar')} onPress={onPuntuar} primary />
       );
     }
     if (turno.estado === 'cancelado' || turno.estado === 'no_asistio') return null;
@@ -256,12 +257,12 @@ function TurnoCard({
     return (
       <>
         {senaPendiente ? (
-          <ActionBtn icon="card-outline" label={`Pagar seña ${formatARS(turno.montoSena ?? 0)}`} onPress={onPagarSena} primary />
+          <ActionBtn icon="card-outline" label={t('cliente.turnos.pagarSena', { monto: formatARS(turno.montoSena ?? 0) })} onPress={onPagarSena} primary />
         ) : (
-          <ActionBtn icon="card-outline" label="Pagar" onPress={onPagar} primary />
+          <ActionBtn icon="card-outline" label={t('cliente.turnos.pagar')} onPress={onPagar} primary />
         )}
-        <ActionBtn icon="calendar-outline" label="Reprogramar" onPress={onReprogramar} />
-        <ActionBtn icon="close-outline" label="Cancelar" onPress={onCancelar} danger />
+        <ActionBtn icon="calendar-outline" label={t('cliente.turnos.reprogramar')} onPress={onReprogramar} />
+        <ActionBtn icon="close-outline" label={t('comun.cancelar')} onPress={onCancelar} danger />
       </>
     );
   };
@@ -270,7 +271,7 @@ function TurnoCard({
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <Text style={styles.cardTitle}>{turno.servicioNombre}</Text>
-        <Badge label={badgeLabel(turno.estado)} tone={badgeTone(turno.estado)} />
+        <Badge label={badgeLabel(turno.estado, t)} tone={badgeTone(turno.estado)} />
       </View>
       <View style={styles.row}>
         <Ionicons name="calendar-outline" size={16} color={colors.muted} />
@@ -327,9 +328,8 @@ function ActionBtn({
   );
 }
 
-function badgeLabel(estado: EstadoTurno): string {
-  if (estado === 'pendiente_pago') return 'Pendiente de pago';
-  return estado;
+function badgeLabel(estado: EstadoTurno, t: TranslateFn): string {
+  return t(`estadosTurno.${estado}`);
 }
 
 function badgeTone(estado: EstadoTurno) {
@@ -368,13 +368,14 @@ function RatingModal({
   servicio: string;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={styles.ratingWrap} pointerEvents="box-none">
         <View style={styles.ratingCard}>
-          <Text style={styles.ratingTitle}>¿Cómo estuvo tu experiencia?</Text>
+          <Text style={styles.ratingTitle}>{t('cliente.turnos.ratingTitulo')}</Text>
           <Text style={styles.ratingSub}>{servicio}</Text>
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -388,9 +389,9 @@ function RatingModal({
             ))}
           </View>
           <View style={{ height: spacing.md }} />
-          <Button variant="dark" label="Enviar reseña" fullWidth onPress={onSubmit} />
+          <Button variant="dark" label={t('cliente.turnos.enviarResena')} fullWidth onPress={onSubmit} />
           <Pressable onPress={onClose} style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-            <Text style={{ color: colors.muted, fontSize: 14 }}>Más tarde</Text>
+            <Text style={{ color: colors.muted, fontSize: 14 }}>{t('cliente.turnos.masTarde')}</Text>
           </Pressable>
         </View>
       </View>

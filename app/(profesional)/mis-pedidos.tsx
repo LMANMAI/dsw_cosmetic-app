@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { pedidosService } from '@/services';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
@@ -15,6 +16,7 @@ import type { Pedido } from '@/types/models';
 
 export default function MisPedidosScreen() {
   const { colors } = useTheme();
+  const { t, locale } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -47,9 +49,9 @@ export default function MisPedidosScreen() {
       </View>
       <View style={styles.headerWrap}>
         <ScreenHeader
-          eyebrow="Tus compras"
-          title="Mis pedidos"
-          subtitle="Seguí el estado de los insumos que compraste"
+          eyebrow={t('profesional.misPedidos.eyebrow')}
+          title={t('profesional.misPedidos.titulo')}
+          subtitle={t('profesional.misPedidos.subtitulo')}
         />
       </View>
 
@@ -60,14 +62,12 @@ export default function MisPedidosScreen() {
           data={pedidos}
           keyExtractor={(p) => p.id}
           contentContainerStyle={{ padding: spacing.xxl, paddingBottom: 120, gap: spacing.md }}
-          renderItem={({ item }) => <PedidoCard pedido={item} colors={colors} styles={styles} />}
+          renderItem={({ item }) => <PedidoCard pedido={item} colors={colors} styles={styles} t={t} locale={locale} />}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="bag-handle-outline" size={36} color={colors.muted} />
-              <Text style={styles.emptyTitle}>Todavía no hiciste compras</Text>
-              <Text style={styles.emptyText}>
-                Cuando compres insumos en la tienda, vas a ver acá cada pedido y su estado.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('profesional.misPedidos.vacioTitulo')}</Text>
+              <Text style={styles.emptyText}>{t('profesional.misPedidos.vacioMsg')}</Text>
             </View>
           }
         />
@@ -80,26 +80,30 @@ function PedidoCard({
   pedido,
   colors,
   styles,
+  t,
+  locale,
 }: {
   pedido: Pedido;
   colors: ThemeColors;
   styles: ReturnType<typeof createStyles>;
+  t: TranslateFn;
+  locale: string;
 }) {
   const meta = ESTADO_PEDIDO[pedido.estado];
   const tone = colors[meta.tone];
-  const fecha = new Date(pedido.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+  const fecha = new Date(pedido.fecha).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
 
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardNombre} numberOfLines={1}>
-            {pedido.proveedorNombre ?? 'Proveedor'}
+            {pedido.proveedorNombre ?? t('profesional.misPedidos.proveedor')}
           </Text>
           <Text style={styles.cardFecha}>{fecha}</Text>
         </View>
         <View style={[styles.estadoChip, { backgroundColor: `${tone}1A` }]}>
-          <Text style={[styles.estadoChipText, { color: tone }]}>{meta.label}</Text>
+          <Text style={[styles.estadoChipText, { color: tone }]}>{t(`estadosPedido.${pedido.estado}`)}</Text>
         </View>
       </View>
 
@@ -123,14 +127,14 @@ function PedidoCard({
               color={colors.primary}
             />
             <Text style={styles.entregaBoxTitle}>
-              {pedido.metodoEntrega === 'retiro' ? 'Retiro en local' : 'Envío a domicilio'}
+              {pedido.metodoEntrega === 'retiro' ? t('profesional.misPedidos.retiroLocal') : t('profesional.misPedidos.envioDomicilio')}
             </Text>
           </View>
           {pedido.metodoEntrega === 'retiro' ? (
             <Text style={styles.entregaBoxText}>
               {pedido.direccionRetiro
-                ? `Retirá en: ${pedido.direccionRetiro}`
-                : 'El proveedor te confirma la dirección de retiro.'}
+                ? t('profesional.misPedidos.retiraEn', { direccion: pedido.direccionRetiro })
+                : t('profesional.misPedidos.proveedorConfirmaDireccion')}
             </Text>
           ) : null}
         </View>
@@ -146,12 +150,12 @@ function PedidoCard({
             />
             <Text style={styles.envioBoxTitle}>
               {pedido.envio.metodo === 'correo'
-                ? `Viaja por ${pedido.envio.correo ?? 'correo'}`
-                : 'Envío propio del proveedor'}
+                ? t('profesional.misPedidos.viajaPor', { correo: pedido.envio.correo ?? t('profesional.misPedidos.correoGenerico') })
+                : t('profesional.misPedidos.envioPropioProveedor')}
             </Text>
           </View>
           {pedido.envio.nroSeguimiento ? (
-            <Text style={styles.envioBoxText}>Seguimiento: {pedido.envio.nroSeguimiento}</Text>
+            <Text style={styles.envioBoxText}>{t('profesional.misPedidos.seguimiento', { nro: pedido.envio.nroSeguimiento })}</Text>
           ) : null}
           {pedido.envio.mensaje ? (
             <Text style={styles.envioBoxMsg}>“{pedido.envio.mensaje}”</Text>
@@ -160,7 +164,7 @@ function PedidoCard({
       ) : null}
 
       <View style={styles.cardBottom}>
-        <Text style={styles.totalLbl}>Total</Text>
+        <Text style={styles.totalLbl}>{t('profesional.misPedidos.total')}</Text>
         <Text style={styles.total}>{formatARS(pedido.total)}</Text>
       </View>
     </View>

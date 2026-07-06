@@ -3,10 +3,12 @@ import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme';
 
 export default function ProfesionalLayout() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom;
 
@@ -29,28 +31,28 @@ export default function ProfesionalLayout() {
       <Tabs.Screen
         name="agenda"
         options={{
-          title: 'Agenda',
+          title: t('profesional.tabs.agenda'),
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="caja"
         options={{
-          title: 'Cierre de caja',
+          title: t('profesional.tabs.caja'),
           tabBarIcon: ({ color, size }) => <Ionicons name="cash-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="insumos"
         options={{
-          title: 'Insumos',
+          title: t('profesional.tabs.insumos'),
           tabBarIcon: ({ color, size }) => <Ionicons name="cart-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Perfil',
+          title: t('cliente.tabs.perfil'),
           tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} />,
         }}
       />

@@ -20,6 +20,7 @@ import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/
 import { useSession } from '@/context/SessionContext';
 import { rubrosService } from '@/services/rubros.service';
 import type { Rubro } from '@/data/rubros';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatCuit, cuitValido } from '@/utils/format';
@@ -28,6 +29,7 @@ import type { PerfilProveedor } from '@/types/models';
 export default function EditarComercioScreen() {
   const { user, updateUser } = useSession();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const perfil = user?.perfil as PerfilProveedor | undefined;
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -59,19 +61,19 @@ export default function EditarComercioScreen() {
 
   const guardar = async () => {
     if (!razonSocial.trim()) {
-      Alert.alert('Falta la razón social', 'Ingresá la razón social del comercio.');
+      Alert.alert(t('proveedor.editarComercio.faltaRazonTitulo'), t('proveedor.editarComercio.faltaRazonMsg'));
       return;
     }
     if (!cuitValido(cuit)) {
-      Alert.alert('CUIT inválido', 'Revisá el CUIT (XX-XXXXXXXX-X).');
+      Alert.alert(t('proveedor.editarComercio.cuitInvalidoTitulo'), t('proveedor.editarComercio.cuitInvalidoMsg'));
       return;
     }
     if (!rubro) {
-      Alert.alert('Falta el rubro', 'Elegí el rubro del comercio.');
+      Alert.alert(t('proveedor.editarComercio.faltaRubroTitulo'), t('proveedor.editarComercio.faltaRubroMsg'));
       return;
     }
     if (!direccionData) {
-      Alert.alert('Falta la dirección', 'Seleccioná la dirección del comercio en el buscador.');
+      Alert.alert(t('proveedor.editarComercio.faltaDireccionTitulo'), t('proveedor.editarComercio.faltaDireccionMsg'));
       return;
     }
     setSaving(true);
@@ -87,11 +89,11 @@ export default function EditarComercioScreen() {
         longitud: direccionData.longitud,
       };
       await updateUser({ perfil: updatedPerfil });
-      Alert.alert('Guardado', 'Los datos del comercio se actualizaron.', [
-        { text: 'OK', onPress: () => router.navigate('/(proveedor)/perfil') },
+      Alert.alert(t('proveedor.editarComercio.guardadoTitulo'), t('proveedor.editarComercio.guardadoMsg'), [
+        { text: t('comun.aceptar'), onPress: () => router.navigate('/(proveedor)/perfil') },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo guardar.');
+      Alert.alert(t('comun.error'), err?.message ?? t('proveedor.editarComercio.errorGuardarMsg'));
     } finally {
       setSaving(false);
     }
@@ -111,34 +113,34 @@ export default function EditarComercioScreen() {
           >
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
-          <ScreenHeader eyebrow="Tu comercio" title="Editar datos del comercio" />
+          <ScreenHeader eyebrow={t('proveedor.editarComercio.eyebrow')} title={t('proveedor.editarComercio.titulo')} />
 
-          <Text style={styles.label}>Razón social</Text>
+          <Text style={styles.label}>{t('proveedor.editarComercio.razonSocial')}</Text>
           <TextInput
             style={styles.input}
             value={razonSocial}
             onChangeText={setRazonSocial}
-            placeholder="Razón social del comercio"
+            placeholder={t('proveedor.editarComercio.razonSocialPlaceholder')}
             placeholderTextColor={colors.muted}
           />
 
-          <Text style={styles.label}>CUIT</Text>
+          <Text style={styles.label}>{t('proveedor.editarComercio.cuit')}</Text>
           <TextInput
             style={styles.input}
             value={cuit}
-            onChangeText={(t) => setCuit(formatCuit(t))}
+            onChangeText={(texto) => setCuit(formatCuit(texto))}
             placeholder="XX-XXXXXXXX-X"
             placeholderTextColor={colors.muted}
             keyboardType="number-pad"
             maxLength={13}
           />
 
-          <Text style={styles.label}>Rubro</Text>
+          <Text style={styles.label}>{t('proveedor.editarComercio.rubro')}</Text>
           <View style={styles.selectWrap}>
             <AuthSelect
               icon="cube-outline"
-              placeholder={rubrosLoading ? 'Cargando rubros…' : 'Elegí tu rubro'}
-              title="¿Qué rubro vendés?"
+              placeholder={rubrosLoading ? t('auth.signup.cargandoRubros') : t('auth.signup.elegiRubro')}
+              title={t('auth.signup.queRubroVendes')}
               value={rubro || null}
               loading={rubrosLoading}
               options={rubros.map((r) => ({ label: r.nombre, value: r.nombre, emoji: r.emoji }))}
@@ -146,7 +148,7 @@ export default function EditarComercioScreen() {
             />
           </View>
 
-          <Text style={styles.label}>Dirección del comercio</Text>
+          <Text style={styles.label}>{t('proveedor.editarComercio.direccion')}</Text>
           {direccionData ? (
             <View style={styles.direccionActual}>
               <View style={{ flex: 1 }}>
@@ -155,18 +157,18 @@ export default function EditarComercioScreen() {
                 </Text>
               </View>
               <Pressable onPress={() => setDireccionData(null)} hitSlop={8}>
-                <Text style={styles.cambiar}>Cambiar</Text>
+                <Text style={styles.cambiar}>{t('proveedor.editarComercio.cambiar')}</Text>
               </Pressable>
             </View>
           ) : (
             <DireccionAutocomplete
               onSelect={setDireccionData}
-              placeholder="Buscá la dirección del comercio…"
+              placeholder={t('proveedor.editarComercio.buscaDireccionPlaceholder')}
             />
           )}
 
           <Button
-            label="Guardar cambios"
+            label={t('proveedor.editarComercio.guardarCambios')}
             onPress={guardar}
             loading={saving}
             disabled={saving}

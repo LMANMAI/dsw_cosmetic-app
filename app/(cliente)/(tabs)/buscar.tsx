@@ -19,11 +19,13 @@ import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { MapaProfesionales } from '@/components/MapaProfesionales';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
 import type { ThemeColors } from '@/theme';
 
 export default function BuscarScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [categoria, setCategoria] = useState<CategoriaSlug | null>(null);
@@ -77,8 +79,8 @@ export default function BuscarScreen() {
   );
 
   const badgeText = seleccionada
-    ? `Filtrando: ${seleccionada.nombre}`
-    : `${items.length} profesionales cercanas`;
+    ? t('cliente.buscar.filtrando', { nombre: t(`categorias.${seleccionada.slug}`) })
+    : t('cliente.buscar.cercanas', { count: items.length });
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -91,15 +93,15 @@ export default function BuscarScreen() {
       >
         <View style={styles.headerWrap}>
           <ScreenHeader
-            eyebrow="Encuentrá cerca tuyo"
-            title="¿Qué te hacés hoy?"
-            subtitle="Profesionales verificadas en tu zona"
+            eyebrow={t('cliente.buscar.eyebrow')}
+            title={t('cliente.buscar.titulo')}
+            subtitle={t('cliente.buscar.subtitulo')}
           />
           <View style={styles.searchBox}>
             <Ionicons name="search" size={18} color={colors.muted} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar por nombre, zona o servicio…"
+              placeholder={t('cliente.buscar.searchPlaceholder')}
               placeholderTextColor={colors.muted}
               value={query}
               onChangeText={setQuery}
@@ -119,21 +121,21 @@ export default function BuscarScreen() {
         />
 
         {/* Categorías */}
-        <Text style={styles.sectionTitle}>Categorías</Text>
+        <Text style={styles.sectionTitle}>{t('cliente.buscar.categorias')}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipsRow}
         >
           <Chip
-            label="Todas"
+            label={t('cliente.buscar.todas')}
             active={categoria === null}
             onPress={() => setCategoria(null)}
           />
           {CATEGORIAS.map((c) => (
             <Chip
               key={c.slug}
-              label={`${c.emoji}  ${c.nombre}`}
+              label={`${c.emoji}  ${t(`categorias.${c.slug}`)}`}
               active={categoria === c.slug}
               onPress={() => setCategoria(c.slug)}
             />
@@ -143,7 +145,7 @@ export default function BuscarScreen() {
         {/* Lista */}
         <View style={styles.listHeader}>
           <Text style={styles.sectionTitle}>
-            {loading ? 'Buscando…' : `${items.length} profesionales`}
+            {loading ? t('cliente.buscar.buscando') : t('cliente.buscar.resultados', { count: items.length })}
           </Text>
           {loading ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
@@ -174,10 +176,8 @@ export default function BuscarScreen() {
             ))
           : !loading ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>Sin resultados</Text>
-                <Text style={styles.emptyText}>
-                  Probá cambiar la categoría o ampliar la búsqueda.
-                </Text>
+                <Text style={styles.emptyTitle}>{t('cliente.buscar.sinResultados')}</Text>
+                <Text style={styles.emptyText}>{t('cliente.buscar.sinResultadosMsg')}</Text>
               </View>
             ) : null}
       </ScrollView>
