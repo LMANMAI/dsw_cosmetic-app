@@ -176,6 +176,14 @@ export interface Usuario {
   direcciones?: Direccion[];
   preferencias?: PreferenciasNotificaciones;
   mpConectado?: boolean; // true si conectó su cuenta de Mercado Pago (OAuth)
+  /**
+   * true si la cuenta está habilitada como profesional (completó el alta).
+   * Es permanente: `rol` indica la VISTA activa (cliente/profesional) y puede
+   * ir y venir, pero esProfesional nunca vuelve a false. Las búsquedas y las
+   * reglas de Firestore usan este flag para que el profesional siga siendo
+   * visible mientras navega en vista cliente.
+   */
+  esProfesional?: boolean;
 }
 
 export type ModalidadTrabajo = 'salon' | 'domicilio' | 'ambos';

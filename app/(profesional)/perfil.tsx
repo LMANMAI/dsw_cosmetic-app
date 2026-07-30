@@ -18,7 +18,6 @@ import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
-import { seedCatalogo } from '@/services/seed-catalogo';
 import type { PerfilProfesionalSignup } from '@/types/models';
 
 const ANTICIPO_VALUES: (0 | 20 | 50 | 100)[] = [0, 20, 50, 100];
@@ -306,7 +305,12 @@ export default function PerfilProfesionalScreen() {
             icon="person-outline"
             label={t('perfil.profesional.vistaCliente')}
             description={t('perfil.profesional.vistaClienteDesc')}
-            onPress={() => switchRole('cliente')}
+            onPress={async () => {
+              // La cuenta sigue siendo profesional (esProfesional queda true):
+              // solo cambia la vista para poder reservar con otros colegas.
+              await switchRole('cliente');
+              router.replace('/(cliente)/(tabs)/buscar');
+            }}
           />
           <SettingsRow
             icon="log-out-outline"
@@ -317,25 +321,6 @@ export default function PerfilProfesionalScreen() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title={t('perfil.profesional.grupoDesarrollo')}>
-          <SettingsRow
-            icon="cloud-upload-outline"
-            label={t('perfil.profesional.seedLabel')}
-            description={t('perfil.profesional.seedDesc')}
-            isLast
-            onPress={async () => {
-              try {
-                const res = await seedCatalogo();
-                Alert.alert(
-                  t('perfil.profesional.seedCompletado'),
-                  t('perfil.profesional.seedMsg', { categorias: res.categorias, servicios: res.servicios }),
-                );
-              } catch (err: any) {
-                Alert.alert(t('comun.error'), err.message);
-              }
-            }}
-          />
-        </SettingsGroup>
       </ScrollView>
       <LanguageModal visible={idiomaModal} onClose={() => setIdiomaModal(false)} />
     </SafeAreaView>

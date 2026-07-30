@@ -51,6 +51,8 @@ export const es = {
     dividerLabel: 'o continuá con',
     googleErrorTitulo: 'Google Sign-In',
     googleErrorMsg: 'No pudimos completar el ingreso con Google.',
+    googleRequiereDevBuild:
+      'Google no funciona en Expo Go. Usá una dev build para probarlo; el ingreso con email funciona igual.',
 
     login: {
       tituloPrefijo: 'Ingresa a tu',
@@ -210,8 +212,10 @@ export const es = {
       permisoRequeridoTitulo: 'Permiso requerido',
       permisoNotifMsg: 'Activá las notificaciones para YOFI desde la configuración de tu teléfono.',
       errorPrefMsg: 'No se pudo guardar la preferencia.',
-      entrarProfesional: 'Entrar como profesional',
-      entrarProfesionalDesc: 'Si también ofrecés servicios',
+      entrarProfesional: 'Quiero ofrecer mis servicios',
+      entrarProfesionalDesc: 'Completá tus datos y empezá a recibir turnos',
+      volverProfesional: 'Cambiar a vista profesional',
+      volverProfesionalDesc: 'Volver a tu agenda y tus clientes',
     },
 
     profesional: {
@@ -262,11 +266,6 @@ export const es = {
       desactivado: 'Desactivado',
       vistaCliente: 'Cambiar a vista cliente',
       vistaClienteDesc: 'Probar la app como si reservaras un turno',
-      grupoDesarrollo: 'Desarrollo',
-      seedLabel: 'Subir catálogo a Firestore',
-      seedDesc: 'Sube categorías y servicios a la base de datos',
-      seedCompletado: 'Seed completado',
-      seedMsg: '{categorias} categorías y {servicios} servicios subidos.',
     },
 
     proveedor: {
@@ -339,6 +338,38 @@ export const es = {
       buscar: 'Buscar',
       turnos: 'Mis turnos',
       perfil: 'Perfil',
+    },
+
+    convertirse: {
+      eyebrow: 'Alta profesional',
+      pasoDe: 'Paso {actual} de {total}',
+      paso1Titulo: 'Tu negocio',
+      paso1Subtitulo: 'Contanos qué hacés para que los clientes te encuentren',
+      paso2Titulo: 'Dónde atendés',
+      paso2Subtitulo: 'Tu ubicación y cómo trabajás',
+      paso3Titulo: 'Servicios y horarios',
+      paso3Subtitulo: 'Con esto ya podés recibir reservas',
+      queOfreces: 'Qué ofrecés',
+      tuExperiencia: 'Tu experiencia',
+      nombreNegocioPlaceholder: 'Nombre de tu negocio (opcional)',
+      descripcionPlaceholder: 'Descripción breve (opcional)',
+      tusServicios: 'Tus servicios',
+      serviciosHint: 'Elegí del catálogo los servicios que ofrecés. Después les pones precio.',
+      precios: 'Precios',
+      tuAgenda: 'Tu agenda',
+      agendaHint: 'Marcá los días que atendés y tu horario. Lo podés ajustar cuando quieras.',
+      continuar: 'Continuar',
+      activar: 'Activar mi perfil profesional',
+      configurarDespues: 'Cargar servicios más tarde',
+      tip: 'Sin servicios y horarios cargados los clientes no pueden reservarte.',
+      listoTitulo: '¡Listo!',
+      listoMsg: 'Tu perfil profesional está activo. Los clientes ya pueden reservarte.',
+      listoMsgSinServicios: 'Tu perfil profesional está activo. Cargá tus servicios y horarios para empezar a recibir reservas.',
+      validaciones: {
+        precio: 'Poné el precio de "{servicio}".',
+        sinDias: 'Marcá al menos un día de atención.',
+        franja: 'En {dia} la hora de inicio tiene que ser anterior a la de fin.',
+      },
     },
 
     buscar: {

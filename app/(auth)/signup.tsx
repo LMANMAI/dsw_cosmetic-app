@@ -28,6 +28,7 @@ import { useSession } from '@/context/SessionContext';
 import { rubrosService } from '@/services/rubros.service';
 import type { Rubro } from '@/data/rubros';
 import { useGoogleSignIn } from '@/services/google-auth';
+import { describirErrorGoogle } from '@/services/google-native';
 import { uploadImage } from '@/services/upload.service';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
 import { formatCuit, cuitCompleto, cuitValido } from '@/utils/format';
@@ -119,9 +120,14 @@ export default function SignupScreen() {
 
   const necesitaFotoSalon = modalidad === 'salon' || modalidad === 'ambos';
 
-  const { request: googleRequest, promptAsync: promptGoogle } = useGoogleSignIn({
-    onError: () =>
-      Alert.alert(t('auth.googleErrorTitulo'), t('auth.googleErrorMsg')),
+  const {
+    ready: googleReady,
+    disponible: googleDisponible,
+    loading: googleLoading,
+    promptAsync: promptGoogle,
+  } = useGoogleSignIn({
+    onError: (e) =>
+      Alert.alert(t('auth.googleErrorTitulo'), describirErrorGoogle(e)),
   });
 
   const perfilExtra: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor =
@@ -446,13 +452,16 @@ export default function SignupScreen() {
             <SocialButton
               label={t('auth.continuarGoogle')}
               iconRender={<GoogleGlyph />}
-              disabled={!googleRequest}
+              disabled={!googleReady || googleLoading}
               onPress={() => promptGoogle()}
             />
             <Text style={styles.googleHint}>
               <Ionicons name="information-circle-outline" size={12} color={colors.muted} />{' '}
               {t('auth.signup.googleHint')}
             </Text>
+            {!googleDisponible && (
+              <Text style={styles.googleHint}>{t('auth.googleRequiereDevBuild')}</Text>
+            )}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>{t('auth.signup.yaTenesCuenta')}</Text>

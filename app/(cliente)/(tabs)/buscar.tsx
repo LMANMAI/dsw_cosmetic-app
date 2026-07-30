@@ -19,6 +19,7 @@ import { Avatar } from '@/components/Avatar';
 import { Chip } from '@/components/Chip';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { MapaProfesionales } from '@/components/MapaProfesionales';
+import { useSession } from '@/context/SessionContext';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
 import type { ThemeColors } from '@/theme';
@@ -27,6 +28,7 @@ export default function BuscarScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
+  const { user } = useSession();
   const [query, setQuery] = useState('');
   const [categoria, setCategoria] = useState<CategoriaSlug | null>(null);
   const [items, setItems] = useState<PerfilProfesional[]>([]);
@@ -68,10 +70,12 @@ export default function BuscarScreen() {
         textoLibre: query || undefined,
         userLat,
         userLng,
+        // Un profesional mirando la app como cliente no se ve a sí mismo
+        excluirUsuarioId: user?.id,
       })
       .then(setItems)
       .finally(() => setLoading(false));
-  }, [categoria, query, userLat, userLng]);
+  }, [categoria, query, userLat, userLng, user?.id]);
 
   const seleccionada = useMemo(
     () => CATEGORIAS.find((c) => c.slug === categoria),

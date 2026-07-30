@@ -12,7 +12,15 @@ interface SessionState {
   sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /**
+   * Cambia la vista activa (cliente ↔ profesional). No convierte la cuenta:
+   * si todavía no está habilitada como profesional, lanza un error.
+   */
   switchRole: (rol: UserRole) => Promise<void>;
+  /** true si la cuenta ya completó el alta profesional. */
+  esProfesional: boolean;
+  /** Da de alta el perfil profesional y deja la vista en 'profesional'. */
+  habilitarProfesional: (perfil: PerfilProfesionalSignup) => Promise<void>;
   updateUser: (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor; direcciones?: Direccion[]; preferencias?: PreferenciasNotificaciones }>) => Promise<void>;
 }
 
@@ -74,11 +82,37 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [user],
   );
 
+  /**
+   * La cuenta está habilitada como profesional. Además del flag y del rol se
+   * mira el perfil: `especialidad` solo la tiene un perfil profesional, así que
+   * una cuenta vieja (sin flag) que ya completó el alta no vuelve a pedirla.
+   */
+  const esProfesional =
+    !!user &&
+    (user.esProfesional === true ||
+      user.rol === 'profesional' ||
+      !!(user.perfil as PerfilProfesionalSignup | undefined)?.especialidad);
+
   const switchRole = useCallback(
     async (rol: UserRole) => {
       if (!user) return;
-      await authService.updateRol(user.id, rol);
-      setUser({ ...user, rol });
+      if (rol === user.rol) return;
+      // Solo se puede entrar a la vista profesional si la cuenta está
+      // habilitada: el alta se hace desde el wizard "convertirse-profesional".
+      if (rol === 'profesional' && !esProfesional) {
+        throw new Error('PERFIL_PROFESIONAL_INCOMPLETO');
+      }
+      const actualizado = await authService.updateRol(user.id, rol);
+      setUser(actualizado);
+    },
+    [user, esProfesional],
+  );
+
+  const habilitarProfesional = useCallback(
+    async (perfil: PerfilProfesionalSignup) => {
+      if (!user) return;
+      const actualizado = await authService.habilitarProfesional(user.id, perfil);
+      setUser(actualizado);
     },
     [user],
   );
@@ -95,11 +129,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshUser,
       switchRole,
+      esProfesional,
+      habilitarProfesional,
       updateUser,
     }),
     [
       user,
       loading,
+      esProfesional,
+      habilitarProfesional,
       loginWithEmail,
       signupWithEmail,
       loginWithGoogleIdToken,

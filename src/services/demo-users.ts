@@ -20,6 +20,7 @@ export const DEMO_USERS: Record<string, Usuario> = {
     email: 'profesional@demo.beautyapp.com',
     telefono: '+54 11 5555-2222',
     rol: 'profesional',
+    esProfesional: true,
     perfil: {
       especialidad: 'Uñas y pestañas',
       ciudad: 'Rosario',

@@ -59,6 +59,10 @@
     },
     "extra": {
       "apiBaseUrl": "https://api.beautyapp.local",
+      "google": {
+        "webClientId": "883387668629-qcc0h7q4ha6drnuoa5tbtjrjj7l1b8lo.apps.googleusercontent.com",
+        "iosClientId": null
+      },
       "router": {},
       "eas": {
         "projectId": "285d6d01-7840-4287-855c-93e8dd969bc3"

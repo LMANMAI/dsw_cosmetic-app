@@ -20,6 +20,18 @@ interface FiltrosBusqueda {
   maxDistanciaKm?: number;
   userLat?: number;
   userLng?: number;
+  /** Id del usuario que busca: se excluye para que nadie se reserve a sí mismo. */
+  excluirUsuarioId?: string;
+}
+
+/**
+ * Una cuenta cuenta como profesional si tiene el flag `esProfesional` (nuevo)
+ * o si su rol es 'profesional' (cuentas anteriores al flag). El flag es
+ * necesario porque un profesional puede estar navegando en vista cliente
+ * (rol == 'cliente') y no debe desaparecer de las búsquedas.
+ */
+function esCuentaProfesional(data: any): boolean {
+  return data?.esProfesional === true || data?.rol === 'profesional';
 }
 
 /**
@@ -124,23 +136,33 @@ export const profesionalesService = {
    * Filtra por categoría, texto libre y distancia máxima.
    */
   async listar(filtros: FiltrosBusqueda = {}): Promise<PerfilProfesional[]> {
-    const q = query(
-      collection(db, USERS_COLLECTION),
-      where('rol', '==', 'profesional'),
+    // Dos consultas en vez de un OR: por el flag nuevo y por el rol (cuentas
+    // viejas sin flag). Se deduplica por id de documento.
+    const [porFlag, porRol] = await Promise.all([
+      getDocs(query(collection(db, USERS_COLLECTION), where('esProfesional', '==', true))),
+      getDocs(query(collection(db, USERS_COLLECTION), where('rol', '==', 'profesional'))),
+    ]);
+
+    const docs = new Map<string, any>();
+    [porFlag, porRol].forEach((snap) =>
+      snap.forEach((d) => {
+        if (!docs.has(d.id)) docs.set(d.id, d.data());
+      }),
     );
 
-    const snapshot = await getDocs(q);
     let result: PerfilProfesional[] = [];
 
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
+    docs.forEach((data, docId) => {
       // No mostrar profesionales suspendidos o con perfil oculto
       if (data.suspendida) return;
+      if (!esCuentaProfesional(data)) return;
+      // Un profesional en vista cliente no se ve a sí mismo en la búsqueda
+      if (filtros.excluirUsuarioId && docId === filtros.excluirUsuarioId) return;
       const perfilData = data.perfil as PerfilProfesionalSignup | undefined;
       if (perfilData?.perfilVisible === false) return;
 
       const perfil = docToPerfilProfesional(
-        docSnap.id,
+        docId,
         data,
         filtros.userLat,
         filtros.userLng,
@@ -194,7 +216,7 @@ export const profesionalesService = {
     ]);
     if (!docSnap.exists()) return null;
     const data = docSnap.data();
-    if (data.rol !== 'profesional') return null;
+    if (!esCuentaProfesional(data)) return null;
     const perfil = docToPerfilProfesional(docSnap.id, data);
     if (perfil) {
       perfil.rating = resumen.rating;

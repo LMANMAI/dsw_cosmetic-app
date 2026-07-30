@@ -17,7 +17,7 @@ import { confirm } from '@/utils/confirm';
 const RECORDATORIO_VALUES: RecordatorioTurnos[] = ['30m', '1h', '2h', '24h', 'off'];
 
 export default function PerfilClienteScreen() {
-  const { user, logout, switchRole, updateUser } = useSession();
+  const { user, logout, switchRole, updateUser, esProfesional } = useSession();
   const { colors, isDark, setMode } = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
@@ -84,6 +84,24 @@ export default function PerfilClienteScreen() {
       destructive: true,
     });
     if (ok) await logout();
+  };
+
+  /**
+   * Si la cuenta ya está habilitada como profesional, solo cambia la vista.
+   * Si todavía no, abre el alta de 3 pasos para completar los datos que faltan.
+   */
+  const irAProfesional = async () => {
+    if (!esProfesional) {
+      router.push('/(cliente)/convertirse-profesional');
+      return;
+    }
+    try {
+      await switchRole('profesional');
+      router.replace('/(profesional)/agenda');
+    } catch {
+      // La cuenta no está habilitada (perfil incompleto): al alta.
+      router.push('/(cliente)/convertirse-profesional');
+    }
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -177,9 +195,17 @@ export default function PerfilClienteScreen() {
         <SettingsGroup title={t('perfil.compartido.grupoCuenta')}>
           <SettingsRow
             icon="briefcase-outline"
-            label={t('perfil.cliente.entrarProfesional')}
-            description={t('perfil.cliente.entrarProfesionalDesc')}
-            onPress={() => switchRole('profesional')}
+            label={
+              esProfesional
+                ? t('perfil.cliente.volverProfesional')
+                : t('perfil.cliente.entrarProfesional')
+            }
+            description={
+              esProfesional
+                ? t('perfil.cliente.volverProfesionalDesc')
+                : t('perfil.cliente.entrarProfesionalDesc')
+            }
+            onPress={irAProfesional}
           />
           <SettingsRow
             icon="log-out-outline"

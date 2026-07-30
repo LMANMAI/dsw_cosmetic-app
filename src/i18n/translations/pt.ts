@@ -52,6 +52,8 @@ export const pt: Dict = {
     dividerLabel: 'ou continue com',
     googleErrorTitulo: 'Google Sign-In',
     googleErrorMsg: 'Não foi possível completar o login com o Google.',
+    googleRequiereDevBuild:
+      'O login com Google não funciona no Expo Go. Use uma dev build para testar; o login por email continua funcionando.',
 
     login: {
       tituloPrefijo: 'Entre no seu',
@@ -211,8 +213,10 @@ export const pt: Dict = {
       permisoRequeridoTitulo: 'Permissão necessária',
       permisoNotifMsg: 'Ative as notificações para o YOFI nas configurações do seu telefone.',
       errorPrefMsg: 'Não foi possível salvar a preferência.',
-      entrarProfesional: 'Entrar como profissional',
-      entrarProfesionalDesc: 'Se você também oferece serviços',
+      entrarProfesional: 'Quero oferecer meus serviços',
+      entrarProfesionalDesc: 'Complete seus dados e comece a receber agendamentos',
+      volverProfesional: 'Mudar para visão profissional',
+      volverProfesionalDesc: 'Voltar para sua agenda e seus clientes',
     },
 
     profesional: {
@@ -263,11 +267,6 @@ export const pt: Dict = {
       desactivado: 'Desativado',
       vistaCliente: 'Mudar para visão de cliente',
       vistaClienteDesc: 'Testar o app como se fosse reservar um horário',
-      grupoDesarrollo: 'Desenvolvimento',
-      seedLabel: 'Enviar catálogo ao Firestore',
-      seedDesc: 'Envia categorias e serviços para o banco de dados',
-      seedCompletado: 'Seed concluído',
-      seedMsg: '{categorias} categorias e {servicios} serviços enviados.',
     },
 
     proveedor: {
@@ -340,6 +339,38 @@ export const pt: Dict = {
       buscar: 'Buscar',
       turnos: 'Meus horários',
       perfil: 'Perfil',
+    },
+
+    convertirse: {
+      eyebrow: 'Cadastro profissional',
+      pasoDe: 'Passo {actual} de {total}',
+      paso1Titulo: 'Seu negócio',
+      paso1Subtitulo: 'Conte o que você faz para os clientes te encontrarem',
+      paso2Titulo: 'Onde você atende',
+      paso2Subtitulo: 'Sua localização e como você trabalha',
+      paso3Titulo: 'Serviços e horários',
+      paso3Subtitulo: 'Com isso já pode receber agendamentos',
+      queOfreces: 'O que você oferece',
+      tuExperiencia: 'Sua experiência',
+      nombreNegocioPlaceholder: 'Nome do seu negócio (opcional)',
+      descripcionPlaceholder: 'Descrição breve (opcional)',
+      tusServicios: 'Seus serviços',
+      serviciosHint: 'Escolha no catálogo os serviços que você oferece. Depois define os preços.',
+      precios: 'Preços',
+      tuAgenda: 'Sua agenda',
+      agendaHint: 'Marque os dias em que atende e seu horário. Pode ajustar quando quiser.',
+      continuar: 'Continuar',
+      activar: 'Ativar meu perfil profissional',
+      configurarDespues: 'Cadastrar serviços depois',
+      tip: 'Sem serviços e horários cadastrados os clientes não conseguem agendar.',
+      listoTitulo: 'Tudo pronto!',
+      listoMsg: 'Seu perfil profissional está ativo. Os clientes já podem agendar com você.',
+      listoMsgSinServicios: 'Seu perfil profissional está ativo. Cadastre seus serviços e horários para começar a receber agendamentos.',
+      validaciones: {
+        precio: 'Defina o preço de "{servicio}".',
+        sinDias: 'Marque pelo menos um dia de atendimento.',
+        franja: 'Em {dia} o horário de início deve ser antes do de fim.',
+      },
     },
 
     buscar: {

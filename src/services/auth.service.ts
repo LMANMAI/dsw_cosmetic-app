@@ -20,6 +20,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { signOutNativo } from './google-native';
 import {
   DEMO_PASSWORD,
   DEMO_USERS,
@@ -79,8 +80,26 @@ interface UsuarioDoc {
   direcciones?: Direccion[];
   preferencias?: PreferenciasNotificaciones;
   mpConectado?: boolean;
+  esProfesional?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
+}
+
+/**
+ * Deduce si una cuenta está habilitada como profesional cuando el doc no tiene
+ * el flag `esProfesional` (cuentas creadas antes de que existiera, o sesiones
+ * demo guardadas). Se apoya en el rol y en tener perfil profesional cargado:
+ * `especialidad` solo existe en PerfilProfesionalSignup.
+ */
+function derivarEsProfesional(d: {
+  rol?: UserRole;
+  esProfesional?: boolean;
+  perfil?: UsuarioDoc['perfil'];
+}): boolean {
+  if (d.esProfesional === true) return true;
+  if (d.rol === 'profesional') return true;
+  const perfil = d.perfil as PerfilProfesionalSignup | undefined;
+  return !!perfil?.especialidad;
 }
 
 function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
@@ -95,6 +114,7 @@ function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
     direcciones: d.direcciones,
     preferencias: d.preferencias,
     mpConectado: d.mpConectado,
+    esProfesional: derivarEsProfesional(d),
   };
 }
 
@@ -206,6 +226,7 @@ export const authService = {
         telefono: payload.telefono,
         rol: payload.rol,
         perfil: payload.perfil,
+        esProfesional: payload.rol === 'profesional' ? true : undefined,
       });
       return usuario;
     } finally {
@@ -230,6 +251,8 @@ export const authService = {
 
   async logout(): Promise<void> {
     await clearDemoSession();
+    // Sin esto, el proximo login con Google reusa la cuenta anterior en silencio.
+    await signOutNativo();
     try {
       await fbSignOut(auth);
     } catch {
@@ -291,6 +314,80 @@ export const authService = {
       cancelled = true;
       unsub();
     };
+  },
+
+  /**
+   * Cambia la VISTA activa de la cuenta (`rol`).
+   *
+   * No toca `perfil`: una cuenta habilitada como profesional sigue siendo
+   * profesional aunque esté mirando la app en vista cliente (así no desaparece
+   * de las búsquedas ni pierde su agenda).
+   *
+   * Importante: al salir de la vista profesional persiste `esProfesional: true`.
+   * Sin esto, una cuenta creada antes del flag quedaba con rol 'cliente' y sin
+   * flag, y al volver le pedía otra vez el alta profesional.
+   */
+  async updateRol(uid: string, rol: UserRole): Promise<Usuario> {
+    const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
+    if (demoMatch) {
+      const current = (await getDemoSession()) ?? demoMatch;
+      const updated: Usuario = {
+        ...current,
+        rol,
+        esProfesional: derivarEsProfesional(current) || rol === 'profesional',
+      };
+      await setDemoSession(updated);
+      return updated;
+    }
+    const ref = doc(db, USERS_COLLECTION, uid);
+    const actual = await getDoc(ref);
+    const data = actual.data() as UsuarioDoc | undefined;
+    const eraProfesional = !!data && derivarEsProfesional(data);
+    await updateDoc(ref, {
+      rol,
+      // Se marca al salir de profesional (y también al entrar, por si el doc
+      // venía sin el flag), nunca se pone en false.
+      ...(eraProfesional || rol === 'profesional' ? { esProfesional: true } : {}),
+      updatedAt: serverTimestamp(),
+    });
+    const fresh = await getDoc(ref);
+    return buildUsuario(uid, fresh.data() as UsuarioDoc);
+  },
+
+  /**
+   * Habilita la cuenta como profesional: guarda el perfil profesional,
+   * marca `esProfesional` y deja la vista activa en 'profesional'.
+   */
+  async habilitarProfesional(
+    uid: string,
+    perfil: PerfilProfesionalSignup,
+  ): Promise<Usuario> {
+    const cleanPerfil = stripUndefined(perfil);
+    const demoMatch = Object.values(DEMO_USERS).find((u) => u.id === uid);
+    if (demoMatch) {
+      const current = (await getDemoSession()) ?? demoMatch;
+      const updated: Usuario = {
+        ...current,
+        rol: 'profesional',
+        esProfesional: true,
+        perfil: { ...(current.perfil ?? {}), ...cleanPerfil },
+      };
+      await setDemoSession(updated);
+      return updated;
+    }
+    const ref = doc(db, USERS_COLLECTION, uid);
+    // Conservamos los datos que ya tenía como cliente (ciudad, fecha de
+    // nacimiento) y le sumamos los del negocio.
+    const actual = await getDoc(ref);
+    const perfilActual = (actual.data() as UsuarioDoc | undefined)?.perfil ?? {};
+    await updateDoc(ref, {
+      rol: 'profesional',
+      esProfesional: true,
+      perfil: { ...perfilActual, ...cleanPerfil },
+      updatedAt: serverTimestamp(),
+    });
+    const fresh = await getDoc(ref);
+    return buildUsuario(uid, fresh.data() as UsuarioDoc);
   },
 
   /**

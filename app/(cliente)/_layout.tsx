@@ -15,6 +15,7 @@ export default function ClienteLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="profesional/[id]" />
       <Stack.Screen name="datos-personales" />
+      <Stack.Screen name="convertirse-profesional" />
       <Stack.Screen name="direcciones" />
       <Stack.Screen name="centro-ayuda" />
       <Stack.Screen name="terminos" />

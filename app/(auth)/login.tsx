@@ -23,6 +23,7 @@ import {
 } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
 import { useGoogleSignIn } from '@/services/google-auth';
+import { describirErrorGoogle } from '@/services/google-native';
 import { DEMO_PASSWORD } from '@/services/demo-users';
 import { LanguageButton } from '@/components/LanguageSelector';
 import { useTranslation, type TranslateFn } from '@/i18n';
@@ -40,10 +41,15 @@ export default function LoginScreen() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const { request: googleRequest, promptAsync: promptGoogle } = useGoogleSignIn({
+  const {
+    ready: googleReady,
+    disponible: googleDisponible,
+    loading: googleLoading,
+    promptAsync: promptGoogle,
+  } = useGoogleSignIn({
     onError: (e) => {
       console.warn('[google] login error', e);
-      Alert.alert(t('auth.googleErrorTitulo'), t('auth.googleErrorMsg'));
+      Alert.alert(t('auth.googleErrorTitulo'), describirErrorGoogle(e));
     },
   });
 
@@ -167,9 +173,13 @@ export default function LoginScreen() {
             <SocialButton
               label={t('auth.continuarGoogle')}
               iconRender={<GoogleGlyph />}
-              disabled={!googleRequest}
+              disabled={!googleReady || googleLoading}
               onPress={() => promptGoogle()}
             />
+
+            {!googleDisponible && (
+              <Text style={styles.googleAviso}>{t('auth.googleRequiereDevBuild')}</Text>
+            )}
 
             <View style={styles.demoBox}>
               <View style={styles.demoHeader}>
@@ -300,6 +310,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   rememberLabel: { fontSize: 13, color: c.ink },
   forgotLabel: { fontSize: 13, color: c.primary, fontWeight: '600' },
+  googleAviso: {
+    fontSize: 12,
+    color: c.muted,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   demoBox: {
     marginTop: spacing.xl,
     padding: spacing.lg,

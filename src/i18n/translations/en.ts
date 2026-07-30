@@ -52,6 +52,8 @@ export const en: Dict = {
     dividerLabel: 'or continue with',
     googleErrorTitulo: 'Google Sign-In',
     googleErrorMsg: "We couldn't complete the Google sign-in.",
+    googleRequiereDevBuild:
+      'Google sign-in does not work in Expo Go. Use a dev build to test it; email sign-in still works.',
 
     login: {
       tituloPrefijo: 'Sign in to your',
@@ -211,8 +213,10 @@ export const en: Dict = {
       permisoRequeridoTitulo: 'Permission required',
       permisoNotifMsg: 'Enable notifications for YOFI in your phone settings.',
       errorPrefMsg: "Couldn't save the preference.",
-      entrarProfesional: 'Switch to professional',
-      entrarProfesionalDesc: 'If you also offer services',
+      entrarProfesional: 'I want to offer my services',
+      entrarProfesionalDesc: 'Complete your details and start taking bookings',
+      volverProfesional: 'Switch to professional view',
+      volverProfesionalDesc: 'Back to your calendar and clients',
     },
 
     profesional: {
@@ -263,11 +267,6 @@ export const en: Dict = {
       desactivado: 'Off',
       vistaCliente: 'Switch to client view',
       vistaClienteDesc: 'Try the app as if you were booking an appointment',
-      grupoDesarrollo: 'Development',
-      seedLabel: 'Upload catalog to Firestore',
-      seedDesc: 'Uploads categories and services to the database',
-      seedCompletado: 'Seed completed',
-      seedMsg: '{categorias} categories and {servicios} services uploaded.',
     },
 
     proveedor: {
@@ -340,6 +339,38 @@ export const en: Dict = {
       buscar: 'Search',
       turnos: 'My appointments',
       perfil: 'Profile',
+    },
+
+    convertirse: {
+      eyebrow: 'Professional setup',
+      pasoDe: 'Step {actual} of {total}',
+      paso1Titulo: 'Your business',
+      paso1Subtitulo: 'Tell us what you do so clients can find you',
+      paso2Titulo: 'Where you work',
+      paso2Subtitulo: 'Your location and how you work',
+      paso3Titulo: 'Services and hours',
+      paso3Subtitulo: 'With this you can start taking bookings',
+      queOfreces: 'What you offer',
+      tuExperiencia: 'Your experience',
+      nombreNegocioPlaceholder: 'Business name (optional)',
+      descripcionPlaceholder: 'Short description (optional)',
+      tusServicios: 'Your services',
+      serviciosHint: 'Pick the services you offer from the catalog. You set the prices next.',
+      precios: 'Prices',
+      tuAgenda: 'Your schedule',
+      agendaHint: 'Select the days you work and your hours. You can change this anytime.',
+      continuar: 'Continue',
+      activar: 'Activate my professional profile',
+      configurarDespues: 'Add services later',
+      tip: 'Without services and hours, clients cannot book with you.',
+      listoTitulo: 'All set!',
+      listoMsg: 'Your professional profile is active. Clients can book with you now.',
+      listoMsgSinServicios: 'Your professional profile is active. Add your services and hours to start taking bookings.',
+      validaciones: {
+        precio: 'Set the price for "{servicio}".',
+        sinDias: 'Select at least one working day.',
+        franja: 'On {dia} the start time must be before the end time.',
+      },
     },
 
     buscar: {
