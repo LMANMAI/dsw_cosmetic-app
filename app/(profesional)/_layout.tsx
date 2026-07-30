@@ -75,6 +75,30 @@ export default function ProfesionalLayout() {
         }}
       />
       <Tabs.Screen
+        name="clientes"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
+      <Tabs.Screen
+        name="ficha-cliente"
+        options={{
+          href: null, // oculta del tab bar — se accede desde Mis clientes
+        }}
+      />
+      <Tabs.Screen
+        name="nueva-ficha"
+        options={{
+          href: null, // oculta del tab bar — se accede desde Mis clientes
+        }}
+      />
+      <Tabs.Screen
+        name="informacion-facturacion"
+        options={{
+          href: null, // oculta del tab bar — se accede desde el perfil
+        }}
+      />
+      <Tabs.Screen
         name="reputacion"
         options={{
           href: null, // oculta del tab bar — se accede desde el perfil

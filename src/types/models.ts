@@ -28,6 +28,42 @@ export interface PerfilProfesionalSignup {
   comisionPorcentaje?: number;
   /** Premio de competencia: hasta esta fecha (YYYY-MM-DD) no paga comisión. */
   comisionExentaHasta?: string;
+  /** Datos de facturación: destino para recibir premios/transferencias. */
+  facturacion?: DatosFacturacion;
+}
+
+/** Destino de cobro que carga el profesional (alias o CBU/CVU). */
+export interface DatosFacturacion {
+  tipo: 'alias' | 'cbu';
+  valor: string;
+}
+
+/* ── Ficha de cliente (privada de cada profesional) ─────────────────── */
+
+/** Datos editables que el profesional guarda sobre un cliente. */
+export interface FichaCliente {
+  profesionalId: string;
+  clienteId: string;
+  clienteNombre?: string;
+  telefono?: string;
+  email?: string;
+  /** Notas libres: alergias, preferencias, fórmulas, etc. */
+  notas?: string;
+  /** true si la creó el profesional a mano (cliente sin cuenta en la app). */
+  esManual?: boolean;
+  actualizadoEn?: string; // ISO
+}
+
+/** Resumen de un cliente derivado de los turnos o de una ficha manual. */
+export interface ResumenCliente {
+  clienteId: string;
+  nombre: string;
+  cantTurnos: number;
+  completados: number;
+  totalGastado: number;
+  ultimoTurno: string; // YYYY-MM-DD ('' si es ficha manual sin turnos)
+  ultimoServicio?: string;
+  esManual?: boolean;
 }
 
 export interface PerfilProveedor {
@@ -196,6 +232,14 @@ export type MetodoPago = 'efectivo' | 'transferencia' | 'mercado_pago' | 'mixto'
  */
 export const COMISION_PLATAFORMA = 0.20;
 
+/**
+ * Regla que determinó la comisión aplicada a un turno:
+ *  - 'global':       se usó el % global de config/plataforma.
+ *  - 'personalizada': el profesional tenía un % propio.
+ *  - 'exencion':     no se cobró comisión por un premio de competencia vigente.
+ */
+export type ComisionOrigen = 'global' | 'personalizada' | 'exencion';
+
 export interface Turno {
   id: string;
   clienteId: string;
@@ -216,6 +260,13 @@ export interface Turno {
   notas?: string;
   /** Monto de comisión que corresponde a la plataforma. */
   comisionPlataforma?: number;
+  /** Snapshot del % de comisión aplicado a ESTE turno al completarlo (0-100).
+   *  Se congela para que el histórico no cambie si luego se ajusta la comisión. */
+  comisionPorcentaje?: number;
+  /** true si al completarse no se cobró comisión por una exención vigente (premio). */
+  comisionExento?: boolean;
+  /** Qué regla determinó la comisión de este turno (para reportes del panel). */
+  comisionOrigen?: ComisionOrigen;
   /** Anticipación del recordatorio que se le envía al cliente para este turno. */
   recordatorioCliente?: '1h' | '2h' | '24h' | 'off';
   /** true cuando la Cloud Function ya envió el recordatorio push (para no repetir). */

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
+import { MpStatusBanner } from '@/components/MpStatusBanner';
 import { useSession } from '@/context/SessionContext';
 import { productosService } from '@/services';
 import { conectarMercadoPago } from '@/services/mp-connect.service';
@@ -125,6 +126,8 @@ export default function PerfilProveedorScreen() {
             onPress={() => router.navigate('/(proveedor)/productos')}
           />
         </SettingsGroup>
+
+        <MpStatusBanner conectado={!!user?.mpConectado} onConnect={conectarMP} />
 
         <SettingsGroup title={t('perfil.compartido.grupoCobros')}>
           <SettingsRow

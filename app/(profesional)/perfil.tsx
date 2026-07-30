@@ -6,6 +6,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
+import { MpStatusBanner } from '@/components/MpStatusBanner';
+import { ServiciosStatusBanner } from '@/components/ServiciosStatusBanner';
 import { useSession } from '@/context/SessionContext';
 import { conectarMercadoPago } from '@/services/mp-connect.service';
 import { disponibilidadService } from '@/services/disponibilidad.service';
@@ -35,7 +37,7 @@ export default function PerfilProfesionalScreen() {
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
   const [conectandoMP, setConectandoMP] = useState(false);
   const [horariosLabel, setHorariosLabel] = useState<string | null>(null);
-  const [cantServicios, setCantServicios] = useState(0);
+  const [cantServicios, setCantServicios] = useState<number | null>(null);
   const [cantResenas, setCantResenas] = useState(0);
   const [ratingProm, setRatingProm] = useState(0);
 
@@ -146,10 +148,14 @@ export default function PerfilProfesionalScreen() {
             <Text style={styles.statLbl}>{t('perfil.profesional.statsRating')}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>{cantServicios}</Text>
+            <Text style={styles.statVal}>{cantServicios ?? 0}</Text>
             <Text style={styles.statLbl}>{t('perfil.profesional.statsServicios')}</Text>
           </View>
         </View>
+
+        {cantServicios === 0 && (
+          <ServiciosStatusBanner onPress={() => router.push('/(profesional)/servicios')} />
+        )}
 
         {perfil?.fotoSalonUrl ? (
           <Image
@@ -169,7 +175,7 @@ export default function PerfilProfesionalScreen() {
           <SettingsRow
             icon="cut-outline"
             label={t('perfil.profesional.serviciosPrecios')}
-            description={`${cantServicios} ${cantServicios === 1 ? t('perfil.profesional.activo') : t('perfil.profesional.activos')}`}
+            description={`${cantServicios ?? 0} ${cantServicios === 1 ? t('perfil.profesional.activo') : t('perfil.profesional.activos')}`}
             onPress={() => router.push('/(profesional)/servicios')}
           />
           <SettingsRow
@@ -177,6 +183,12 @@ export default function PerfilProfesionalScreen() {
             label={t('perfil.profesional.horarios')}
             description={horariosLabel ?? t('perfil.profesional.sinConfigurar')}
             onPress={() => router.push('/(profesional)/horarios')}
+          />
+          <SettingsRow
+            icon="people-outline"
+            label={t('perfil.profesional.misClientes')}
+            description={t('perfil.profesional.misClientesDesc')}
+            onPress={() => router.push('/(profesional)/clientes')}
           />
           <SettingsRow
             icon="star-outline"
@@ -233,6 +245,8 @@ export default function PerfilProfesionalScreen() {
           />
         </SettingsGroup>
 
+        <MpStatusBanner conectado={!!user?.mpConectado} onConnect={conectarMP} />
+
         <SettingsGroup title={t('perfil.compartido.grupoCobros')}>
           <SettingsRow
             icon="card-outline"
@@ -244,8 +258,18 @@ export default function PerfilProfesionalScreen() {
                   ? t('perfil.profesional.mpDescConectado')
                   : t('perfil.profesional.mpDescConectar')
             }
-            isLast
             onPress={conectarMP}
+          />
+          <SettingsRow
+            icon="wallet-outline"
+            label={t('perfil.profesional.infoFacturacion')}
+            description={
+              perfil?.facturacion?.valor
+                ? `${perfil.facturacion.tipo === 'alias' ? 'Alias' : 'CBU/CVU'}: ${perfil.facturacion.valor}`
+                : t('perfil.profesional.infoFacturacionSinCargar')
+            }
+            isLast
+            onPress={() => router.push('/(profesional)/informacion-facturacion')}
           />
         </SettingsGroup>
 

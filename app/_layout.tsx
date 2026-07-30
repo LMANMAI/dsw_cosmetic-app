@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Slot, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,9 +25,20 @@ function AuthGate() {
   // Registra el token de push del dispositivo cuando hay sesión.
   useRegistrarPush(user?.id ?? '');
 
+  // Oculta el splash una sola vez, cuando termina la carga inicial. Si se
+  // llamara en cada re-render, al volver del navegador de OAuth (Mercado Pago)
+  // se intentaría ocultar el splash del view controller del navegador, que no
+  // tiene ninguno registrado, y se lanzaría un error.
+  const splashOculto = useRef(false);
+  useEffect(() => {
+    if (!loading && !splashOculto.current) {
+      splashOculto.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading]);
+
   useEffect(() => {
     if (loading) return;
-    SplashScreen.hideAsync().catch(() => {});
 
     const inAuthRoute = segments[0] === '(auth)';
 

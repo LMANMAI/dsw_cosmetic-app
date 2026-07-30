@@ -14,10 +14,12 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { turnosService } from '@/services';
 import { disponibilidadService } from '@/services/disponibilidad.service';
+import { serviciosService } from '@/services/servicios.service';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { ServiciosStatusBanner } from '@/components/ServiciosStatusBanner';
 import { useSession } from '@/context/SessionContext';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
@@ -44,6 +46,7 @@ export default function AgendaScreen() {
   const [proximosTurnos, setProximosTurnos] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
   const [tieneAgenda, setTieneAgenda] = useState<boolean | null>(null);
+  const [tieneServicios, setTieneServicios] = useState<boolean | null>(null);
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const cargar = useCallback(() => {
@@ -53,8 +56,10 @@ export default function AgendaScreen() {
       turnosService.listarDelProfesional(profesionalId, todayISO),
       turnosService.listarDelProfesional(profesionalId),
       disponibilidadService.tieneAgenda(profesionalId),
+      serviciosService.listar(profesionalId),
     ])
-      .then(([turnos, todos, tiene]) => {
+      .then(([turnos, todos, tiene, servicios]) => {
+        setTieneServicios(servicios.length > 0);
         setItems(turnos);
         const futuros = todos.filter((t) => t.fecha > todayISO);
         setPendientesFuturos(
@@ -245,6 +250,14 @@ export default function AgendaScreen() {
             </View>
           </View>
         </View>
+
+        {/* Aviso: sin servicios cargados no puede recibir turnos */}
+        {!loading && tieneServicios === false && (
+          <ServiciosStatusBanner
+            onPress={() => router.push('/(profesional)/servicios')}
+            style={{ marginHorizontal: spacing.xxl }}
+          />
+        )}
 
         {/* Estado: sin agenda configurada → CTA para crear */}
         {!loading && tieneAgenda === false && (

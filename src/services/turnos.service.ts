@@ -83,12 +83,18 @@ export const turnosService = {
 
     // Al completar, calcular comisión de la plataforma
     // (global de config/plataforma, personalizada del profesional, o 0 si
-    // tiene exención vigente por premio de competencia)
+    // tiene exención vigente por premio de competencia).
+    // Se snapshot-ea el % aplicado en el turno para que el histórico quede
+    // congelado aunque después se ajuste la comisión.
     if (estado === 'completado') {
       const snap = await getDoc(ref);
       const turno = snap.data() as Turno;
-      const pct = await configService.comisionPara(turno.profesionalId);
-      cambios.comisionPlataforma = Math.round(turno.monto * pct);
+      const { fraccion, porcentaje, exento, origen } =
+        await configService.comisionDetallePara(turno.profesionalId);
+      cambios.comisionPlataforma = Math.round(turno.monto * fraccion);
+      cambios.comisionPorcentaje = porcentaje;
+      cambios.comisionExento = exento;
+      cambios.comisionOrigen = origen;
     }
 
     await updateDoc(ref, cambios);

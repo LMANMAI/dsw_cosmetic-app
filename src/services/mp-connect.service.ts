@@ -1,4 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
 /**
  * Conexión de la cuenta de Mercado Pago del vendedor (OAuth marketplace).
@@ -7,20 +9,36 @@ import * as WebBrowser from 'expo-web-browser';
  * cuenta y autoriza. MP redirige a la Cloud Function `mpCallback`, que cambia
  * el código por el token y lo guarda. Al terminar, vuelve a la app por deep
  * link (?status=ok|error).
+ *
+ * El Client ID se administra desde el panel admin (config/plataforma).
+ * Este valor queda solo como fallback si el doc no tiene el campo.
  */
-const MP_CLIENT_ID = '7038717644366606';
+const MP_CLIENT_ID_DEFAULT = '7038717644366606';
 const MP_REDIRECT_URI = 'https://southamerica-east1-yopi-demo.cloudfunctions.net/mpCallback';
 const MP_AUTH_URL = 'https://auth.mercadopago.com.ar/authorization';
 const RETURN_URL = 'beautyapp://mp-conectado';
 
 export type ResultadoConexionMP = 'ok' | 'error' | 'cancelado';
 
+/** Lee el Client ID de MP desde config/plataforma, con fallback local. */
+async function obtenerMpClientId(): Promise<string> {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'plataforma'));
+    const id = snap.data()?.mpClientId;
+    if (typeof id === 'string' && id) return id;
+  } catch {
+    // sin conexión o sin permisos → usamos el fallback
+  }
+  return MP_CLIENT_ID_DEFAULT;
+}
+
 /** Abre el OAuth de Mercado Pago para que el usuario conecte su cuenta. */
 export async function conectarMercadoPago(uid: string): Promise<ResultadoConexionMP> {
   if (!uid) return 'error';
 
+  const clientId = await obtenerMpClientId();
   const authUrl =
-    `${MP_AUTH_URL}?client_id=${MP_CLIENT_ID}` +
+    `${MP_AUTH_URL}?client_id=${clientId}` +
     `&response_type=code&platform_id=mp` +
     `&redirect_uri=${encodeURIComponent(MP_REDIRECT_URI)}` +
     `&state=${encodeURIComponent(uid)}`;

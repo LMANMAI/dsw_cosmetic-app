@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +29,7 @@ export default function MisTurnosScreen() {
   const { user } = useSession();
   const [items, setItems] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rating, setRating] = useState<{ turno: Turno; stars: number } | null>(null);
+  const [rating, setRating] = useState<{ turno: Turno; stars: number; comentario: string } | null>(null);
   const [turnosValorados, setTurnosValorados] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
@@ -134,7 +135,7 @@ export default function MisTurnosScreen() {
   };
 
   const onPuntuar = (t: Turno) => {
-    setRating({ turno: t, stars: 5 });
+    setRating({ turno: t, stars: 5, comentario: '' });
   };
 
   const guardarRating = async () => {
@@ -146,6 +147,8 @@ export default function MisTurnosScreen() {
         clienteNombre: user.nombre ?? '',
         turnoId: rating.turno.id,
         puntuacion: rating.stars as 1 | 2 | 3 | 4 | 5,
+        // Firestore no acepta undefined: solo incluir el comentario si tiene contenido
+        ...(rating.comentario.trim() ? { comentario: rating.comentario.trim() } : {}),
         fecha: new Date().toISOString().slice(0, 10),
       });
       Alert.alert(t('cliente.turnos.graciasTitulo'), t('cliente.turnos.graciasMsg', { stars: rating.stars }));
@@ -197,6 +200,8 @@ export default function MisTurnosScreen() {
       )}
 
       <RatingModal
+        comentario={rating?.comentario ?? ''}
+        onChangeComentario={(c) => rating && setRating({ ...rating, comentario: c })}
         visible={!!rating}
         stars={rating?.stars ?? 5}
         onChange={(s) => rating && setRating({ ...rating, stars: s })}
@@ -355,14 +360,18 @@ function badgeTone(estado: EstadoTurno) {
 function RatingModal({
   visible,
   stars,
+  comentario,
   onChange,
+  onChangeComentario,
   onClose,
   onSubmit,
   servicio,
 }: {
   visible: boolean;
   stars: number;
+  comentario: string;
   onChange: (s: number) => void;
+  onChangeComentario: (c: string) => void;
   onClose: () => void;
   onSubmit: () => void;
   servicio: string;
@@ -388,6 +397,17 @@ function RatingModal({
               </Pressable>
             ))}
           </View>
+          <TextInput
+            style={styles.comentarioInput}
+            value={comentario}
+            onChangeText={onChangeComentario}
+            placeholder={t('cliente.turnos.comentarioPlaceholder')}
+            placeholderTextColor={colors.muted}
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+            textAlignVertical="top"
+          />
           <View style={{ height: spacing.md }} />
           <Button variant="dark" label={t('cliente.turnos.enviarResena')} fullWidth onPress={onSubmit} />
           <Pressable onPress={onClose} style={{ alignItems: 'center', paddingVertical: spacing.md }}>
@@ -465,5 +485,17 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.lg,
+  },
+  comentarioInput: {
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    minHeight: 80,
+    fontSize: 14,
+    color: c.ink,
+    backgroundColor: c.background,
   },
 });

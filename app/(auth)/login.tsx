@@ -59,9 +59,20 @@ export default function LoginScreen() {
       await loginWithEmail(useEmail, usePass);
     } catch (err: any) {
       console.warn('[auth] login error', err);
+      const esCredenciales =
+        err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password';
       Alert.alert(
         t('auth.login.errorTitulo'),
         mapAuthError(err?.code, t) ?? t('auth.login.errorFallback'),
+        esCredenciales
+          ? [
+              { text: t('comun.reintentar'), style: 'cancel' },
+              {
+                text: t('auth.login.olvidePassword'),
+                onPress: () => router.push('/(auth)/forgot-password'),
+              },
+            ]
+          : undefined,
       );
     } finally {
       setLoading(false);

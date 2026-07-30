@@ -20,10 +20,12 @@ import { Button } from '@/components/Button';
 import { useSession } from '@/context/SessionContext';
 import { catalogoService } from '@/services/catalogo.service';
 import { serviciosService } from '@/services/servicios.service';
+import { configService } from '@/services/config.service';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { CategoriaSlug, Categoria, ServicioCatalogo, ServicioProfesional } from '@/types/models';
+import { COMISION_PLATAFORMA } from '@/types/models';
 import { formatARS } from '@/utils/format';
 
 /* ─── Tipos locales ─── */
@@ -38,6 +40,63 @@ interface DraftServicio {
   categoriaEmoji: string;
 }
 
+/* ─── Desglose de comisión ─── */
+
+/**
+ * Muestra, a partir del precio ingresado, cuánto se lleva la plataforma en
+ * comisión y cuánto recibe el profesional. La tasa (fracción 0-1) es la
+ * comisión efectiva del profesional, leída de Firestore vía configService.
+ * No se renderiza si el precio aún no es válido.
+ */
+function DesgloseComision({ precioStr, tasaComision }: { precioStr: string; tasaComision: number }) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const precio = Number(precioStr.replace(/\D/g, ''));
+  if (!precio || precio <= 0) return null;
+
+  const comision = Math.round(precio * tasaComision);
+  const neto = precio - comision;
+  const pct = Math.round(tasaComision * 100);
+
+  return (
+    <View style={[desgloseStyles.box, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+      <View style={desgloseStyles.row}>
+        <Text style={[desgloseStyles.label, { color: colors.muted }]}>
+          {t('profesional.servicios.comisionLabel', { pct })}
+        </Text>
+        <Text style={[desgloseStyles.comision, { color: colors.danger }]}>−{formatARS(comision)}</Text>
+      </View>
+      <View style={[desgloseStyles.row, desgloseStyles.rowNeto, { borderTopColor: colors.border }]}>
+        <Text style={[desgloseStyles.recibisLabel, { color: colors.ink }]}>
+          {t('profesional.servicios.recibisLabel')}
+        </Text>
+        <Text style={[desgloseStyles.neto, { color: colors.success }]}>{formatARS(neto)}</Text>
+      </View>
+      <Text style={[desgloseStyles.hint, { color: colors.muted }]}>
+        {t('profesional.servicios.comisionHint')}
+      </Text>
+    </View>
+  );
+}
+
+const desgloseStyles = StyleSheet.create({
+  box: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rowNeto: { borderTopWidth: 1, paddingTop: spacing.sm },
+  label: { fontSize: 13 },
+  comision: { fontSize: 14, fontWeight: '600' },
+  recibisLabel: { fontSize: 15, fontWeight: '700' },
+  neto: { fontSize: 17, fontWeight: '800' },
+  hint: { fontSize: 11, lineHeight: 15, marginTop: spacing.xs },
+});
+
 /* ─── Pantalla ─── */
 
 export default function ServiciosScreen() {
@@ -51,6 +110,10 @@ export default function ServiciosScreen() {
   const [servicios, setServicios] = useState<ServicioProfesional[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Comisión efectiva del profesional (fracción 0-1) leída de Firestore.
+  // Arranca en el fallback global y se actualiza al montar.
+  const [tasaComision, setTasaComision] = useState(COMISION_PLATAFORMA);
 
   // Catálogo
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -84,6 +147,16 @@ export default function ServiciosScreen() {
   }, [profesionalId]);
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
+
+  // Carga la comisión efectiva del profesional una vez.
+  useEffect(() => {
+    if (!profesionalId) return;
+    let vigente = true;
+    configService.comisionPara(profesionalId).then((tasa) => {
+      if (vigente) setTasaComision(tasa);
+    });
+    return () => { vigente = false; };
+  }, [profesionalId]);
 
   /* ── Helpers de navegación del wizard ── */
 
@@ -324,6 +397,8 @@ export default function ServiciosScreen() {
                 />
               </View>
 
+              <DesgloseComision precioStr={precio} tasaComision={tasaComision} />
+
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.muted }]}>
                   {t('profesional.servicios.duracionLabel')}
@@ -386,6 +461,8 @@ export default function ServiciosScreen() {
                   autoFocus
                 />
               </View>
+
+              <DesgloseComision precioStr={editPrecio} tasaComision={tasaComision} />
 
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.muted }]}>{t('profesional.servicios.duracionLabel')}</Text>

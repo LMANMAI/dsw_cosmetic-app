@@ -14,12 +14,42 @@ const { getFirestore } = require('firebase-admin/firestore');
 
 const MP_CLIENT_SECRET = defineSecret('MP_CLIENT_SECRET');
 
-// Client ID de PRODUCCIÓN de la aplicación (sirve para test y prod en OAuth).
-const MP_CLIENT_ID = '7038717644366606';
+// Access token de la cuenta de MP del DUEÑO de la plataforma. Se usa para
+// cobrar las tarifas de servicio mensuales (el dinero entra a esa cuenta).
+// Se setea con: firebase functions:secrets:set MP_ACCESS_TOKEN
+const MP_ACCESS_TOKEN = defineSecret('MP_ACCESS_TOKEN');
+
+// Fallbacks si config/plataforma todavía no tiene los campos.
+// Los valores reales se administran desde el panel admin (página Comisiones).
+const MP_CLIENT_ID_DEFAULT = '7038717644366606';
 const REGION = 'southamerica-east1';
 
-// Comisión de la plataforma sobre cada pago (marketplace_fee). Ajustable.
-const COMISION = 0.05; // 5%
+// Comisión por defecto de la plataforma sobre pedidos (marketplace_fee), en %.
+const COMISION_PEDIDOS_DEFAULT = 5; // 5%
+
+/**
+ * Lee la config de MP desde config/plataforma (editable en el panel admin).
+ * Devuelve clientId y comisión de pedidos (fracción 0-1) con fallbacks.
+ */
+async function getMpConfig() {
+  const db = getFirestore();
+  let data = {};
+  try {
+    const snap = await db.doc('config/plataforma').get();
+    data = snap.exists ? snap.data() : {};
+  } catch (e) {
+    console.error('No se pudo leer config/plataforma, uso defaults:', e);
+  }
+  const clientId =
+    typeof data.mpClientId === 'string' && data.mpClientId
+      ? data.mpClientId
+      : MP_CLIENT_ID_DEFAULT;
+  const pct =
+    typeof data.mpComisionPedidosPorcentaje === 'number'
+      ? data.mpComisionPedidosPorcentaje
+      : COMISION_PEDIDOS_DEFAULT;
+  return { clientId, comisionPedidos: pct / 100 };
+}
 
 // URLs de Mercado Pago.
 const MP_OAUTH_TOKEN_URL = 'https://api.mercadopago.com/oauth/token';
@@ -30,6 +60,7 @@ const MP_PAYMENT_URL = 'https://api.mercadopago.com/v1/payments';
 const APP_RETURN = 'beautyapp://mp-conectado';   // al conectar la cuenta
 const APP_PAGO_RETURN = 'beautyapp://pedido-pago'; // al volver del checkout de pedido
 const APP_SENA_RETURN = 'beautyapp://turno-pago';  // al volver del checkout de seña
+const APP_COMISION_RETURN = 'beautyapp://comision-pago'; // al volver del pago de tarifa
 
 // URLs públicas de las funciones (misma región/proyecto).
 const CALLBACK_URL = 'https://southamerica-east1-yopi-demo.cloudfunctions.net/mpCallback';
@@ -62,11 +93,12 @@ exports.mpCallback = onRequest(
     const redirectUri = CALLBACK_URL;
 
     try {
+      const { clientId } = await getMpConfig();
       const tokenRes = await fetch(MP_OAUTH_TOKEN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
-          client_id: MP_CLIENT_ID,
+          client_id: clientId,
           client_secret: MP_CLIENT_SECRET.value(),
           grant_type: 'authorization_code',
           code,
@@ -129,8 +161,9 @@ exports.crearPreferenciaPedido = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('failed-precondition', 'El proveedor todavía no conectó su cuenta de Mercado Pago.');
   }
 
+  const { comisionPedidos } = await getMpConfig();
   const total = Number(pedido.total || 0);
-  const fee = Math.round(total * COMISION * 100) / 100;
+  const fee = Math.round(total * comisionPedidos * 100) / 100;
   const items = (pedido.items || []).map((it) => ({
     title: it.productoNombre,
     quantity: it.cantidad,
@@ -228,6 +261,80 @@ exports.crearPreferenciaSena = onCall({ region: REGION }, async (request) => {
   return { initPoint: data.init_point, preferenceId: data.id };
 });
 
+/**
+ * Crea una preferencia de Checkout Pro para la TARIFA DE SERVICIO mensual.
+ * A diferencia de señas y pedidos, acá cobra la PLATAFORMA: la preferencia
+ * se crea con el access token del dueño (MP_ACCESS_TOKEN) y el dinero entra
+ * a su cuenta. Devuelve el init_point para abrir el checkout.
+ */
+exports.crearPreferenciaComision = onCall(
+  { region: REGION, secrets: [MP_ACCESS_TOKEN] },
+  async (request) => {
+    const uid = request.auth && request.auth.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'Necesitás iniciar sesión.');
+
+    const comisionId = request.data && request.data.comisionId;
+    if (!comisionId) throw new HttpsError('invalid-argument', 'Falta comisionId.');
+
+    const db = getFirestore();
+    const snap = await db.doc(`comisiones/${comisionId}`).get();
+    if (!snap.exists) throw new HttpsError('not-found', 'Tarifa de servicio no encontrada.');
+    const comision = snap.data();
+
+    if (comision.profesionalId !== uid) {
+      throw new HttpsError('permission-denied', 'Esa tarifa de servicio no es tuya.');
+    }
+    if (comision.estado === 'pagada') {
+      throw new HttpsError('failed-precondition', 'Esta tarifa de servicio ya está pagada.');
+    }
+    const monto = Number(comision.montoTotal || 0);
+    if (monto <= 0) throw new HttpsError('failed-precondition', 'La tarifa no tiene monto.');
+
+    const MESES = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    ];
+    const periodo = `${MESES[comision.mes] || ''} ${comision.anio || ''}`.trim();
+
+    const body = {
+      items: [
+        {
+          title: `Tarifa de servicio YOFI - ${periodo}`,
+          description: `Tarifa de servicio del mes de ${periodo}`,
+          quantity: 1,
+          unit_price: monto,
+          currency_id: 'ARS',
+        },
+      ],
+      external_reference: comisionId,
+      back_urls: {
+        success: APP_COMISION_RETURN,
+        failure: APP_COMISION_RETURN,
+        pending: APP_COMISION_RETURN,
+      },
+      auto_return: 'approved',
+      notification_url: `${WEBHOOK_URL}?comision=${encodeURIComponent(comisionId)}`,
+    };
+
+    const res = await fetch(MP_PREF_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${MP_ACCESS_TOKEN.value()}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.init_point) {
+      console.error('MP preferencia comisión error:', JSON.stringify(data));
+      throw new HttpsError('internal', 'No se pudo crear la preferencia de pago.');
+    }
+
+    await snap.ref.update({ mercadoPagoPreferenceId: data.id });
+    return { initPoint: data.init_point, preferenceId: data.id };
+  },
+);
+
 /** Marca un pedido como pagado: descuenta stock (transacción) y pasa a 'pendiente'. */
 async function marcarPedidoPagado(db, pedidoRef, pedido) {
   const { runTransaction } = require('firebase-admin/firestore');
@@ -275,24 +382,74 @@ async function confirmarSenaDesdeWebhook(db, turnoId, paymentId) {
 }
 
 /**
- * Webhook de Mercado Pago. Se invoca con ?pedido=<id> (insumos) o ?turno=<id>
- * (seña), seteado en la notification_url, más el id del pago. Verifica el pago
- * con el token del vendedor y, si está aprobado, confirma pedido o seña.
+ * Confirma el pago de una tarifa de servicio desde el webhook: verifica el
+ * pago con el token del DUEÑO (la plataforma es quien cobra) y, si está
+ * aprobado, marca la tarifa como pagada y reactiva al profesional si quedó
+ * al día.
  */
-exports.mpWebhook = onRequest({ region: REGION }, async (req, res) => {
+async function confirmarComisionDesdeWebhook(db, comisionId, paymentId) {
+  const ref = db.doc(`comisiones/${comisionId}`);
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const comision = snap.data();
+  if (comision.estado === 'pagada') return;
+
+  const payRes = await fetch(`${MP_PAYMENT_URL}/${paymentId}`, {
+    headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN.value()}` },
+  });
+  const pago = await payRes.json();
+  if (pago.status !== 'approved') return;
+
+  await ref.update({
+    estado: 'pagada',
+    fechaPago: new Date().toISOString(),
+    mercadoPagoPaymentId: String(paymentId),
+  });
+  console.log(`Tarifa de servicio ${comisionId} pagada (payment ${paymentId}).`);
+
+  // Si el profesional ya no tiene tarifas vencidas, reactivar su cuenta.
+  const profesionalId = comision.profesionalId;
+  if (!profesionalId) return;
+  const vencidas = await db
+    .collection('comisiones')
+    .where('profesionalId', '==', profesionalId)
+    .where('estado', '==', 'vencida')
+    .get();
+  if (vencidas.empty) {
+    await db.doc(`usuarios/${profesionalId}`).set({ suspendida: false }, { merge: true });
+  }
+}
+
+/**
+ * Webhook de Mercado Pago. Se invoca con ?pedido=<id> (insumos), ?turno=<id>
+ * (seña) o ?comision=<id> (tarifa de servicio), seteado en la
+ * notification_url, más el id del pago. Verifica el pago con el token que
+ * corresponda y confirma pedido, seña o tarifa.
+ */
+exports.mpWebhook = onRequest(
+  { region: REGION, secrets: [MP_ACCESS_TOKEN] },
+  async (req, res) => {
   try {
     const pedidoId = req.query.pedido;
     const turnoId = req.query.turno;
+    const comisionId = req.query.comision;
     const topic = req.query.topic || req.query.type || (req.body && req.body.type);
     const paymentId =
       req.query['data.id'] || req.query.id || (req.body && req.body.data && req.body.data.id);
 
-    if (!paymentId || (topic && topic !== 'payment') || (!pedidoId && !turnoId)) {
+    if (!paymentId || (topic && topic !== 'payment') || (!pedidoId && !turnoId && !comisionId)) {
       res.sendStatus(200);
       return;
     }
 
     const db = getFirestore();
+
+    // Rama tarifa de servicio mensual.
+    if (comisionId) {
+      await confirmarComisionDesdeWebhook(db, comisionId, paymentId);
+      res.sendStatus(200);
+      return;
+    }
 
     // Rama seña de turno.
     if (turnoId) {

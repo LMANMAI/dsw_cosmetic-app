@@ -16,7 +16,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { profesionalesService, turnosService, pagosService } from '@/services';
 import { disponibilidadService } from '@/services/disponibilidad.service';
-import type { Disponibilidad, PerfilProfesional, Servicio } from '@/types/models';
+import { valoracionesService } from '@/services/valoraciones.service';
+import type { Disponibilidad, PerfilProfesional, Servicio, Valoracion } from '@/types/models';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -60,6 +61,7 @@ export default function PerfilProfesionalScreen() {
   const [profesional, setProfesional] = useState<PerfilProfesional | null>(null);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad[]>([]);
+  const [valoraciones, setValoraciones] = useState<Valoracion[]>([]);
   const [servicioElegido, setServicioElegido] = useState<Servicio | null>(null);
   const [fechaElegida, setFechaElegida] = useState<{ fecha: Date; diaSemana: number } | null>(null);
   const [horarioElegido, setHorarioElegido] = useState<string | null>(null);
@@ -82,11 +84,13 @@ export default function PerfilProfesionalScreen() {
       profesionalesService.obtenerPorId(id),
       profesionalesService.listarServiciosDe(id),
       disponibilidadService.listar(id),
+      valoracionesService.listarDelProfesional(id).catch(() => [] as Valoracion[]),
     ])
-      .then(([p, s, d]) => {
+      .then(([p, s, d, vals]) => {
         setProfesional(p);
         setServicios(s);
         setDisponibilidad(d);
+        setValoraciones(vals);
         setServicioElegido(s[0] ?? null);
         if (d.length > 0) {
           const proximas = generarProximasFechas(d, 7);
@@ -135,6 +139,16 @@ export default function PerfilProfesionalScreen() {
       });
     setHorarioElegido(null);
   }, [id, servicioElegido?.id, fechaElegida]);
+
+  // Resumen real de valoraciones (rating promedio + cantidad) a partir de la base de datos
+  const resumenValoraciones = useMemo(() => {
+    if (valoraciones.length === 0) return null;
+    const suma = valoraciones.reduce((acc, v) => acc + v.puntuacion, 0);
+    return {
+      rating: Math.round((suma / valoraciones.length) * 10) / 10,
+      cantidad: valoraciones.length,
+    };
+  }, [valoraciones]);
 
   // Próximas fechas disponibles
   const proximasFechas = useMemo(
@@ -287,8 +301,8 @@ export default function PerfilProfesionalScreen() {
             <Text style={styles.heroZona}>📍 {profesional.zona}{profesional.distanciaKm != null ? ` · ${profesional.distanciaKm}km` : ''}</Text>
             <View style={styles.heroStats}>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>⭐ {profesional.rating}</Text>
-                <Text style={styles.statLabel}>{profesional.reviews} {t('cliente.proDetalle.resenas')}</Text>
+                <Text style={styles.statValue}>⭐ {resumenValoraciones?.rating ?? profesional.rating}</Text>
+                <Text style={styles.statLabel}>{resumenValoraciones?.cantidad ?? profesional.reviews} {t('cliente.proDetalle.resenas')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
@@ -400,6 +414,39 @@ export default function PerfilProfesionalScreen() {
             )}
           </View>
         )}
+
+        {/* Reseñas de otros clientes */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.resenasTitulo')}</Text>
+          {valoraciones.length === 0 ? (
+            <View style={styles.sinDisponibilidad}>
+              <Ionicons name="chatbubble-ellipses-outline" size={28} color={colors.muted} />
+              <Text style={styles.sinDisponibilidadTxt}>{t('cliente.proDetalle.sinResenas')}</Text>
+            </View>
+          ) : (
+            valoraciones.map((v) => (
+              <View key={v.id} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewName}>{v.clienteNombre || t('cliente.proDetalle.clienteAnonimo')}</Text>
+                  <Text style={styles.reviewDate}>{v.fecha}</Text>
+                </View>
+                <View style={styles.reviewStars}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Ionicons
+                      key={i}
+                      name={i <= v.puntuacion ? 'star' : 'star-outline'}
+                      size={14}
+                      color={i <= v.puntuacion ? colors.warning : colors.muted}
+                    />
+                  ))}
+                </View>
+                {v.comentario ? (
+                  <Text style={styles.reviewComment}>{v.comentario}</Text>
+                ) : null}
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -569,6 +616,23 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  reviewCard: {
+    backgroundColor: c.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    marginBottom: spacing.sm,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewName: { fontSize: 14, fontWeight: '600', color: c.ink },
+  reviewDate: { fontSize: 12, color: c.muted },
+  reviewStars: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
+  reviewComment: { fontSize: 13, color: c.ink, marginTop: spacing.sm, lineHeight: 19 },
   diasRow: {
     flexDirection: 'row',
     gap: spacing.sm,
