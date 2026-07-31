@@ -177,11 +177,11 @@ export default function LoginScreen() {
               onPress={() => promptGoogle()}
             />
 
-            {!googleDisponible && (
+            {/* {!googleDisponible && (
               <Text style={styles.googleAviso}>{t('auth.googleRequiereDevBuild')}</Text>
-            )}
+            )} */}
 
-            <View style={styles.demoBox}>
+            {/* <View style={styles.demoBox}>
               <View style={styles.demoHeader}>
                 <Ionicons name="flash-outline" size={14} color={colors.primary} />
                 <Text style={styles.demoTitle}>{t('auth.login.demoTitulo')}</Text>
@@ -204,7 +204,7 @@ export default function LoginScreen() {
                   onPress={() => loginAsDemo('proveedor@demo.beautyapp.com')}
                 />
               </View>
-            </View>
+            </View> */}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>{t('auth.login.noCuenta')}</Text>

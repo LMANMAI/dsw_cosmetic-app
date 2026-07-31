@@ -138,9 +138,20 @@ export const profesionalesService = {
   async listar(filtros: FiltrosBusqueda = {}): Promise<PerfilProfesional[]> {
     // Dos consultas en vez de un OR: por el flag nuevo y por el rol (cuentas
     // viejas sin flag). Se deduplica por id de documento.
+    // DIAGNÓSTICO (temporal): saber cuál de las dos consultas falla.
     const [porFlag, porRol] = await Promise.all([
-      getDocs(query(collection(db, USERS_COLLECTION), where('esProfesional', '==', true))),
-      getDocs(query(collection(db, USERS_COLLECTION), where('rol', '==', 'profesional'))),
+      getDocs(
+        query(collection(db, USERS_COLLECTION), where('esProfesional', '==', true)),
+      ).catch((e: any) => {
+        console.error('[profesionales] query esProfesional==true:', e?.code ?? '', e?.message ?? e);
+        throw e;
+      }),
+      getDocs(
+        query(collection(db, USERS_COLLECTION), where('rol', '==', 'profesional')),
+      ).catch((e: any) => {
+        console.error('[profesionales] query rol==profesional:', e?.code ?? '', e?.message ?? e);
+        throw e;
+      }),
     ]);
 
     const docs = new Map<string, any>();

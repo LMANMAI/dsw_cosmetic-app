@@ -52,11 +52,19 @@ export default function AgendaScreen() {
   const cargar = useCallback(() => {
     if (!profesionalId) return;
     setLoading(true);
+    // DIAGNÓSTICO (temporal): cada llamada se etiqueta para saber cuál falla.
+    // Ojo: es un Promise.all, así que si UNA revienta la agenda queda vacía.
+    const tag = <T,>(nombre: string, p: Promise<T>) =>
+      p.catch((e: any) => {
+        console.error(`[agenda] falló ${nombre}:`, e?.code ?? '', e?.message ?? e);
+        throw e;
+      });
+
     Promise.all([
-      turnosService.listarDelProfesional(profesionalId, todayISO),
-      turnosService.listarDelProfesional(profesionalId),
-      disponibilidadService.tieneAgenda(profesionalId),
-      serviciosService.listar(profesionalId),
+      tag('turnos(hoy)', turnosService.listarDelProfesional(profesionalId, todayISO)),
+      tag('turnos(todos)', turnosService.listarDelProfesional(profesionalId)),
+      tag('disponibilidad', disponibilidadService.tieneAgenda(profesionalId)),
+      tag('servicios', serviciosService.listar(profesionalId)),
     ])
       .then(([turnos, todos, tiene, servicios]) => {
         setTieneServicios(servicios.length > 0);

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Usuario, UserRole, PerfilCliente, PerfilProfesionalSignup, PerfilProveedor, Direccion, PreferenciasNotificaciones } from '@/types/models';
 import { authService, type SignupPayload } from '@/services';
+import { auth as firebaseAuth } from '@/services/firebase';
 
 interface SessionState {
   user: Usuario | null;
@@ -32,6 +33,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = authService.subscribe((u) => {
+      // DIAGNÓSTICO (temporal): las reglas de Firestore exigen
+      // request.auth != null. Si acá no hay uid de Firebase Auth, o no
+      // coincide con u.id, TODA lectura devuelve permission-denied.
+      const authUid = firebaseAuth.currentUser?.uid;
+      console.log(
+        '[sesion] uid firebase:', authUid ?? 'NULL',
+        '| user.id:', u?.id ?? 'NULL',
+        '| rol:', u?.rol ?? '-',
+        '| esProfesional:', u?.esProfesional ?? '-',
+      );
+      if (u && !authUid) {
+        console.warn('[sesion] hay usuario en la app pero NO hay sesión de Firebase Auth');
+      } else if (u && authUid && authUid !== u.id) {
+        console.warn('[sesion] uid de Auth != user.id → las queries apuntan al id equivocado');
+      }
       setUser(u);
       setLoading(false);
     });

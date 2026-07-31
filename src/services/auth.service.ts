@@ -277,6 +277,12 @@ export const authService = {
     const unsub = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (cancelled) return;
       if (!fbUser) {
+        // DIAGNÓSTICO (temporal): Firebase emitió "sin usuario". Si esto pasa
+        // después de haber emitido un usuario, la sesión se perdió (típico de
+        // auth sin persistencia) y a partir de acá todo da permission-denied.
+        console.warn(
+          '[auth] onAuthStateChanged → SIN usuario (firstEmit:', firstFirebaseEmit, ')',
+        );
         const demo = await getDemoSession();
         if (firstFirebaseEmit && demo) {
           firstFirebaseEmit = false;
@@ -287,6 +293,18 @@ export const authService = {
         return;
       }
       firstFirebaseEmit = false;
+
+      // DIAGNÓSTICO (temporal): forzar el refresh del ID token. Si el token no
+      // se puede renovar (usuario borrado/deshabilitado en Authentication,
+      // token revocado, o falla de red) el SDK descarta la sesión y emite null
+      // justo después. Acá vemos el código de error exacto.
+      fbUser
+        .getIdToken(true)
+        .then(() => console.log('[auth] refresh de ID token OK para', fbUser.uid))
+        .catch((e: any) =>
+          console.error('[auth] refresh de ID token FALLÓ:', e?.code ?? '', e?.message ?? e),
+        );
+
       try {
         // Si hay un signup en curso, no creamos el doc con rol por defecto.
         // El signupWithEmail se encarga de crearlo con el rol correcto.

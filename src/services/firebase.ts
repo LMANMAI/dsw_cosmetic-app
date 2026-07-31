@@ -23,12 +23,33 @@ export const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 let _auth: ReturnType<typeof getAuth>;
+
+// DIAGNÓSTICO (temporal): si Metro resuelve `firebase/auth` al bundle WEB,
+// `getReactNativePersistence` llega undefined, initializeAuth explota, el
+// catch cae a getAuth() y el auth queda con persistencia EN MEMORIA: la
+// sesión se pierde en cada reload y todas las queries dan permission-denied.
+console.log('[firebase] typeof getReactNativePersistence =', typeof getReactNativePersistence);
+
 try {
+  if (typeof getReactNativePersistence !== 'function') {
+    throw new Error(
+      'getReactNativePersistence no existe: firebase/auth se resolvió al bundle web',
+    );
+  }
   _auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   });
-} catch {
-  _auth = getAuth(app);
+  console.log('[firebase] auth OK — persistencia AsyncStorage (la sesión sobrevive al reload)');
+} catch (e: any) {
+  const msg = String(e?.message ?? e);
+  if (msg.includes('already-initialized')) {
+    // Fast Refresh volvió a evaluar el módulo: reusar la instancia existente.
+    _auth = getAuth(app);
+    console.log('[firebase] auth ya inicializado, se reusa la instancia');
+  } else {
+    _auth = getAuth(app);
+    console.warn('[firebase] auth SIN PERSISTENCIA →', msg);
+  }
 }
 
 let _db: ReturnType<typeof getFirestore>;

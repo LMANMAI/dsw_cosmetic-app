@@ -74,6 +74,9 @@ export default function BuscarScreen() {
         excluirUsuarioId: user?.id,
       })
       .then(setItems)
+      .catch((e: any) =>
+        console.error('[buscar] falló listar profesionales:', e?.code ?? '', e?.message ?? e),
+      )
       .finally(() => setLoading(false));
   }, [categoria, query, userLat, userLng, user?.id]);
 

@@ -3,6 +3,7 @@ import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { auth as firebaseAuth } from '@/services/firebase';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
@@ -44,20 +45,44 @@ export default function PerfilProfesionalScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
-      disponibilidadService.listar(user.id).then((slots) => {
-        if (slots.length > 0) {
-          const diasNombres = t('comun.diasCortos').split(',');
-          const resumen = slots.map((s) => diasNombres[s.diaSemana]).join(', ');
-          setHorariosLabel(resumen);
-        } else {
-          setHorariosLabel(null);
-        }
-      });
-      serviciosService.listar(user.id).then((svcs) => setCantServicios(svcs.length));
-      valoracionesService.obtenerResumen(user.id).then((r) => {
-        setCantResenas(r.cantidad);
-        setRatingProm(r.rating);
-      });
+
+      // DIAGNÓSTICO (temporal): si el uid de Firebase Auth no coincide con
+      // user.id —o directamente no existe— todas las lecturas de Firestore
+      // fallan con "Missing or insufficient permissions", porque las reglas
+      // exigen request.auth != null.
+      const authUid = firebaseAuth.currentUser?.uid;
+      console.log('[perfil] uid firebase:', authUid ?? 'NULL', '| user.id:', user.id);
+      if (!authUid) {
+        console.warn('[perfil] SIN SESIÓN DE FIREBASE AUTH → toda lectura va a dar permission-denied');
+      } else if (authUid !== user.id) {
+        console.warn('[perfil] uid de Auth y user.id NO coinciden');
+      }
+
+      disponibilidadService
+        .listar(user.id)
+        .then((slots) => {
+          if (slots.length > 0) {
+            const diasNombres = t('comun.diasCortos').split(',');
+            const resumen = slots.map((s) => diasNombres[s.diaSemana]).join(', ');
+            setHorariosLabel(resumen);
+          } else {
+            setHorariosLabel(null);
+          }
+        })
+        .catch((e) => console.error('[perfil] disponibilidad:', e?.code ?? '', e?.message ?? e));
+
+      serviciosService
+        .listar(user.id)
+        .then((svcs) => setCantServicios(svcs.length))
+        .catch((e) => console.error('[perfil] servicios:', e?.code ?? '', e?.message ?? e));
+
+      valoracionesService
+        .obtenerResumen(user.id)
+        .then((r) => {
+          setCantResenas(r.cantidad);
+          setRatingProm(r.rating);
+        })
+        .catch((e) => console.error('[perfil] valoraciones:', e?.code ?? '', e?.message ?? e));
     }, [user?.id, t]),
   );
 
