@@ -519,6 +519,20 @@ export const pt: Dict = {
       reservadoSinPagoTitulo: 'Reservado sem pagamento',
       reservadoSinPagoMsg: 'Seu horário ficou pendente de pagamento. Você pode pagar o sinal em "Meus horários".',
     },
+
+    revisar: {
+      titulo: 'Revise e confirme',
+      horaDuracion: '{hora} · {min} min de duração',
+      total: 'Total',
+      senaAviso: 'Para confirmar o horário você precisa pagar um sinal de {monto}.',
+      comentarios: 'Comentários ou solicitações',
+      notaPlaceholder: 'Tem algo que você quer que a gente saiba?',
+      notaAyuda: 'Alergias, se o cabelo está tingido, se vai chegar mais tarde… O profissional vê isso antes do atendimento.',
+      masDetalles: 'Mais detalhes',
+      politicaTitulo: 'Política de cancelamento',
+      politicaTexto: 'Cancele com pelo menos 24 horas de antecedência.',
+      reservadoMsg: '{servicio} em {fecha} às {hora} ({estado}).',
+    },
   },
 
   profesional: {
@@ -619,6 +633,24 @@ export const pt: Dict = {
       cobrarEfectivo: 'Cobrar em dinheiro',
       cobrarTransferencia: 'Cobrar por transferência',
       cobrarMP: 'Cobrar com Mercado Pago',
+    },
+
+    turnoDetalle: {
+      noEncontrado: 'Não conseguimos carregar este horário.',
+      horaDuracion: '{hora} · {min} min',
+      senaPagada: 'Sinal de {monto} pago',
+      senaPendiente: 'Sinal de {monto} pendente',
+      notaCliente: 'Nota do cliente',
+      sinNotaCliente: 'O cliente não deixou nenhuma nota ao reservar.',
+      fichaCliente: 'Ficha do cliente',
+      verFicha: 'Ver ficha completa',
+      acciones: 'Ações',
+      confirmarTurno: 'Confirmar horário',
+      registrarCobro: 'Registrar cobrança',
+      esperandoSena: 'Aguardando o cliente pagar o sinal.',
+      cancelarTurno: 'Cancelar horário',
+      cancelarTitulo: 'Cancelar horário',
+      cancelarMsg: 'Cancelar o horário de {nombre}? O cliente verá como cancelado.',
     },
 
     caja: {

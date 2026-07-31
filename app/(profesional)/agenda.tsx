@@ -129,70 +129,17 @@ export default function AgendaScreen() {
   const totalPendientes = items.filter((t) => t.estado === 'pendiente').length + pendientesFuturos.length;
   const confirmados = items.filter((t) => t.estado === 'confirmado').length;
 
-  const RECORDATORIO_OPCIONES: { label: string; value: NonNullable<Turno['recordatorioCliente']> }[] = [
-    { label: t('profesional.agenda.recordatorio1h'), value: '1h' },
-    { label: t('profesional.agenda.recordatorio2h'), value: '2h' },
-    { label: t('profesional.agenda.recordatorio24h'), value: '24h' },
-    { label: t('profesional.agenda.recordatorioOff'), value: 'off' },
-  ];
-
-  const recordatorioLabel = (turno: Turno) =>
-    RECORDATORIO_OPCIONES.find((o) => o.value === (turno.recordatorioCliente ?? '24h'))?.label ??
-    t('profesional.agenda.recordatorio24h');
-
-  const elegirRecordatorio = (turno: Turno) => {
-    Alert.alert(
-      t('profesional.agenda.recordatorioCliente'),
-      t('profesional.agenda.recordatorioMsg', { nombre: turno.clienteNombre, actual: recordatorioLabel(turno) }),
-      [
-        ...RECORDATORIO_OPCIONES.map((opt) => ({
-          text: opt.label,
-          onPress: async () => {
-            await turnosService.actualizarRecordatorio(turno.id, opt.value);
-            cargar();
-          },
-        })),
-        { text: t('comun.cancelar'), style: 'cancel' as const },
-      ],
-    );
-  };
-
+  /**
+   * Tocar un turno abre su detalle, donde está la nota del cliente, la ficha
+   * y las acciones. Antes esto era un Alert con botones: se confirmaba a
+   * ciegas, sin ver lo que el cliente había pedido al reservar.
+   * La agenda se refresca sola al volver (useFocusEffect).
+   */
   const accionarTurno = (turno: Turno) => {
-    if (turno.estado === 'pendiente') {
-      Alert.alert(
-        t('profesional.agenda.confirmarTurnoTitulo'),
-        t('profesional.agenda.confirmarTurnoMsg', { nombre: turno.clienteNombre }),
-        [
-        { text: t('comun.cancelar'), style: 'cancel' },
-        { text: t('profesional.agenda.recordatorioCliente'), onPress: () => elegirRecordatorio(turno) },
-        {
-          text: t('comun.confirmar'),
-          onPress: async () => {
-            await turnosService.actualizarEstado(turno.id, 'confirmado');
-            cargar();
-          },
-        },
-      ]);
-      return;
-    }
-    if (turno.estado === 'confirmado') {
-      Alert.alert(
-        t('profesional.agenda.turnoConfirmadoTitulo'),
-        t('profesional.agenda.turnoConfirmadoMsg', { nombre: turno.clienteNombre, monto: formatARS(turno.monto) }),
-        [
-          { text: t('profesional.agenda.cobrarEfectivo'), onPress: () => completar(turno, 'efectivo') },
-          { text: t('profesional.agenda.cobrarTransferencia'), onPress: () => completar(turno, 'transferencia') },
-          { text: t('profesional.agenda.cobrarMP'), onPress: () => completar(turno, 'mercado_pago') },
-          { text: t('profesional.agenda.recordatorioCliente'), onPress: () => elegirRecordatorio(turno) },
-          { text: t('comun.cancelar'), style: 'cancel' },
-        ],
-      );
-    }
-  };
-
-  const completar = async (turno: Turno, metodo: MetodoPago) => {
-    await turnosService.actualizarEstado(turno.id, 'completado', metodo);
-    cargar();
+    router.push({
+      pathname: '/(profesional)/turno-detalle',
+      params: { turnoId: turno.id },
+    });
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);

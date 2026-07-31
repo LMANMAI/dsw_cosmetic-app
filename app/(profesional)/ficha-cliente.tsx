@@ -179,21 +179,44 @@ export default function FichaClienteScreen() {
                 <Text style={styles.meta}>{t('profesional.ficha.sinHistorial')}</Text>
               ) : (
                 historial.map((turno) => (
-                  <View key={turno.id} style={styles.turnoCard}>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={styles.turnoServicio}>{turno.servicioNombre}</Text>
-                      <Text style={styles.meta}>
-                        {new Date(turno.fecha + 'T00:00:00').toLocaleDateString()} · {turno.hora} hs
-                      </Text>
+                  <Pressable
+                    key={turno.id}
+                    style={styles.turnoCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(profesional)/turno-detalle',
+                        params: { turnoId: turno.id },
+                      })
+                    }
+                  >
+                    <View style={styles.turnoFila}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.turnoServicio}>{turno.servicioNombre}</Text>
+                        <Text style={styles.meta}>
+                          {new Date(turno.fecha + 'T00:00:00').toLocaleDateString()} · {turno.hora} hs
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                        <Text style={styles.turnoMonto}>{formatARS(turno.monto ?? 0)}</Text>
+                        <Badge
+                          label={t(`estadosTurno.${turno.estado}`)}
+                          tone={ESTADO_TONE[turno.estado]}
+                        />
+                      </View>
                     </View>
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Text style={styles.turnoMonto}>{formatARS(turno.monto ?? 0)}</Text>
-                      <Badge
-                        label={t(`estadosTurno.${turno.estado}`)}
-                        tone={ESTADO_TONE[turno.estado]}
-                      />
-                    </View>
-                  </View>
+
+                    {/* Nota que dejó el cliente al reservar ese turno. */}
+                    {!!turno.notas && (
+                      <View style={styles.notaTurno}>
+                        <Ionicons
+                          name="chatbubble-ellipses-outline"
+                          size={14}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.notaTurnoTexto}>{turno.notas}</Text>
+                      </View>
+                    )}
+                  </Pressable>
                 ))
               )}
             </>
@@ -242,9 +265,7 @@ const makeStyles = (c: ThemeColors) =>
     },
     notas: { minHeight: 120 },
     turnoCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
+      gap: spacing.sm,
       backgroundColor: c.surface,
       borderWidth: 1,
       borderColor: c.border,
@@ -252,6 +273,16 @@ const makeStyles = (c: ThemeColors) =>
       padding: spacing.lg,
       marginBottom: spacing.sm,
     },
+    turnoFila: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    notaTurno: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      backgroundColor: c.background,
+      borderRadius: radius.md,
+      padding: spacing.md,
+    },
+    notaTurnoTexto: { flex: 1, fontSize: 13, color: c.ink, lineHeight: 18 },
     turnoServicio: { fontSize: 14, fontWeight: '600', color: c.ink },
     turnoMonto: { fontSize: 14, fontWeight: '700', color: c.primary },
   });

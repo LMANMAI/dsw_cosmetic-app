@@ -519,6 +519,20 @@ export const en: Dict = {
       reservadoSinPagoTitulo: 'Booked without payment',
       reservadoSinPagoMsg: 'Your appointment is pending payment. You can pay the deposit from "My appointments".',
     },
+
+    revisar: {
+      titulo: 'Review and confirm',
+      horaDuracion: '{hora} · {min} min long',
+      total: 'Total',
+      senaAviso: 'To confirm this appointment you need to pay a {monto} deposit.',
+      comentarios: 'Comments or requests',
+      notaPlaceholder: 'Anything you want us to know?',
+      notaAyuda: 'Allergies, if your hair is dyed, if you will be running late… Your professional sees this before the appointment.',
+      masDetalles: 'More details',
+      politicaTitulo: 'Cancellation policy',
+      politicaTexto: 'Cancel at least 24 hours before the appointment.',
+      reservadoMsg: '{servicio} on {fecha} at {hora} ({estado}).',
+    },
   },
 
   profesional: {
@@ -619,6 +633,24 @@ export const en: Dict = {
       cobrarEfectivo: 'Charge in cash',
       cobrarTransferencia: 'Charge by bank transfer',
       cobrarMP: 'Charge with Mercado Pago',
+    },
+
+    turnoDetalle: {
+      noEncontrado: 'We could not load this appointment.',
+      horaDuracion: '{hora} · {min} min',
+      senaPagada: '{monto} deposit paid',
+      senaPendiente: '{monto} deposit pending',
+      notaCliente: 'Client note',
+      sinNotaCliente: 'The client did not leave a note when booking.',
+      fichaCliente: 'Client record',
+      verFicha: 'View full record',
+      acciones: 'Actions',
+      confirmarTurno: 'Confirm appointment',
+      registrarCobro: 'Record payment',
+      esperandoSena: 'Waiting for the client to pay the deposit.',
+      cancelarTurno: 'Cancel appointment',
+      cancelarTitulo: 'Cancel appointment',
+      cancelarMsg: 'Cancel {nombre}’s appointment? The client will see it as cancelled.',
     },
 
     caja: {

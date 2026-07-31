@@ -68,9 +68,6 @@ export default function PerfilProfesionalScreen() {
   const [slotsDisponibles, setSlotsDisponibles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [reservando, setReservando] = useState(false);
-  const [pagoModal, setPagoModal] = useState<{ turnoId: string; monto: number; servicio: string } | null>(null);
-  const [pagandoSena, setPagandoSena] = useState(false);
 
   // Cargar profesional, servicios y disponibilidad
   useEffect(() => {
@@ -160,87 +157,31 @@ export default function PerfilProfesionalScreen() {
   const porcentajeAnticipo = (profesional?.anticipoPorcentaje ?? 20) / 100;
   const montoSena = servicioElegido ? Math.round(servicioElegido.precio * porcentajeAnticipo) : 0;
 
-  const reservar = async () => {
+  /**
+   * Ya no reserva directo: lleva al paso "Revisá y confirmá", donde el
+   * cliente repasa el turno y puede dejar una nota. La creación del turno y
+   * el pago de la seña viven ahora en (cliente)/revisar-turno.
+   */
+  const reservar = () => {
     if (!profesional || !servicioElegido || !horarioElegido || !fechaElegida || !user) return;
-    setReservando(true);
-    try {
-      const fd = fechaElegida.fecha;
-      const fechaISO = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
-      const turno = await turnosService.reservar(
-        {
-          clienteId: user.id,
-          clienteNombre: user.nombre,
-          profesionalId: profesional.id,
-          servicioId: servicioElegido.id,
-          servicioNombre: servicioElegido.nombre,
-          fecha: fechaISO,
-          hora: horarioElegido,
-          duracionMin: servicioElegido.duracionMin,
-          monto: servicioElegido.precio,
-          montoSena: montoSena,
-        },
-        profesional.autoConfirmarTurnos,
-      );
-
-      // Si hay seña, mostrar modal de pago
-      if (montoSena > 0) {
-        setPagoModal({ turnoId: turno.id, monto: montoSena, servicio: servicioElegido.nombre });
-      } else {
-        const estadoMsg = profesional.autoConfirmarTurnos
-          ? t('cliente.proDetalle.estadoConfirmado')
-          : t('cliente.proDetalle.estadoPendiente');
-        Alert.alert(
-          t('cliente.proDetalle.turnoReservadoTitulo'),
-          t('cliente.proDetalle.turnoReservadoMsg', {
-            servicio: servicioElegido.nombre,
-            dia: NOMBRE_DIA_LARGO[fechaElegida.diaSemana],
-            fecha: `${fd.getDate()}/${fd.getMonth() + 1}`,
-            hora: horarioElegido,
-            estado: estadoMsg,
-          }),
-          [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
-        );
-      }
-    } finally {
-      setReservando(false);
-    }
-  };
-
-  const pagarSenaMP = async () => {
-    if (!pagoModal || !profesional) return;
-    setPagandoSena(true);
-    try {
-      // 1) El backend crea la preferencia con la cuenta de MP del profesional.
-      const { initPoint } = await pagosService.crearPreferenciaSena(pagoModal.turnoId);
-      // 2) Abrimos el checkout de Mercado Pago y esperamos el retorno.
-      const estado = await pagosService.abrirCheckoutSena(initPoint);
-
-      if (estado === 'approved') {
-        // Confirmación rápida en el cliente; el webhook también lo confirma.
-        await turnosService.confirmarPagoSena(pagoModal.turnoId, profesional.autoConfirmarTurnos);
-        setPagoModal(null);
-        Alert.alert(
-          t('cliente.proDetalle.pagoConfirmadoTitulo'),
-          t('cliente.proDetalle.pagoConfirmadoMsg'),
-          [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
-        );
-      } else if (estado === 'pending') {
-        setPagoModal(null);
-        Alert.alert(
-          t('cliente.turnos.pagoPendienteTitulo'),
-          t('cliente.proDetalle.pagoPendienteMsg'),
-          [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
-        );
-      } else if (estado === 'cancelado') {
-        Alert.alert(t('cliente.turnos.pagoNoCompletadoTitulo'), t('cliente.proDetalle.pagoNoCompletadoMsg'));
-      } else {
-        Alert.alert(t('cliente.turnos.pagoErrorTitulo'), t('cliente.turnos.pagoErrorMsg'));
-      }
-    } catch (e: any) {
-      Alert.alert(t('cliente.turnos.pagoIniciarErrorTitulo'), e?.message ?? t('cliente.turnos.pagoIniciarErrorMsg'));
-    } finally {
-      setPagandoSena(false);
-    }
+    const fd = fechaElegida.fecha;
+    const fechaISO = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
+    router.push({
+      pathname: '/(cliente)/revisar-turno',
+      params: {
+        profesionalId: profesional.id,
+        profesionalNombre: profesional.nombre,
+        direccion: profesional.direccion ?? '',
+        servicioId: servicioElegido.id,
+        servicioNombre: servicioElegido.nombre,
+        precio: String(servicioElegido.precio),
+        duracionMin: String(servicioElegido.duracionMin),
+        fecha: fechaISO,
+        hora: horarioElegido,
+        montoSena: String(montoSena),
+        autoConfirmar: profesional.autoConfirmarTurnos ? '1' : '0',
+      },
+    });
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -464,55 +405,9 @@ export default function PerfilProfesionalScreen() {
         <Button
           label={horarioElegido ? t('cliente.proDetalle.reservarHora', { hora: horarioElegido }) : t('cliente.proDetalle.elegiHorario')}
           onPress={reservar}
-          loading={reservando}
           disabled={!horarioElegido || !servicioElegido || !fechaElegida}
         />
       </View>
-
-      {/* Modal de pago MercadoPago */}
-      <Modal visible={!!pagoModal} animationType="slide" transparent onRequestClose={() => setPagoModal(null)}>
-        <Pressable style={styles.pagoBackdrop} onPress={() => setPagoModal(null)} />
-        <View style={styles.pagoWrap} pointerEvents="box-none">
-          <View style={styles.pagoCard}>
-            <View style={styles.pagoIconWrap}>
-              <Ionicons name="card-outline" size={40} color={colors.primary} />
-            </View>
-            <Text style={styles.pagoTitle}>{t('cliente.proDetalle.pagarSena')}</Text>
-            <Text style={styles.pagoSub}>{pagoModal?.servicio}</Text>
-
-            <View style={styles.pagoMontoBox}>
-              <Text style={styles.pagoMontoLabel}>{t('cliente.proDetalle.montoAPagar')}</Text>
-              <Text style={styles.pagoMonto}>{formatARS(pagoModal?.monto ?? 0)}</Text>
-            </View>
-
-            <Pressable
-              style={[styles.mpButton, pagandoSena && { opacity: 0.6 }]}
-              onPress={pagarSenaMP}
-              disabled={pagandoSena}
-            >
-              {pagandoSena ? (
-                <Text style={styles.mpButtonText}>{t('cliente.proDetalle.abriendoMP')}</Text>
-              ) : (
-                <>
-                  <Text style={styles.mpButtonText}>{t('cliente.proDetalle.pagarCon')}</Text>
-                  <Text style={[styles.mpButtonText, { fontWeight: '800' }]}>Mercado Pago</Text>
-                </>
-              )}
-            </Pressable>
-
-            <Pressable disabled={pagandoSena} onPress={() => {
-              setPagoModal(null);
-              Alert.alert(
-                t('cliente.proDetalle.reservadoSinPagoTitulo'),
-                t('cliente.proDetalle.reservadoSinPagoMsg'),
-                [{ text: t('cliente.proDetalle.verMisTurnos'), onPress: () => router.replace('/(cliente)/turnos') }],
-              );
-            }} style={styles.pagoLater}>
-              <Text style={styles.pagoLaterTxt}>{t('cliente.proDetalle.pagarMasTarde')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

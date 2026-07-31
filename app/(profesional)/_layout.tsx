@@ -93,6 +93,12 @@ export default function ProfesionalLayout() {
         }}
       />
       <Tabs.Screen
+        name="turno-detalle"
+        options={{
+          href: null, // oculta del tab bar — se accede tocando un turno en la agenda
+        }}
+      />
+      <Tabs.Screen
         name="informacion-facturacion"
         options={{
           href: null, // oculta del tab bar — se accede desde el perfil

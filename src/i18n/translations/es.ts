@@ -518,6 +518,20 @@ export const es = {
       reservadoSinPagoTitulo: 'Turno reservado sin pago',
       reservadoSinPagoMsg: 'Tu turno quedó como pendiente de pago. Podés pagar la seña desde "Mis turnos".',
     },
+
+    revisar: {
+      titulo: 'Revisá y confirmá',
+      horaDuracion: '{hora} · {min} min de duración',
+      total: 'Total',
+      senaAviso: 'Para confirmar el turno tenés que abonar una seña de {monto}.',
+      comentarios: 'Comentarios o solicitudes',
+      notaPlaceholder: '¿Hay algo que quieras que sepamos?',
+      notaAyuda: 'Alergias, si venís con el pelo teñido, si llegás más tarde… Lo va a ver el profesional antes de tu turno.',
+      masDetalles: 'Más detalles',
+      politicaTitulo: 'Política de cancelación',
+      politicaTexto: 'Cancelá al menos 24 horas antes de la cita.',
+      reservadoMsg: '{servicio} el {fecha} a las {hora} ({estado}).',
+    },
   },
 
   profesional: {
@@ -618,6 +632,24 @@ export const es = {
       cobrarEfectivo: 'Cobrar en efectivo',
       cobrarTransferencia: 'Cobrar por transferencia',
       cobrarMP: 'Cobrar con Mercado Pago',
+    },
+
+    turnoDetalle: {
+      noEncontrado: 'No pudimos cargar este turno.',
+      horaDuracion: '{hora} hs · {min} min',
+      senaPagada: 'Seña de {monto} pagada',
+      senaPendiente: 'Seña de {monto} pendiente',
+      notaCliente: 'Nota del cliente',
+      sinNotaCliente: 'El cliente no dejó ninguna nota al reservar.',
+      fichaCliente: 'Ficha del cliente',
+      verFicha: 'Ver ficha completa',
+      acciones: 'Acciones',
+      confirmarTurno: 'Confirmar turno',
+      registrarCobro: 'Registrar cobro',
+      esperandoSena: 'Esperando que el cliente pague la seña.',
+      cancelarTurno: 'Cancelar turno',
+      cancelarTitulo: 'Cancelar turno',
+      cancelarMsg: '¿Cancelar el turno de {nombre}? El cliente lo va a ver como cancelado.',
     },
 
     caja: {

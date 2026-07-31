@@ -110,6 +110,12 @@ export const turnosService = {
     await updateDoc(doc(db, COLLECTION, turnoId), { recordatorioCliente });
   },
 
+  /** Trae un turno puntual por id (lo usa la pantalla de detalle). */
+  async obtener(turnoId: string): Promise<Turno | null> {
+    const snap = await getDoc(doc(db, COLLECTION, turnoId));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Turno) : null;
+  },
+
   /** Marca un turno como cancelado. */
   async cancelar(turnoId: string): Promise<void> {
     const ref = doc(db, COLLECTION, turnoId);
