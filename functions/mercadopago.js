@@ -197,69 +197,102 @@ exports.crearPreferenciaPedido = onCall({ region: REGION }, async (request) => {
 });
 
 /**
- * Crea una preferencia de Checkout Pro para la SEÑA de un turno.
- * La seña va 100% a la cuenta del profesional (sin marketplace_fee).
- * Devuelve el init_point para abrir el checkout.
+ * Crea una preferencia de Checkout Pro para lo que el cliente paga al reservar:
+ * la SEÑA del turno + la TARIFA DE USO de la app (si el cliente tiene una).
+ *
+ * Dos escenarios:
+ *  a) Hay seña → se cobra con el token del PROFESIONAL y la tarifa de uso viaja
+ *     como `marketplace_fee`: el profesional recibe la seña y la plataforma se
+ *     queda con la tarifa, en un solo pago para el cliente.
+ *  b) No hay seña (el profesional no pide anticipo) pero sí tarifa → se cobra
+ *     con el token del DUEÑO: el 100% va a la plataforma y no hace falta que el
+ *     profesional tenga Mercado Pago conectado.
  */
-exports.crearPreferenciaSena = onCall({ region: REGION }, async (request) => {
-  const uid = request.auth && request.auth.uid;
-  if (!uid) throw new HttpsError('unauthenticated', 'Necesitás iniciar sesión.');
+exports.crearPreferenciaSena = onCall(
+  { region: REGION, secrets: [MP_ACCESS_TOKEN] },
+  async (request) => {
+    const uid = request.auth && request.auth.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'Necesitás iniciar sesión.');
 
-  const turnoId = request.data && request.data.turnoId;
-  if (!turnoId) throw new HttpsError('invalid-argument', 'Falta turnoId.');
+    const turnoId = request.data && request.data.turnoId;
+    if (!turnoId) throw new HttpsError('invalid-argument', 'Falta turnoId.');
 
-  const db = getFirestore();
-  const turnoSnap = await db.doc(`turnos/${turnoId}`).get();
-  if (!turnoSnap.exists) throw new HttpsError('not-found', 'Turno no encontrado.');
-  const turno = turnoSnap.data();
+    const db = getFirestore();
+    const turnoSnap = await db.doc(`turnos/${turnoId}`).get();
+    if (!turnoSnap.exists) throw new HttpsError('not-found', 'Turno no encontrado.');
+    const turno = turnoSnap.data();
 
-  if (turno.clienteId !== uid) {
-    throw new HttpsError('permission-denied', 'Ese turno no es tuyo.');
-  }
+    if (turno.clienteId !== uid) {
+      throw new HttpsError('permission-denied', 'Ese turno no es tuyo.');
+    }
 
-  const monto = Number(turno.montoSena || 0);
-  if (monto <= 0) throw new HttpsError('failed-precondition', 'Este turno no tiene seña.');
+    const sena = Number(turno.montoSena || 0);
+    const tarifa = Number(turno.tarifaCliente || 0);
+    if (sena <= 0 && tarifa <= 0) {
+      throw new HttpsError('failed-precondition', 'Este turno no tiene nada para pagar.');
+    }
 
-  const cuentaSnap = await db.doc(`mp_cuentas/${turno.profesionalId}`).get();
-  const cuenta = cuentaSnap.exists ? cuentaSnap.data() : null;
-  if (!cuenta || !cuenta.accessToken) {
-    throw new HttpsError(
-      'failed-precondition',
-      'El profesional todavía no conectó su cuenta de Mercado Pago.',
-    );
-  }
-
-  // Seña 100% al profesional → NO se envía marketplace_fee.
-  const body = {
-    items: [
-      {
+    const items = [];
+    if (sena > 0) {
+      items.push({
         title: `Seña — ${turno.servicioNombre || 'Turno'}`,
         quantity: 1,
-        unit_price: monto,
+        unit_price: sena,
         currency_id: 'ARS',
-      },
-    ],
-    external_reference: turnoId,
-    back_urls: { success: APP_SENA_RETURN, failure: APP_SENA_RETURN, pending: APP_SENA_RETURN },
-    auto_return: 'approved',
-    notification_url: `${WEBHOOK_URL}?turno=${encodeURIComponent(turnoId)}`,
-  };
+      });
+    }
+    if (tarifa > 0) {
+      items.push({
+        title: 'Tarifa de servicio',
+        quantity: 1,
+        unit_price: tarifa,
+        currency_id: 'ARS',
+      });
+    }
 
-  const res = await fetch(MP_PREF_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cuenta.accessToken}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!data.init_point) {
-    console.error('MP preferencia seña error:', JSON.stringify(data));
-    throw new HttpsError('internal', 'No se pudo crear la preferencia de la seña.');
-  }
-  return { initPoint: data.init_point, preferenceId: data.id };
-});
+    const body = {
+      items,
+      external_reference: turnoId,
+      back_urls: { success: APP_SENA_RETURN, failure: APP_SENA_RETURN, pending: APP_SENA_RETURN },
+      auto_return: 'approved',
+      notification_url: `${WEBHOOK_URL}?turno=${encodeURIComponent(turnoId)}`,
+    };
+
+    let accessToken;
+    if (sena > 0) {
+      const cuentaSnap = await db.doc(`mp_cuentas/${turno.profesionalId}`).get();
+      const cuenta = cuentaSnap.exists ? cuentaSnap.data() : null;
+      if (!cuenta || !cuenta.accessToken) {
+        throw new HttpsError(
+          'failed-precondition',
+          'El profesional todavía no conectó su cuenta de Mercado Pago.',
+        );
+      }
+      accessToken = cuenta.accessToken;
+      // La tarifa de uso es lo único que retiene la plataforma; la seña va
+      // entera al profesional.
+      if (tarifa > 0) body.marketplace_fee = tarifa;
+    } else {
+      // Solo tarifa de uso → cobra directo la plataforma.
+      accessToken = MP_ACCESS_TOKEN.value();
+    }
+
+    const res = await fetch(MP_PREF_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.init_point) {
+      console.error('MP preferencia seña error:', JSON.stringify(data));
+      throw new HttpsError('internal', 'No se pudo crear la preferencia de la seña.');
+    }
+    return { initPoint: data.init_point, preferenceId: data.id };
+  },
+);
 
 /**
  * Crea una preferencia de Checkout Pro para la TARIFA DE SERVICIO mensual.
@@ -365,18 +398,34 @@ async function confirmarSenaDesdeWebhook(db, turnoId, paymentId) {
   const turno = snap.data();
   if (turno.estado !== 'pendiente_pago' || turno.senaPagada) return;
 
-  const cuentaSnap = await db.doc(`mp_cuentas/${turno.profesionalId}`).get();
-  const cuenta = cuentaSnap.exists ? cuentaSnap.data() : null;
-  if (!cuenta || !cuenta.accessToken) return;
+  // El token con el que se verifica el pago tiene que ser el mismo con el que
+  // se creó la preferencia (ver crearPreferenciaSena): el del profesional si
+  // hubo seña, el del dueño si el cobro fue solo la tarifa de uso.
+  const sena = Number(turno.montoSena || 0);
+  let accessToken;
+  if (sena > 0) {
+    const cuentaSnap = await db.doc(`mp_cuentas/${turno.profesionalId}`).get();
+    const cuenta = cuentaSnap.exists ? cuentaSnap.data() : null;
+    if (!cuenta || !cuenta.accessToken) return;
+    accessToken = cuenta.accessToken;
+  } else {
+    accessToken = MP_ACCESS_TOKEN.value();
+  }
 
   const payRes = await fetch(`${MP_PAYMENT_URL}/${paymentId}`, {
-    headers: { Authorization: `Bearer ${cuenta.accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const pago = await payRes.json();
 
   if (pago.status === 'approved') {
     const estado = turno.autoConfirmar ? 'confirmado' : 'pendiente';
-    await turnoRef.update({ senaPagada: true, metodoPago: 'mercado_pago', estado });
+    await turnoRef.update({
+      senaPagada: true,
+      // La tarifa de uso viaja en el mismo checkout que la seña.
+      tarifaClientePagada: Number(turno.tarifaCliente || 0) > 0 ? true : false,
+      metodoPago: 'mercado_pago',
+      estado,
+    });
     console.log(`Seña del turno ${turnoId} confirmada (payment ${paymentId}).`);
   }
 }

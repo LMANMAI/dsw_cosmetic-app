@@ -266,7 +266,7 @@ export const es = {
       activado: 'Activado',
       desactivado: 'Desactivado',
       vistaCliente: 'Cambiar a vista cliente',
-      vistaClienteDesc: 'Probar la app como si reservaras un turno',
+      vistaClienteDesc: 'Reservá turnos con otros profesionales y comprá insumos',
     },
 
     proveedor: {
@@ -493,6 +493,8 @@ export const es = {
       sobre: 'Sobre {nombre}',
       serviciosPrecios: 'Servicios y precios',
       minutos: '{min} min',
+      requiereSena: 'Requiere seña de {monto} ({pct}%)',
+      requierePagoTotal: 'Requiere pago total de {monto}',
       sinServicios: 'Esta profesional aún no cargó servicios, por eso no se pueden reservar turnos todavía.',
       elegiDia: 'Elegí un día',
       sinHorariosConfig: 'Esta profesional aún no configuró sus horarios de atención.',
@@ -500,6 +502,8 @@ export const es = {
       sinSlots: 'No hay horarios disponibles para este día.',
       servicioLabel: 'Servicio: {monto}',
       senaLabel: 'Seña: {monto}',
+      tarifaAppLabel: 'Tarifa de servicio: {monto}',
+      totalLabel: 'Total: {monto}',
       reservarHora: 'Reservar {hora}',
       elegiHorario: 'Elegí un horario',
       turnoReservadoTitulo: '¡Turno reservado!',
@@ -524,7 +528,9 @@ export const es = {
       titulo: 'Revisá y confirmá',
       horaDuracion: '{hora} · {min} min de duración',
       total: 'Total',
-      senaAviso: 'Para confirmar el turno tenés que abonar una seña de {monto}.',
+      senaAviso: 'Para confirmar el turno tenés que abonar {monto}.',
+      tarifaApp: 'Tarifa de servicio',
+      tarifaAviso: 'Para confirmar el turno tenés que abonar la tarifa de servicio: {monto}.',
       comentarios: 'Comentarios o solicitudes',
       notaPlaceholder: '¿Hay algo que quieras que sepamos?',
       notaAyuda: 'Alergias, si venís con el pelo teñido, si llegás más tarde… Lo va a ver el profesional antes de tu turno.',
@@ -538,7 +544,7 @@ export const es = {
   profesional: {
     tabs: {
       agenda: 'Agenda',
-      caja: 'Cierre de caja',
+      caja: 'Caja',
       insumos: 'Insumos',
     },
 

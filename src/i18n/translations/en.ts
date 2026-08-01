@@ -267,7 +267,7 @@ export const en: Dict = {
       activado: 'On',
       desactivado: 'Off',
       vistaCliente: 'Switch to client view',
-      vistaClienteDesc: 'Try the app as if you were booking an appointment',
+      vistaClienteDesc: 'Book appointments with other professionals and buy supplies',
     },
 
     proveedor: {
@@ -494,6 +494,8 @@ export const en: Dict = {
       sobre: 'About {nombre}',
       serviciosPrecios: 'Services & prices',
       minutos: '{min} min',
+      requiereSena: 'Requires a {monto} deposit ({pct}%)',
+      requierePagoTotal: 'Requires full payment of {monto}',
       sinServicios: "This professional hasn't added any services yet, so appointments can't be booked.",
       elegiDia: 'Pick a day',
       sinHorariosConfig: "This professional hasn't set up her working hours yet.",
@@ -501,6 +503,8 @@ export const en: Dict = {
       sinSlots: 'No available times for this day.',
       servicioLabel: 'Service: {monto}',
       senaLabel: 'Deposit: {monto}',
+      tarifaAppLabel: 'Service fee: {monto}',
+      totalLabel: 'Total: {monto}',
       reservarHora: 'Book {hora}',
       elegiHorario: 'Pick a time',
       turnoReservadoTitulo: 'Appointment booked!',
@@ -525,7 +529,9 @@ export const en: Dict = {
       titulo: 'Review and confirm',
       horaDuracion: '{hora} · {min} min long',
       total: 'Total',
-      senaAviso: 'To confirm this appointment you need to pay a {monto} deposit.',
+      senaAviso: 'To confirm this appointment you need to pay {monto}.',
+      tarifaApp: 'Service fee',
+      tarifaAviso: 'To confirm this appointment you need to pay the {monto} service fee.',
       comentarios: 'Comments or requests',
       notaPlaceholder: 'Anything you want us to know?',
       notaAyuda: 'Allergies, if your hair is dyed, if you will be running late… Your professional sees this before the appointment.',
@@ -539,7 +545,7 @@ export const en: Dict = {
   profesional: {
     tabs: {
       agenda: 'Schedule',
-      caja: 'Cash register',
+      caja: 'Register',
       insumos: 'Supplies',
     },
 

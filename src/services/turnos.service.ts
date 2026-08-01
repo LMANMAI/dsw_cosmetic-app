@@ -44,13 +44,14 @@ export const turnosService = {
   },
 
   /** Crea un turno nuevo.
-   *  - Si hay seña > 0: estado = pendiente_pago (espera pago por MercadoPago)
-   *  - Si no hay seña y autoConfirmar: estado = confirmado
-   *  - Si no hay seña y no autoConfirmar: estado = pendiente */
+   *  - Si hay algo para cobrar al reservar (seña y/o tarifa de uso de la app):
+   *    estado = pendiente_pago (espera el pago por MercadoPago)
+   *  - Si no hay nada que cobrar y autoConfirmar: estado = confirmado
+   *  - Si no hay nada que cobrar y no autoConfirmar: estado = pendiente */
   async reservar(input: Omit<Turno, 'id' | 'estado'>, autoConfirmar?: boolean): Promise<Turno> {
-    const tieneSeña = (input.montoSena ?? 0) > 0;
+    const aCobrarAhora = (input.montoSena ?? 0) + (input.tarifaCliente ?? 0);
     let estado: EstadoTurno;
-    if (tieneSeña) {
+    if (aCobrarAhora > 0) {
       estado = 'pendiente_pago';
     } else {
       estado = autoConfirmar ? 'confirmado' : 'pendiente';
@@ -60,11 +61,13 @@ export const turnosService = {
     return { ...nuevo, id: ref.id };
   },
 
-  /** Marca la seña como pagada y avanza el turno al estado correspondiente. */
+  /** Marca la seña (y la tarifa de uso, que se cobra en el mismo checkout)
+   *  como pagadas y avanza el turno al estado correspondiente. */
   async confirmarPagoSena(turnoId: string, autoConfirmar?: boolean): Promise<void> {
     const estado: EstadoTurno = autoConfirmar ? 'confirmado' : 'pendiente';
     await updateDoc(doc(db, COLLECTION, turnoId), {
       senaPagada: true,
+      tarifaClientePagada: true,
       metodoPago: 'mercado_pago',
       estado,
     });

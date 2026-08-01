@@ -6,7 +6,7 @@ import {
   doc,
   getDoc,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 import { calcularDistanciaKm } from './geocoding.service';
 import { serviciosService } from './servicios.service';
 import { valoracionesService } from './valoraciones.service';
@@ -140,6 +140,11 @@ export const profesionalesService = {
    * Filtra por categoría, texto libre y distancia máxima.
    */
   async listar(filtros: FiltrosBusqueda = {}): Promise<PerfilProfesional[]> {
+    // Sin sesión de Firebase Auth las reglas rechazan la lectura. Al cerrar
+    // sesión la pantalla todavía montada vuelve a pedir la lista, así que
+    // devolvemos vacío en vez de disparar un permission-denied.
+    if (!auth.currentUser) return [];
+
     // Dos consultas en vez de un OR: por el flag nuevo y por el rol (cuentas
     // viejas sin flag). Se deduplica por id de documento.
     // DIAGNÓSTICO (temporal): saber cuál de las dos consultas falla.

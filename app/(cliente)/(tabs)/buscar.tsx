@@ -63,6 +63,15 @@ export default function BuscarScreen() {
   }, []);
 
   useEffect(() => {
+    // Al cerrar sesión el usuario queda en null mientras la pantalla sigue
+    // montada: sin auth toda query da permission-denied.
+    if (!user?.id) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
+    let activo = true;
     setLoading(true);
     profesionalesService
       .listar({
@@ -73,11 +82,20 @@ export default function BuscarScreen() {
         // Un profesional mirando la app como cliente no se ve a sí mismo
         excluirUsuarioId: user?.id,
       })
-      .then(setItems)
-      .catch((e: any) =>
-        console.error('[buscar] falló listar profesionales:', e?.code ?? '', e?.message ?? e),
-      )
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (activo) setItems(data);
+      })
+      .catch((e: any) => {
+        if (!activo) return;
+        console.error('[buscar] falló listar profesionales:', e?.code ?? '', e?.message ?? e);
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => {
+      activo = false;
+    };
   }, [categoria, query, userLat, userLng, user?.id]);
 
   const seleccionada = useMemo(

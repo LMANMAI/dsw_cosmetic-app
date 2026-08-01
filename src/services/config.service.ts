@@ -1,6 +1,6 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { COMISION_PLATAFORMA } from '@/types/models';
+import { COMISION_PLATAFORMA, TARIFA_CLIENTE } from '@/types/models';
 import type { ComisionOrigen, PerfilProfesionalSignup, Usuario } from '@/types/models';
 
 /**
@@ -76,4 +76,69 @@ export const configService = {
       origen: 'global',
     };
   },
+
+  /* ── Tarifa de uso de la app (la paga el CLIENTE) ─────────────────── */
+
+  /** Tarifa global que paga el cliente, como fracción (0-1). */
+  async tarifaClienteGlobal(): Promise<number> {
+    try {
+      const snap = await getDoc(doc(db, 'config', 'plataforma'));
+      const pct = snap.data()?.tarifaClientePorcentaje;
+      if (typeof pct === 'number' && pct >= 0 && pct <= 100) return pct / 100;
+    } catch {
+      // sin conexión o sin permiso → fallback
+    }
+    return TARIFA_CLIENTE;
+  },
+
+  /**
+   * Tarifa efectiva para un cliente, con el mismo orden de prioridad que la
+   * comisión del profesional:
+   * 1. Exención vigente → 0.
+   * 2. Porcentaje personalizado del cliente.
+   * 3. Porcentaje global.
+   */
+  async tarifaClienteDetallePara(clienteId: string): Promise<{
+    fraccion: number;
+    porcentaje: number;
+    exento: boolean;
+    origen: ComisionOrigen;
+  }> {
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', clienteId));
+      // El override se guarda en `perfil`, sea cual sea el tipo de perfil:
+      // una misma cuenta puede ser profesional y reservar como cliente.
+      const perfil = (snap.data() as Usuario | undefined)?.perfil as
+        | { tarifaClientePorcentaje?: number; tarifaClienteExentaHasta?: string }
+        | undefined;
+
+      const hoy = new Date().toISOString().slice(0, 10);
+      if (perfil?.tarifaClienteExentaHasta && perfil.tarifaClienteExentaHasta >= hoy) {
+        return { fraccion: 0, porcentaje: 0, exento: true, origen: 'exencion' };
+      }
+      const pct = perfil?.tarifaClientePorcentaje;
+      if (typeof pct === 'number' && pct >= 0 && pct <= 100) {
+        return {
+          fraccion: pct / 100,
+          porcentaje: pct,
+          exento: false,
+          origen: 'personalizada',
+        };
+      }
+    } catch {
+      // fallback a la global
+    }
+    const fraccion = await this.tarifaClienteGlobal();
+    return {
+      fraccion,
+      porcentaje: Math.round(fraccion * 10000) / 100,
+      exento: false,
+      origen: 'global',
+    };
+  },
 };
+
+/** Calcula el monto de tarifa de uso sobre un precio, redondeado a peso. */
+export function calcularTarifaCliente(precio: number, fraccion: number): number {
+  return Math.round(precio * fraccion);
+}

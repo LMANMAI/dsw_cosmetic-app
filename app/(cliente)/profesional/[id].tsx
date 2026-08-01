@@ -14,10 +14,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { profesionalesService, turnosService, pagosService } from '@/services';
+import { profesionalesService, turnosService, pagosService, configService } from '@/services';
+import { calcularTarifaCliente } from '@/services/config.service';
 import { disponibilidadService } from '@/services/disponibilidad.service';
 import { valoracionesService } from '@/services/valoraciones.service';
-import type { Disponibilidad, PerfilProfesional, Servicio, Valoracion } from '@/types/models';
+import type {
+  ComisionOrigen,
+  Disponibilidad,
+  PerfilProfesional,
+  Servicio,
+  Valoracion,
+} from '@/types/models';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
@@ -68,6 +75,13 @@ export default function PerfilProfesionalScreen() {
   const [slotsDisponibles, setSlotsDisponibles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  /** Tarifa de uso de la app vigente para ESTE cliente (global, personalizada o exenta). */
+  const [tarifaApp, setTarifaApp] = useState<{
+    fraccion: number;
+    porcentaje: number;
+    exento: boolean;
+    origen: ComisionOrigen;
+  }>({ fraccion: 0, porcentaje: 0, exento: false, origen: 'global' });
 
   // Cargar profesional, servicios y disponibilidad
   useEffect(() => {
@@ -100,6 +114,17 @@ export default function PerfilProfesionalScreen() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Tarifa de uso de la app del cliente logueado (config/plataforma + override).
+  useEffect(() => {
+    if (!user?.id) return;
+    let vigente = true;
+    configService
+      .tarifaClienteDetallePara(user.id)
+      .then((d) => { if (vigente) setTarifaApp(d); })
+      .catch(() => {});
+    return () => { vigente = false; };
+  }, [user?.id]);
 
   // Calcular slots cuando cambia el servicio o el día elegido
   useEffect(() => {
@@ -154,8 +179,15 @@ export default function PerfilProfesionalScreen() {
   );
 
   // Cálculo de seña según config del profesional
-  const porcentajeAnticipo = (profesional?.anticipoPorcentaje ?? 20) / 100;
+  const pctAnticipo = profesional?.anticipoPorcentaje ?? 20;
+  const porcentajeAnticipo = pctAnticipo / 100;
   const montoSena = servicioElegido ? Math.round(servicioElegido.precio * porcentajeAnticipo) : 0;
+
+  // Tarifa de uso de la app que paga el cliente (se suma al total).
+  const tarifaCliente = servicioElegido
+    ? calcularTarifaCliente(servicioElegido.precio, tarifaApp.fraccion)
+    : 0;
+  const totalCliente = (servicioElegido?.precio ?? 0) + tarifaCliente;
 
   /**
    * Ya no reserva directo: lleva al paso "Revisá y confirmá", donde el
@@ -179,6 +211,10 @@ export default function PerfilProfesionalScreen() {
         fecha: fechaISO,
         hora: horarioElegido,
         montoSena: String(montoSena),
+        tarifaCliente: String(tarifaCliente),
+        tarifaClientePorcentaje: String(tarifaApp.porcentaje),
+        tarifaClienteExento: tarifaApp.exento ? '1' : '0',
+        tarifaClienteOrigen: tarifaApp.origen,
         autoConfirmar: profesional.autoConfirmarTurnos ? '1' : '0',
       },
     });
@@ -275,6 +311,7 @@ export default function PerfilProfesionalScreen() {
           )}
           {servicios.map((s) => {
             const elegido = servicioElegido?.id === s.id;
+            const senaServicio = Math.round(s.precio * porcentajeAnticipo);
             return (
               <Pressable
                 key={s.id}
@@ -284,6 +321,13 @@ export default function PerfilProfesionalScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.servicioNombre}>{s.nombre}</Text>
                   <Text style={styles.servicioMeta}>{t('cliente.proDetalle.minutos', { min: s.duracionMin })}</Text>
+                  {senaServicio > 0 && (
+                    <Text style={styles.servicioSena}>
+                      {pctAnticipo === 100
+                        ? t('cliente.proDetalle.requierePagoTotal', { monto: formatARS(senaServicio) })
+                        : t('cliente.proDetalle.requiereSena', { monto: formatARS(senaServicio), pct: pctAnticipo })}
+                    </Text>
+                  )}
                 </View>
                 <Text style={styles.servicioPrecio}>{formatARS(s.precio)}</Text>
               </Pressable>
@@ -393,11 +437,18 @@ export default function PerfilProfesionalScreen() {
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
           <Text style={styles.footerLabel}>{t('cliente.proDetalle.servicioLabel', { monto: servicioElegido ? formatARS(servicioElegido.precio) : '—' })}</Text>
+          {tarifaCliente > 0 && (
+            <Text style={styles.footerLabel}>
+              {t('cliente.proDetalle.tarifaAppLabel', { monto: formatARS(tarifaCliente) })}
+            </Text>
+          )}
           <View style={styles.footerRow}>
             <Text style={styles.footerTotal}>
-              {t('cliente.proDetalle.senaLabel', { monto: montoSena > 0 ? formatARS(montoSena) : '—' })}
+              {tarifaCliente > 0
+                ? t('cliente.proDetalle.totalLabel', { monto: formatARS(totalCliente) })
+                : t('cliente.proDetalle.senaLabel', { monto: montoSena > 0 ? formatARS(montoSena) : '—' })}
             </Text>
-            {montoSena > 0 && (
+            {tarifaCliente === 0 && montoSena > 0 && (
               <Text style={styles.footerPct}>({profesional?.anticipoPorcentaje ?? 20}%)</Text>
             )}
           </View>
@@ -496,6 +547,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   servicioNombre: { fontSize: 15, fontWeight: '600', color: c.ink },
   servicioMeta: { fontSize: 12, color: c.muted, marginTop: 2 },
+  servicioSena: { fontSize: 12, color: c.primary, fontStyle: 'italic', marginTop: 2 },
   servicioPrecio: { fontSize: 16, fontWeight: '700', color: c.primary },
   sinDisponibilidad: {
     alignItems: 'center',

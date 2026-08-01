@@ -4,6 +4,11 @@ export type UserRole = 'cliente' | 'profesional' | 'proveedor' | 'admin';
 export interface PerfilCliente {
   ciudad?: string;
   fechaNacimiento?: string; // ISO YYYY-MM-DD
+  /** Tarifa de uso de la app personalizada para este cliente (0-100).
+   *  Si falta, se usa la global de config/plataforma.tarifaClientePorcentaje. */
+  tarifaClientePorcentaje?: number;
+  /** Hasta esta fecha (YYYY-MM-DD) el cliente no paga tarifa de uso. */
+  tarifaClienteExentaHasta?: string;
 }
 
 export interface PerfilProfesionalSignup {
@@ -251,6 +256,17 @@ export type MetodoPago = 'efectivo' | 'transferencia' | 'mercado_pago' | 'mixto'
 export const COMISION_PLATAFORMA = 0.20;
 
 /**
+ * Tarifa de uso de la app que paga el CLIENTE (0-1). Es solo el FALLBACK:
+ * el valor real se lee de Firestore config/plataforma.tarifaClientePorcentaje
+ * (editable desde el panel admin). Arranca en 0 para que no se cobre nada
+ * hasta que el dueño la configure.
+ *
+ * A diferencia de la comisión del profesional (que se descuenta de lo que
+ * factura), esta tarifa se SUMA al total que paga el cliente al reservar.
+ */
+export const TARIFA_CLIENTE = 0;
+
+/**
  * Regla que determinó la comisión aplicada a un turno:
  *  - 'global':       se usó el % global de config/plataforma.
  *  - 'personalizada': el profesional tenía un % propio.
@@ -285,6 +301,17 @@ export interface Turno {
   comisionExento?: boolean;
   /** Qué regla determinó la comisión de este turno (para reportes del panel). */
   comisionOrigen?: ComisionOrigen;
+  /** Tarifa de uso de la app que paga el cliente. Se SUMA al total: el
+   *  profesional cobra `monto` completo y esto va a la plataforma. */
+  tarifaCliente?: number;
+  /** Snapshot del % aplicado al cliente en ESTE turno (0-100). */
+  tarifaClientePorcentaje?: number;
+  /** true si no se cobró tarifa al cliente por una exención vigente. */
+  tarifaClienteExento?: boolean;
+  /** Qué regla determinó la tarifa del cliente (para reportes del panel). */
+  tarifaClienteOrigen?: ComisionOrigen;
+  /** true cuando el cliente ya abonó la tarifa (se cobra junto con la seña). */
+  tarifaClientePagada?: boolean;
   /** Anticipación del recordatorio que se le envía al cliente para este turno. */
   recordatorioCliente?: '1h' | '2h' | '24h' | 'off';
   /** true cuando la Cloud Function ya envió el recordatorio push (para no repetir). */

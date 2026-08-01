@@ -267,7 +267,7 @@ export const pt: Dict = {
       activado: 'Ativado',
       desactivado: 'Desativado',
       vistaCliente: 'Mudar para visão de cliente',
-      vistaClienteDesc: 'Testar o app como se fosse reservar um horário',
+      vistaClienteDesc: 'Agende horários com outros profissionais e compre insumos',
     },
 
     proveedor: {
@@ -494,6 +494,8 @@ export const pt: Dict = {
       sobre: 'Sobre {nombre}',
       serviciosPrecios: 'Serviços e preços',
       minutos: '{min} min',
+      requiereSena: 'Requer sinal de {monto} ({pct}%)',
+      requierePagoTotal: 'Requer pagamento total de {monto}',
       sinServicios: 'Esta profissional ainda não cadastrou serviços, por isso ainda não é possível reservar horários.',
       elegiDia: 'Escolha um dia',
       sinHorariosConfig: 'Esta profissional ainda não configurou seus horários de atendimento.',
@@ -501,6 +503,8 @@ export const pt: Dict = {
       sinSlots: 'Não há horários disponíveis para este dia.',
       servicioLabel: 'Serviço: {monto}',
       senaLabel: 'Sinal: {monto}',
+      tarifaAppLabel: 'Taxa de serviço: {monto}',
+      totalLabel: 'Total: {monto}',
       reservarHora: 'Reservar {hora}',
       elegiHorario: 'Escolha um horário',
       turnoReservadoTitulo: 'Horário reservado!',
@@ -525,7 +529,9 @@ export const pt: Dict = {
       titulo: 'Revise e confirme',
       horaDuracion: '{hora} · {min} min de duração',
       total: 'Total',
-      senaAviso: 'Para confirmar o horário você precisa pagar um sinal de {monto}.',
+      senaAviso: 'Para confirmar o horário você precisa pagar {monto}.',
+      tarifaApp: 'Taxa de serviço',
+      tarifaAviso: 'Para confirmar o horário você precisa pagar a taxa de serviço: {monto}.',
       comentarios: 'Comentários ou solicitações',
       notaPlaceholder: 'Tem algo que você quer que a gente saiba?',
       notaAyuda: 'Alergias, se o cabelo está tingido, se vai chegar mais tarde… O profissional vê isso antes do atendimento.',
@@ -539,7 +545,7 @@ export const pt: Dict = {
   profesional: {
     tabs: {
       agenda: 'Agenda',
-      caja: 'Fechamento de caixa',
+      caja: 'Caixa',
       insumos: 'Insumos',
     },
 

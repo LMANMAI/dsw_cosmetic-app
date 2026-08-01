@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { turnosService, pagosService } from '@/services';
+import type { ComisionOrigen } from '@/types/models';
 import { useSession } from '@/context/SessionContext';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
@@ -36,6 +37,11 @@ type Params = {
   fecha: string; // YYYY-MM-DD
   hora: string; // HH:mm
   montoSena: string;
+  /** Tarifa de uso de la app que paga el cliente (se suma al total). */
+  tarifaCliente?: string;
+  tarifaClientePorcentaje?: string;
+  tarifaClienteExento?: string; // '1' | '0'
+  tarifaClienteOrigen?: ComisionOrigen;
   autoConfirmar?: string; // '1' | '0'
 };
 
@@ -63,6 +69,13 @@ export default function RevisarTurnoScreen() {
   const duracionMin = Number(p.duracionMin ?? 0);
   const autoConfirmar = p.autoConfirmar === '1';
 
+  // Tarifa de uso de la app: la paga el cliente ADEMÁS del servicio y se
+  // cobra por Mercado Pago en el mismo checkout que la seña.
+  const tarifaCliente = Number(p.tarifaCliente ?? 0);
+  const tarifaPct = Number(p.tarifaClientePorcentaje ?? 0);
+  const total = precio + tarifaCliente;
+  const aPagarAhora = montoSena + tarifaCliente;
+
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // Se formatea con el idioma elegido en la app, no con el del dispositivo.
@@ -89,6 +102,17 @@ export default function RevisarTurnoScreen() {
           duracionMin,
           monto: precio,
           montoSena,
+          // Tarifa de uso de la app (snapshot: si mañana cambia el %, este
+          // turno conserva el que se le mostró al cliente).
+          ...(tarifaCliente > 0
+            ? {
+                tarifaCliente,
+                tarifaClientePorcentaje: tarifaPct,
+                tarifaClienteExento: p.tarifaClienteExento === '1',
+                tarifaClienteOrigen: (p.tarifaClienteOrigen ?? 'global') as ComisionOrigen,
+                tarifaClientePagada: false,
+              }
+            : {}),
           // Nota del cliente. Se guarda solo si escribió algo, para no
           // llenar los documentos con strings vacíos.
           ...(nota.trim() ? { notas: nota.trim() } : {}),
@@ -96,8 +120,10 @@ export default function RevisarTurnoScreen() {
         autoConfirmar,
       );
 
-      if (montoSena > 0) {
-        setPagoModal({ turnoId: turno.id, monto: montoSena });
+      // Hay checkout si hay seña o si el cliente tiene tarifa de uso: en
+      // ambos casos el turno queda pendiente de pago hasta acreditar.
+      if (aPagarAhora > 0) {
+        setPagoModal({ turnoId: turno.id, monto: aPagarAhora });
       } else {
         Alert.alert(
           t('cliente.proDetalle.turnoReservadoTitulo'),
@@ -210,14 +236,22 @@ export default function RevisarTurnoScreen() {
               <Text style={styles.servicio}>{p.servicioNombre}</Text>
               <Text style={styles.montoServicio}>{formatARS(precio)}</Text>
             </View>
+            {tarifaCliente > 0 && (
+              <View style={styles.filaMonto}>
+                <Text style={styles.servicio}>{t('cliente.revisar.tarifaApp')}</Text>
+                <Text style={styles.montoServicio}>{formatARS(tarifaCliente)}</Text>
+              </View>
+            )}
             <View style={styles.filaMonto}>
               <Text style={styles.totalLabel}>{t('cliente.revisar.total')}</Text>
-              <Text style={styles.totalMonto}>{formatARS(precio)}</Text>
+              <Text style={styles.totalMonto}>{formatARS(total)}</Text>
             </View>
-            {montoSena > 0 && (
+            {aPagarAhora > 0 && (
               <View style={styles.senaBox}>
                 <Text style={styles.senaTexto}>
-                  {t('cliente.revisar.senaAviso', { monto: formatARS(montoSena) })}
+                  {montoSena > 0
+                    ? t('cliente.revisar.senaAviso', { monto: formatARS(aPagarAhora) })
+                    : t('cliente.revisar.tarifaAviso', { monto: formatARS(aPagarAhora) })}
                 </Text>
               </View>
             )}
@@ -251,7 +285,7 @@ export default function RevisarTurnoScreen() {
         <View style={styles.bottomBar}>
           <View>
             <Text style={styles.bottomLabel}>{t('cliente.revisar.total')}</Text>
-            <Text style={styles.bottomTotal}>{formatARS(precio)}</Text>
+            <Text style={styles.bottomTotal}>{formatARS(total)}</Text>
           </View>
           <Button
             label={t('comun.confirmar')}
