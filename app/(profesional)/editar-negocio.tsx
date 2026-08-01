@@ -20,12 +20,14 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
+import { AuthMultiSelect } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
+import { useCategorias } from '@/hooks/useCategorias';
 import { uploadImage } from '@/services/upload.service';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
-import type { PerfilProfesionalSignup, ModalidadTrabajo } from '@/types/models';
+import type { CategoriaSlug, PerfilProfesionalSignup, ModalidadTrabajo } from '@/types/models';
 
 const MODALIDAD_OPTIONS: { value: ModalidadTrabajo; labelKey: string }[] = [
   { value: 'salon', labelKey: 'profesional.editarNegocio.modalidadSalon' },
@@ -43,7 +45,7 @@ export default function EditarNegocioScreen() {
   // Estado del formulario inicializado con datos actuales
   const [nombreNegocio, setNombreNegocio] = useState(perfil?.nombreNegocio ?? user?.nombre ?? '');
   const [descripcion, setDescripcion] = useState(perfil?.descripcion ?? '');
-  const [especialidad, setEspecialidad] = useState(perfil?.especialidad ?? '');
+  const [especialidades, setEspecialidades] = useState<CategoriaSlug[]>(perfil?.categorias ?? []);
   const [instagram, setInstagram] = useState(perfil?.instagram ?? '');
   const [sitioWeb, setSitioWeb] = useState(perfil?.sitioWeb ?? '');
   const [telefonoContacto, setTelefonoContacto] = useState(perfil?.telefonoContacto ?? user?.telefono ?? '');
@@ -63,6 +65,27 @@ export default function EditarNegocioScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingSalon, setUploadingSalon] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Especialidades = categorías del catálogo (las mismas de sus servicios).
+  const { categorias, loading: categoriasLoading } = useCategorias();
+
+  const opcionesEspecialidad = useMemo(
+    () =>
+      categorias.map((c) => ({
+        value: c.slug,
+        label: t(`categorias.${c.slug}`),
+        emoji: c.emoji,
+      })),
+    [categorias, t],
+  );
+
+  const especialidadTexto = useMemo(
+    () =>
+      especialidades
+        .map((slug) => opcionesEspecialidad.find((o) => o.value === slug)?.label ?? slug)
+        .join(', '),
+    [especialidades, opcionesEspecialidad],
+  );
 
   const elegirImagen = async (
     tipo: 'avatar' | 'salon',
@@ -109,7 +132,8 @@ export default function EditarNegocioScreen() {
         ...(perfil as PerfilProfesionalSignup),
         nombreNegocio: nombreNegocio.trim(),
         descripcion: descripcion.trim(),
-        especialidad: especialidad.trim(),
+        especialidad: especialidadTexto,
+        categorias: especialidades,
         instagram: instagram.trim().replace(/^@/, ''),
         sitioWeb: sitioWeb.trim(),
         telefonoContacto: telefonoContacto.trim(),
@@ -224,12 +248,16 @@ export default function EditarNegocioScreen() {
 
           {/* Especialidad */}
           <Text style={styles.label}>{t('profesional.editarNegocio.especialidad')}</Text>
-          <TextInput
-            style={styles.input}
-            value={especialidad}
-            onChangeText={setEspecialidad}
+          <Text style={styles.hint}>{t('profesional.editarNegocio.especialidadHint')}</Text>
+          <AuthMultiSelect
+            icon="brush-outline"
             placeholder={t('profesional.editarNegocio.especialidadPlaceholder')}
-            placeholderTextColor={colors.muted}
+            title={t('auth.signup.especialidadTitulo')}
+            values={especialidades}
+            options={opcionesEspecialidad}
+            onChange={(v) => setEspecialidades(v as CategoriaSlug[])}
+            loading={categoriasLoading}
+            doneLabel={t('comun.aceptar')}
           />
 
           {/* Modalidad */}

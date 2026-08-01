@@ -20,7 +20,7 @@ import { turnosService, valoracionesService, notificacionesService, pagosService
 import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
-import { formatARS, formatFecha } from '@/utils/format';
+import { formatARS, formatFecha, capitalizar } from '@/utils/format';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 
 export default function MisTurnosScreen() {
@@ -281,7 +281,7 @@ function TurnoCard({
       <View style={styles.row}>
         <Ionicons name="calendar-outline" size={16} color={colors.muted} />
         <Text style={styles.meta}>
-          {formatFecha(turno.fecha)} · {turno.hora}
+          {capitalizar(formatFecha(turno.fecha))} · {turno.hora}
         </Text>
       </View>
       <View style={styles.row}>
@@ -438,7 +438,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: '700', color: c.ink, flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  meta: { fontSize: 14, color: c.muted, textTransform: 'capitalize' },
+  meta: { fontSize: 14, color: c.muted },
   empty: {
     alignItems: 'center',
     paddingVertical: spacing.huge,

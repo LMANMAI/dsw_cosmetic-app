@@ -22,7 +22,7 @@ import { useSession } from '@/context/SessionContext';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
-import { formatARS } from '@/utils/format';
+import { formatARS, formatFechaLarga } from '@/utils/format';
 
 /** Params que manda profesional/[id] al pasar a la revisión. */
 type Params = {
@@ -65,15 +65,11 @@ export default function RevisarTurnoScreen() {
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const fechaLegible = useMemo(() => {
-    if (!p.fecha) return '';
-    const d = new Date(`${p.fecha}T00:00:00`);
-    return d.toLocaleDateString(undefined, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  }, [p.fecha]);
+  // Se formatea con el idioma elegido en la app, no con el del dispositivo.
+  const fechaLegible = useMemo(
+    () => (p.fecha ? formatFechaLarga(p.fecha) : ''),
+    [p.fecha],
+  );
 
   const irAMisTurnos = () => router.replace('/(cliente)/turnos');
 
@@ -336,7 +332,7 @@ const makeStyles = (c: ThemeColors) =>
     meta: { fontSize: 12, color: c.muted },
     sep: { height: 1, backgroundColor: c.border, marginVertical: spacing.md },
     linea: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    lineaTexto: { fontSize: 14, color: c.ink, textTransform: 'capitalize' },
+    lineaTexto: { fontSize: 14, color: c.ink },
     filaMonto: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     servicio: { fontSize: 14, color: c.ink, flex: 1, paddingRight: spacing.md },
     montoServicio: { fontSize: 14, color: c.ink },

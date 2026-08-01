@@ -73,7 +73,11 @@ function docToPerfilProfesional(
     rating: 0,     // nuevo profesional, sin calificaciones
     reviews: 0,
     activa: true,
-    categorias: mapEspecialidadACategorias(perfil.especialidad),
+    // Las cuentas nuevas guardan los slugs elegidos del catálogo; las viejas
+    // sólo tienen el texto libre y se infieren por palabras clave.
+    categorias: perfil.categorias?.length
+      ? perfil.categorias
+      : mapEspecialidadACategorias(perfil.especialidad),
     fotoUrl: data.avatarUrl,
     distanciaKm,
     autoConfirmarTurnos: perfil.autoConfirmarTurnos ?? false,

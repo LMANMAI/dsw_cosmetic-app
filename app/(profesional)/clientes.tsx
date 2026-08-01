@@ -20,7 +20,7 @@ import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { ResumenCliente } from '@/types/models';
-import { formatARS } from '@/utils/format';
+import { formatARS, formatFechaCorta } from '@/utils/format';
 
 /**
  * Mis clientes: lista automática derivada de los turnos del profesional.
@@ -123,7 +123,7 @@ export default function ClientesScreen() {
                     ? t('profesional.clientes.fichaManual')
                     : t('profesional.clientes.resumen', {
                         turnos: c.cantTurnos,
-                        ultimo: new Date(c.ultimoTurno + 'T00:00:00').toLocaleDateString(),
+                        ultimo: formatFechaCorta(c.ultimoTurno),
                       })}
                 </Text>
                 {c.totalGastado > 0 && (

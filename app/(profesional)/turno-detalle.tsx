@@ -25,7 +25,7 @@ import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
-import { formatARS } from '@/utils/format';
+import { formatARS, formatFechaLarga } from '@/utils/format';
 
 const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
   confirmado: 'success',
@@ -199,11 +199,7 @@ export default function TurnoDetalleScreen() {
     );
   }
 
-  const fechaLegible = new Date(`${turno.fecha}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const fechaLegible = formatFechaLarga(turno.fecha);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -386,7 +382,7 @@ const makeStyles = (c: ThemeColors) =>
     meta: { fontSize: 12, color: c.muted },
     sep: { height: 1, backgroundColor: c.border, marginVertical: spacing.md },
     linea: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    lineaTexto: { fontSize: 14, color: c.ink, textTransform: 'capitalize' },
+    lineaTexto: { fontSize: 14, color: c.ink },
     seccion: {
       fontSize: 13,
       fontWeight: '700',

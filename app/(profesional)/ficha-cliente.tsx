@@ -24,7 +24,7 @@ import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { EstadoTurno, Turno } from '@/types/models';
-import { formatARS } from '@/utils/format';
+import { formatARS, formatFechaCorta } from '@/utils/format';
 
 const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
   confirmado: 'success',
@@ -193,7 +193,7 @@ export default function FichaClienteScreen() {
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={styles.turnoServicio}>{turno.servicioNombre}</Text>
                         <Text style={styles.meta}>
-                          {new Date(turno.fecha + 'T00:00:00').toLocaleDateString()} · {turno.hora} hs
+                          {formatFechaCorta(turno.fecha)} · {turno.hora} hs
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end', gap: 4 }}>

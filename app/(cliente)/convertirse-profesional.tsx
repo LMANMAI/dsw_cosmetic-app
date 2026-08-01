@@ -18,9 +18,10 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { AuthInput } from '@/components/auth/AuthShell';
+import { AuthInput, AuthMultiSelect } from '@/components/auth/AuthShell';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
 import { useSession } from '@/context/SessionContext';
+import { useCategorias } from '@/hooks/useCategorias';
 import { catalogoService } from '@/services/catalogo.service';
 import { serviciosService } from '@/services/servicios.service';
 import { disponibilidadService } from '@/services/disponibilidad.service';
@@ -29,7 +30,6 @@ import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type {
-  Categoria,
   CategoriaSlug,
   Franja,
   PerfilProfesionalSignup,
@@ -162,7 +162,7 @@ export default function ConvertirseProfesionalScreen() {
   const [guardando, setGuardando] = useState(false);
 
   /* Paso 1 — el negocio */
-  const [especialidad, setEspecialidad] = useState('');
+  const [especialidades, setEspecialidades] = useState<CategoriaSlug[]>([]);
   const [nombreNegocio, setNombreNegocio] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [aniosExp, setAniosExp] = useState('');
@@ -175,8 +175,9 @@ export default function ConvertirseProfesionalScreen() {
   const [fotoSalonUri, setFotoSalonUri] = useState<string | null>(null);
   const necesitaFotoSalon = modalidad === 'salon' || modalidad === 'ambos';
 
-  /* Paso 3 — servicios y horarios */
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  /* Categorías del catálogo: alimentan el selector de especialidades (paso 1)
+     y el armado de servicios (paso 3). */
+  const { categorias, loading: categoriasLoading } = useCategorias();
   const [categoriaAbierta, setCategoriaAbierta] = useState<CategoriaSlug | null>(null);
   const [catalogo, setCatalogo] = useState<ServicioCatalogo[]>([]);
   const [cargandoCatalogo, setCargandoCatalogo] = useState(false);
@@ -192,10 +193,24 @@ export default function ConvertirseProfesionalScreen() {
       .finally(() => router.replace('/(profesional)/agenda'));
   }, [esProfesional, switchRole, router]);
 
-  useEffect(() => {
-    if (paso !== 3 || categorias.length > 0) return;
-    catalogoService.listarCategorias().then(setCategorias).catch(() => setCategorias([]));
-  }, [paso, categorias.length]);
+  const opcionesEspecialidad = useMemo(
+    () =>
+      categorias.map((c) => ({
+        value: c.slug,
+        label: t(`categorias.${c.slug}`),
+        emoji: c.emoji,
+      })),
+    [categorias, t],
+  );
+
+  /** Texto legible que se guarda junto a los slugs. */
+  const especialidadTexto = useMemo(
+    () =>
+      especialidades
+        .map((slug) => opcionesEspecialidad.find((o) => o.value === slug)?.label ?? slug)
+        .join(', '),
+    [especialidades, opcionesEspecialidad],
+  );
 
   const abrirCategoria = useCallback(async (slug: CategoriaSlug) => {
     if (categoriaAbierta === slug) {
@@ -265,7 +280,7 @@ export default function ConvertirseProfesionalScreen() {
 
   const errorDelPaso = (p: number): string | null => {
     if (p === 1) {
-      if (!especialidad.trim()) return t('auth.signup.validaciones.especialidad');
+      if (especialidades.length === 0) return t('auth.signup.validaciones.especialidad');
       return null;
     }
     if (p === 2) {
@@ -326,7 +341,8 @@ export default function ConvertirseProfesionalScreen() {
       }
 
       const perfil: PerfilProfesionalSignup = {
-        especialidad: especialidad.trim(),
+        especialidad: especialidadTexto,
+        categorias: especialidades,
         ciudad: ubicacion?.ciudad ?? '',
         direccion: ubicacion?.direccion ?? '',
         aniosExperiencia: Number(aniosExp) || 0,
@@ -428,11 +444,15 @@ export default function ConvertirseProfesionalScreen() {
           {paso === 1 && (
             <>
               <Text style={styles.sectionLabel}>{t('cliente.convertirse.queOfreces')}</Text>
-              <AuthInput
+              <AuthMultiSelect
                 icon="brush-outline"
                 placeholder={t('auth.signup.especialidadPlaceholder')}
-                value={especialidad}
-                onChangeText={setEspecialidad}
+                title={t('auth.signup.especialidadTitulo')}
+                values={especialidades}
+                options={opcionesEspecialidad}
+                onChange={(v) => setEspecialidades(v as CategoriaSlug[])}
+                loading={categoriasLoading}
+                doneLabel={t('comun.aceptar')}
               />
               <AuthInput
                 icon="storefront-outline"

@@ -23,7 +23,7 @@ import { pedidosService } from '@/services';
 import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
-import { formatARS } from '@/utils/format';
+import { formatARS, formatDiaMes } from '@/utils/format';
 import { siguienteEstado, CORREOS } from '@/utils/pedidos';
 import { ESTADO_PEDIDO } from '@/utils/pedidos';
 import type { InfoEnvio, MetodoEnvio, Pedido } from '@/types/models';
@@ -349,10 +349,7 @@ function PedidoCard({
 }) {
   const meta = ESTADO_PEDIDO[pedido.estado];
   const tone = colors[meta.tone];
-  const fecha = new Date(pedido.fecha).toLocaleDateString(undefined, {
-    day: '2-digit',
-    month: 'short',
-  });
+  const fecha = formatDiaMes(pedido.fecha);
   const sig = siguienteEstado(pedido.estado);
   const accion = sig && pedido.estado !== 'entregado' ? t(`pedidosAcciones.${pedido.estado}`) : null;
   const abierto = pedido.estado !== 'entregado' && pedido.estado !== 'cancelado';

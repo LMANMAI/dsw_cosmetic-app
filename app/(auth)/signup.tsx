@@ -20,11 +20,13 @@ import {
   AuthDivider,
   AuthHero,
   AuthInput,
+  AuthMultiSelect,
   AuthSelect,
   GoogleGlyph,
   SocialButton,
 } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
+import { useCategorias } from '@/hooks/useCategorias';
 import { rubrosService } from '@/services/rubros.service';
 import type { Rubro } from '@/data/rubros';
 import { useGoogleSignIn } from '@/services/google-auth';
@@ -35,6 +37,7 @@ import { formatCuit, cuitCompleto, cuitValido } from '@/utils/format';
 import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type {
+  CategoriaSlug,
   PerfilCliente,
   PerfilProfesionalSignup,
   PerfilProveedor,
@@ -65,7 +68,7 @@ export default function SignupScreen() {
 
   const [ciudadCli, setCiudadCli] = useState('');
 
-  const [especialidad, setEspecialidad] = useState('');
+  const [especialidades, setEspecialidades] = useState<CategoriaSlug[]>([]);
   const [ubicacionPro, setUbicacionPro] = useState<DireccionSeleccionada | null>(null);
   const [aniosExp, setAniosExp] = useState('');
   const [matricula, setMatricula] = useState('');
@@ -101,6 +104,29 @@ export default function SignupScreen() {
     };
   }, [rol, rubros.length]);
 
+  // Especialidades = categorías del catálogo (las mismas que después usa para
+  // armar sus servicios). Se cargan recién cuando elige el rol profesional.
+  const { categorias, loading: categoriasLoading } = useCategorias(rol === 'profesional');
+
+  const opcionesEspecialidad = useMemo(
+    () =>
+      categorias.map((c) => ({
+        value: c.slug,
+        label: t(`categorias.${c.slug}`),
+        emoji: c.emoji,
+      })),
+    [categorias, t],
+  );
+
+  /** Texto legible que se guarda junto a los slugs (para mostrar sin traducir). */
+  const especialidadTexto = useMemo(
+    () =>
+      especialidades
+        .map((slug) => opcionesEspecialidad.find((o) => o.value === slug)?.label ?? slug)
+        .join(', '),
+    [especialidades, opcionesEspecialidad],
+  );
+
   const elegirFotoSalon = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -135,7 +161,8 @@ export default function SignupScreen() {
       switch (rol) {
         case 'profesional':
           return {
-            especialidad: especialidad.trim(),
+            especialidad: especialidadTexto,
+            categorias: especialidades,
             ciudad: ubicacionPro?.ciudad ?? '',
             direccion: ubicacionPro?.direccion ?? '',
             aniosExperiencia: Number(aniosExp) || 0,
@@ -159,7 +186,7 @@ export default function SignupScreen() {
         default:
           return { ciudad: ciudadCli.trim() || undefined };
       }
-    }, [rol, especialidad, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ubicacionProv, ciudadCli]);
+    }, [rol, especialidades, especialidadTexto, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ubicacionProv, ciudadCli]);
 
   const validate = (): string | null => {
     if (!nombre.trim()) return t('auth.signup.validaciones.nombre');
@@ -167,8 +194,7 @@ export default function SignupScreen() {
     if (password.length < 6) return t('auth.signup.validaciones.password');
     if (password !== confirm) return t('auth.signup.validaciones.passwordNoCoincide');
     if (rol === 'profesional') {
-      const p = perfilExtra as PerfilProfesionalSignup;
-      if (!p.especialidad) return t('auth.signup.validaciones.especialidad');
+      if (especialidades.length === 0) return t('auth.signup.validaciones.especialidad');
       if (!ubicacionPro) return t('auth.signup.validaciones.direccion');
       if ((modalidad === 'salon' || modalidad === 'ambos') && !fotoSalonUri) {
         return t('auth.signup.validaciones.fotoSalon');
@@ -303,11 +329,15 @@ export default function SignupScreen() {
 
             {rol === 'profesional' ? (
               <>
-                <AuthInput
+                <AuthMultiSelect
                   icon="brush-outline"
                   placeholder={t('auth.signup.especialidadPlaceholder')}
-                  value={especialidad}
-                  onChangeText={setEspecialidad}
+                  title={t('auth.signup.especialidadTitulo')}
+                  values={especialidades}
+                  options={opcionesEspecialidad}
+                  onChange={(v) => setEspecialidades(v as CategoriaSlug[])}
+                  loading={categoriasLoading}
+                  doneLabel={t('comun.aceptar')}
                 />
                 <Text style={styles.sectionLabel}>{t('auth.signup.direccionTrabajo')}</Text>
                 <DireccionAutocomplete

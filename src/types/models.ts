@@ -7,7 +7,17 @@ export interface PerfilCliente {
 }
 
 export interface PerfilProfesionalSignup {
-  especialidad: string; // p. ej. "Manicura", "Pestañas"
+  /**
+   * Texto legible de las especialidades ("Uñas, Pestañas y cejas").
+   * Se deriva de `categorias`; se mantiene para las cuentas antiguas que
+   * cargaron texto libre y para mostrarlo en la UI sin traducir.
+   */
+  especialidad: string;
+  /**
+   * Especialidades elegidas del catálogo de categorías (colección
+   * `categorias` de Firestore), las mismas con las que arma sus servicios.
+   */
+  categorias?: CategoriaSlug[];
   ciudad: string;
   direccion: string;
   aniosExperiencia: number;

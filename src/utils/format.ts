@@ -67,6 +67,41 @@ export function formatFecha(iso: string): string {
   });
 }
 
+/** Convierte una fecha ISO ('2026-08-01') o un Date en objeto Date local. */
+function aDate(fecha: string | Date): Date {
+  if (fecha instanceof Date) return fecha;
+  return /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? new Date(`${fecha}T00:00:00`) : new Date(fecha);
+}
+
+/** Pone en mayúscula sólo la primera letra (los meses/días van en minúscula en español). */
+export function capitalizar(texto: string): string {
+  return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : texto;
+}
+
+/**
+ * Fecha larga en el idioma activo de la app: "Sábado, 1 de agosto".
+ * Nunca usa el locale del dispositivo, que puede estar en otro idioma.
+ */
+export function formatFechaLarga(fecha: string | Date): string {
+  return capitalizar(
+    aDate(fecha).toLocaleDateString(currentLocale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }),
+  );
+}
+
+/** Fecha corta numérica en el idioma activo: "01/08/2026". */
+export function formatFechaCorta(fecha: string | Date): string {
+  return aDate(fecha).toLocaleDateString(currentLocale);
+}
+
+/** Día y mes abreviado en el idioma activo: "01 ago". */
+export function formatDiaMes(fecha: string | Date): string {
+  return aDate(fecha).toLocaleDateString(currentLocale, { day: '2-digit', month: 'short' });
+}
+
 export function nombreMes(mes: number): string {
   return new Date(2024, mes, 1).toLocaleDateString(currentLocale, { month: 'long' });
 }
