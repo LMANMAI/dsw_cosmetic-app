@@ -24,6 +24,7 @@ export const catalogoService = {
         slug: d.id as CategoriaSlug,
         nombre: d.data().nombre,
         emoji: d.data().emoji,
+        imagenUrl: d.data().imagenUrl as string | undefined,
       }));
     } catch {
       // Fallback al mock si Firestore falla (offline, sin permisos, etc.)

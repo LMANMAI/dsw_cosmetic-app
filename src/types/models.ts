@@ -133,6 +133,28 @@ export interface Categoria {
   slug: CategoriaSlug;
   nombre: string;
   emoji: string;
+  /** Foto de la categoría (Cloudinary). Se carga desde el panel admin.
+   *  Si falta, la app muestra el emoji sobre un fondo de color. */
+  imagenUrl?: string;
+}
+
+/**
+ * Banner promocional del home del cliente (colección `banners`).
+ * Se administran desde el panel admin: imagen, textos, orden y si está
+ * activo. Tocarlo puede llevar a una categoría concreta.
+ */
+export interface Banner {
+  id: string;
+  titulo: string;
+  subtitulo?: string;
+  /** Imagen de fondo (Cloudinary). */
+  imagenUrl: string;
+  /** Categoría a la que lleva al tocarlo. Si falta, no navega. */
+  categoriaSlug?: CategoriaSlug;
+  /** Orden de aparición en el carrusel (menor primero). */
+  orden: number;
+  activo: boolean;
+  creadoEn?: string;
 }
 
 /**

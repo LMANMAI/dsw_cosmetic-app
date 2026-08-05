@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,18 +12,37 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { CATEGORIAS } from '@/data/categorias';
-import { profesionalesService } from '@/services';
-import type { CategoriaSlug, PerfilProfesional } from '@/types/models';
+import { bannersService, catalogoService, profesionalesService } from '@/services';
+import type { Banner, Categoria, CategoriaSlug, PerfilProfesional } from '@/types/models';
 import { Avatar } from '@/components/Avatar';
-import { Chip } from '@/components/Chip';
+import { BannerCarrusel } from '@/components/BannerCarrusel';
+import { CategoriaCard } from '@/components/CategoriaCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { MapaProfesionales } from '@/components/MapaProfesionales';
 import { useSession } from '@/context/SessionContext';
 import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
 import type { ThemeColors } from '@/theme';
+
+/** Nombre visible de la app: se muestra como marca sobre los banners. */
+const APP_NOMBRE = 'YOFI';
+
+/** Grilla de categorías: 3 por fila. */
+const COLUMNAS_CATEGORIA = 3;
+
+/**
+ * Ancho de cada celda a partir del ancho REAL que mide la grilla en pantalla.
+ * Calcularlo con Dimensions daba de a 2 por fila: el ancho de la ventana no
+ * descuenta el padding del contenedor y por unos pocos píxeles de más la
+ * tercera celda se iba a la fila siguiente.
+ */
+function anchoCelda(anchoGrilla: number): number {
+  const util = anchoGrilla - spacing.xxl * 2 - spacing.md * (COLUMNAS_CATEGORIA - 1);
+  return Math.floor(util / COLUMNAS_CATEGORIA);
+}
 
 export default function BuscarScreen() {
   const { colors } = useTheme();
@@ -35,6 +55,12 @@ export default function BuscarScreen() {
   const [loading, setLoading] = useState(true);
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
+  const [banners, setBanners] = useState<Banner[]>([]);
+  /** Ancho real de la grilla de categorías, medido al renderizar. */
+  const [anchoGrilla, setAnchoGrilla] = useState(0);
+  // Categorías del catálogo (traen la foto que cargó el admin). Si Firestore
+  // todavía no tiene nada, caen a las locales con emoji.
+  const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS);
 
   // Función para obtener / actualizar ubicación del usuario
   const fetchLocation = useCallback(async () => {
@@ -55,6 +81,17 @@ export default function BuscarScreen() {
   useEffect(() => {
     fetchLocation();
   }, [fetchLocation]);
+
+  // Banners y categorías del home (se cargan una vez, no dependen del filtro)
+  useEffect(() => {
+    if (!user?.id) return;
+    let activo = true;
+    bannersService.listarActivos().then((b) => { if (activo) setBanners(b); });
+    catalogoService.listarCategorias().then((c) => {
+      if (activo && c.length > 0) setCategorias(c);
+    });
+    return () => { activo = false; };
+  }, [user?.id]);
 
   // Buscar en otra zona (cuando el usuario mueve el mapa)
   const handleSearchArea = useCallback((lat: number, lng: number) => {
@@ -99,12 +136,23 @@ export default function BuscarScreen() {
   }, [categoria, query, userLat, userLng, user?.id]);
 
   const seleccionada = useMemo(
-    () => CATEGORIAS.find((c) => c.slug === categoria),
-    [categoria],
+    () => categorias.find((c) => c.slug === categoria),
+    [categoria, categorias],
+  );
+
+  /** Nombre traducido de la categoría; si el slug es propio del panel (no
+   *  está en los diccionarios), usa el nombre cargado en Firestore. */
+  const nombreCategoria = useCallback(
+    (c: Categoria) => {
+      const clave = `categorias.${c.slug}`;
+      const traducido = t(clave);
+      return traducido === clave ? c.nombre : traducido;
+    },
+    [t],
   );
 
   const badgeText = seleccionada
-    ? t('cliente.buscar.filtrando', { nombre: t(`categorias.${seleccionada.slug}`) })
+    ? t('cliente.buscar.filtrando', { nombre: nombreCategoria(seleccionada) })
     : t('cliente.buscar.cercanas', { count: items.length });
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -134,6 +182,19 @@ export default function BuscarScreen() {
           </View>
         </View>
 
+        {/* Banners promocionales (los carga el admin desde el panel) */}
+        {banners.length > 0 && (
+          <View style={{ marginTop: spacing.sm }}>
+            <BannerCarrusel
+              banners={banners}
+              marca={APP_NOMBRE}
+              onPress={(b) => {
+                if (b.categoriaSlug) setCategoria(b.categoriaSlug);
+              }}
+            />
+          </View>
+        )}
+
         {/* Mapa — nativo en dev build, estático en Expo Go */}
         <MapaProfesionales
           items={items}
@@ -145,27 +206,31 @@ export default function BuscarScreen() {
           onSearchArea={handleSearchArea}
         />
 
-        {/* Categorías */}
-        <Text style={styles.sectionTitle}>{t('cliente.buscar.categorias')}</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
+        {/* Categorías — grilla con foto (la foto se carga desde el panel) */}
+        <View style={styles.listHeader}>
+          <Text style={styles.sectionTitle}>{t('cliente.buscar.categorias')}</Text>
+          {categoria !== null && (
+            <Pressable onPress={() => setCategoria(null)} hitSlop={8}>
+              <Text style={styles.verTodas}>{t('cliente.buscar.todas')}</Text>
+            </Pressable>
+          )}
+        </View>
+        <View
+          style={styles.grilla}
+          onLayout={(e) => setAnchoGrilla(e.nativeEvent.layout.width)}
         >
-          <Chip
-            label={t('cliente.buscar.todas')}
-            active={categoria === null}
-            onPress={() => setCategoria(null)}
-          />
-          {CATEGORIAS.map((c) => (
-            <Chip
-              key={c.slug}
-              label={`${c.emoji}  ${t(`categorias.${c.slug}`)}`}
-              active={categoria === c.slug}
-              onPress={() => setCategoria(c.slug)}
-            />
-          ))}
-        </ScrollView>
+          {anchoGrilla > 0 &&
+            categorias.map((c) => (
+              <CategoriaCard
+                key={c.slug}
+                categoria={c}
+                nombre={nombreCategoria(c)}
+                activa={categoria === c.slug}
+                ancho={anchoCelda(anchoGrilla)}
+                onPress={() => setCategoria(categoria === c.slug ? null : c.slug)}
+              />
+            ))}
+        </View>
 
         {/* Lista */}
         <View style={styles.listHeader}>
@@ -176,29 +241,55 @@ export default function BuscarScreen() {
         </View>
 
         {items.length > 0
-          ? items.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => router.push(`/(cliente)/profesional/${item.id}`)}
-                style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
-              >
-                <Avatar nombre={item.nombre} size={52} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.proName}>{item.nombre}</Text>
-                  <Text style={styles.proDesc} numberOfLines={2}>
-                    {item.descripcion}
-                  </Text>
-                  <View style={styles.proMeta}>
-                    <Text style={styles.metaPill}>{'📍'} {item.zona}</Text>
-                    <Text style={styles.metaPill}>{'⭐'} {item.rating}</Text>
-                    {item.distanciaKm != null ? (
-                      <Text style={styles.metaPill}>{item.distanciaKm}km</Text>
-                    ) : null}
+          ? items.map((item) => {
+              const foto = item.fotoSalon || item.fotoUrl;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => router.push(`/(cliente)/profesional/${item.id}`)}
+                  style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
+                >
+                  {/* Portada: foto del salón si la cargó, si no un fondo suave */}
+                  <View style={styles.portada}>
+                    {foto ? (
+                      <Image
+                        source={{ uri: foto }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[StyleSheet.absoluteFill, styles.portadaVacia]}>
+                        <Ionicons name="sparkles-outline" size={30} color={colors.muted} />
+                      </View>
+                    )}
+                    <LinearGradient
+                      colors={['transparent', 'rgba(10,14,30,0.72)']}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.portadaPills}>
+                      <Text style={styles.pillOscura}>{'⭐'} {item.rating}</Text>
+                      {item.distanciaKm != null && (
+                        <Text style={styles.pillOscura}>{item.distanciaKm} km</Text>
+                      )}
+                    </View>
+                    <Text style={styles.portadaZona} numberOfLines={1}>
+                      {'📍'} {item.zona}
+                    </Text>
                   </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-              </Pressable>
-            ))
+
+                  <View style={styles.cardBody}>
+                    <Avatar nombre={item.nombre} size={44} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.proName} numberOfLines={1}>{item.nombre}</Text>
+                      <Text style={styles.proDesc} numberOfLines={2}>
+                        {item.descripcion}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                  </View>
+                </Pressable>
+              );
+            })
           : !loading ? (
               <View style={styles.empty}>
                 <Text style={styles.emptyTitle}>{t('cliente.buscar.sinResultados')}</Text>
@@ -243,9 +334,18 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: spacing.md,
     paddingHorizontal: spacing.xxl,
   },
-  chipsRow: {
+  grilla: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
     paddingHorizontal: spacing.xxl,
-    gap: spacing.sm,
+  },
+  verTodas: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: c.primary,
+    marginTop: spacing.xxl,
+    marginBottom: spacing.md,
   },
   listHeader: {
     flexDirection: 'row',
@@ -254,16 +354,50 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingRight: spacing.xxl,
   },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
     backgroundColor: c.surface,
-    padding: spacing.lg,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: c.border,
     marginHorizontal: spacing.xxl,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    ...shadow.card,
+  },
+  portada: {
+    height: 132,
+    backgroundColor: c.bone2,
+    justifyContent: 'flex-end',
+  },
+  portadaVacia: { alignItems: 'center', justifyContent: 'center' },
+  portadaPills: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  pillOscura: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(10,14,30,0.55)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  portadaZona: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  cardBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    padding: spacing.lg,
   },
   proName: {
     fontSize: 16,
