@@ -60,7 +60,7 @@
     "extra": {
       "apiBaseUrl": "https://api.beautyapp.local",
       "google": {
-        "webClientId": "883387668629-qcc0h7q4ha6drnuoa5tbtjrjj7l1b8lo.apps.googleusercontent.com",
+        "webClientId": "410806601848-m0fo806e5p0hqbvcu6lc776ih0hlu8o5.apps.googleusercontent.com",
         "iosClientId": null
       },
       "router": {},

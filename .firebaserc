@@ -1,13 +1,6 @@
 {
   "projects": {
-    "default": "yopi-demo"
-  },
-  "targets": {},
-  "etags": {
-    "yopi-demo": {
-      "extensionInstances": {
-        "firestore-send-email": "3f9d6fc5f13e684e9f14ca1d897e2b250d8d49f3fb0b661c6e9b4b3f64d8ec85"
-      }
-    }
+    "default": "yofi-db",
+    "dev": "yopi-demo"
   }
 }

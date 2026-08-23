@@ -55,6 +55,29 @@ export const en: Dict = {
     googleRequiereDevBuild:
       'Google sign-in does not work in Expo Go. Use a dev build to test it; email sign-in still works.',
 
+    verificarEmail: {
+      titulo1: 'Confirm',
+      titulo2: 'your email',
+      subtitulo:
+        'We sent you an email with a link to validate your account. You need to confirm it before you can start using YOFI.',
+      paso1: 'Open the email we sent you.',
+      paso2: 'Tap the verification link.',
+      paso3: 'Come back here and tap "I already verified my email".',
+      yaValide: 'I already verified my email',
+      reenviar: 'Resend the email',
+      reenviarEn: 'Resend in {segundos}s',
+      spamHint: "If you can't find it, check your spam or junk folder.",
+      cerrarSesion: 'Sign out and use another account',
+      todaviaNoTitulo: 'Not verified yet',
+      todaviaNoMsg:
+        "We couldn't find the confirmation. Open the link in the email and try again.",
+      reenviadoTitulo: 'Email sent',
+      reenviadoMsg: 'We resent the verification link to {email}.',
+      errorReenvio: "We couldn't resend the email. Please try again in a while.",
+      errorChequeo: "We couldn't check your email status. Check your connection.",
+      demasiadosIntentos: 'Too many attempts. Wait a few minutes before resending.',
+    },
+
     login: {
       tituloPrefijo: 'Sign in to your',
       subtitulo: 'Book appointments, manage your schedule or sell supplies. All in one place.',
@@ -107,7 +130,7 @@ export const en: Dict = {
       fotoSalon: 'Salon photo',
       tocaElegirFoto: 'Tap to choose a photo',
       razonSocialPlaceholder: 'Business legal name',
-      cuitPlaceholder: 'Tax ID (XX-XXXXXXXX-X)',
+      cuitPlaceholder: 'Tax ID (optional)',
       cargandoRubros: 'Loading categories...',
       elegiRubro: 'Choose your category',
       queRubroVendes: 'What category do you sell?',

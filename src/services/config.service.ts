@@ -3,11 +3,34 @@ import { db } from './firebase';
 import { COMISION_PLATAFORMA, TARIFA_CLIENTE } from '@/types/models';
 import type { ComisionOrigen, PerfilProfesionalSignup, Usuario } from '@/types/models';
 
+/* ── Mercado Pago ────────────────────────────────────────────────────
+ * Datos NO secretos de la aplicación de MP de la plataforma. Se administran
+ * desde el panel admin (config/plataforma); estos son solo el fallback.
+ *
+ * El access token y el client secret NUNCA viven en la app: están en Secret
+ * Manager (MP_ACCESS_TOKEN / MP_CLIENT_SECRET) y solo los usan las Cloud
+ * Functions.
+ */
+export const MP_CLIENT_ID_DEFAULT = '8659117657714110';
+export const MP_PUBLIC_KEY_DEFAULT = 'APP_USR-c4656812-fec4-4c2e-9d36-e3549d7a81d4';
+
 /**
  * Configuración remota de la plataforma (doc Firestore: config/plataforma).
  * Editable desde el panel admin (beautyapp-admin → Configuración).
  */
 export const configService = {
+  /** Public key de Mercado Pago (para Checkout Bricks / tokenización). */
+  async mpPublicKey(): Promise<string> {
+    try {
+      const snap = await getDoc(doc(db, 'config', 'plataforma'));
+      const pk = snap.data()?.mpPublicKey;
+      if (typeof pk === 'string' && pk) return pk;
+    } catch {
+      // sin conexión o sin permiso → fallback
+    }
+    return MP_PUBLIC_KEY_DEFAULT;
+  },
+
   /** Comisión global de la plataforma como fracción (0-1). */
   async comisionGlobal(): Promise<number> {
     try {

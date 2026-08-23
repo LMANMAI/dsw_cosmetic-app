@@ -37,7 +37,7 @@ const extraGoogle = (Constants.expoConfig?.extra?.google ?? {}) as {
 /** Web Client ID: es el que define el `aud` del id_token que consume Firebase. */
 export const GOOGLE_WEB_CLIENT_ID =
   extraGoogle.webClientId ??
-  '883387668629-qcc0h7q4ha6drnuoa5tbtjrjj7l1b8lo.apps.googleusercontent.com';
+  '410806601848-m0fo806e5p0hqbvcu6lc776ih0hlu8o5.apps.googleusercontent.com';
 
 /**
  * iOS Client ID (OAuth client tipo iOS, bundle com.beautyapp.mobile).

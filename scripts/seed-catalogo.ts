@@ -20,7 +20,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 // Opción 2: usar variables de entorno (GOOGLE_APPLICATION_CREDENTIALS)
 if (!getApps().length) {
   initializeApp({
-    projectId: 'yopi-demo',
+    projectId: 'yofi-db',
   });
 }
 

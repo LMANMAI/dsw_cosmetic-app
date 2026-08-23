@@ -21,7 +21,7 @@ const MP_ACCESS_TOKEN = defineSecret('MP_ACCESS_TOKEN');
 
 // Fallbacks si config/plataforma todavía no tiene los campos.
 // Los valores reales se administran desde el panel admin (página Comisiones).
-const MP_CLIENT_ID_DEFAULT = '7038717644366606';
+const MP_CLIENT_ID_DEFAULT = '8659117657714110';
 const REGION = 'southamerica-east1';
 
 // Comisión por defecto de la plataforma sobre pedidos (marketplace_fee), en %.
@@ -63,8 +63,8 @@ const APP_SENA_RETURN = 'beautyapp://turno-pago';  // al volver del checkout de 
 const APP_COMISION_RETURN = 'beautyapp://comision-pago'; // al volver del pago de tarifa
 
 // URLs públicas de las funciones (misma región/proyecto).
-const CALLBACK_URL = 'https://southamerica-east1-yopi-demo.cloudfunctions.net/mpCallback';
-const WEBHOOK_URL = 'https://southamerica-east1-yopi-demo.cloudfunctions.net/mpWebhook';
+const CALLBACK_URL = 'https://southamerica-east1-yofi-db.cloudfunctions.net/mpCallback';
+const WEBHOOK_URL = 'https://southamerica-east1-yofi-db.cloudfunctions.net/mpWebhook';
 
 const ESTADOS_ACTIVOS_PEDIDO = ['pendiente_pago'];
 

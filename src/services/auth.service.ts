@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   updateProfile,
   onAuthStateChanged,
+  sendEmailVerification,
   type User as FirebaseUser,
   type AuthCredential,
 } from 'firebase/auth';
@@ -81,6 +82,8 @@ interface UsuarioDoc {
   preferencias?: PreferenciasNotificaciones;
   mpConectado?: boolean;
   esProfesional?: boolean;
+  /** Ver Usuario.isValidated. Ausente = cuenta anterior a la validación. */
+  isValidated?: boolean;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -102,6 +105,21 @@ function derivarEsProfesional(d: {
   return !!perfil?.especialidad;
 }
 
+/**
+ * Estado de validación de email según el doc de Firestore.
+ *
+ * Si el doc NO trae el flag es una cuenta creada antes de que existiera la
+ * validación: se la considera validada para no dejar afuera a los usuarios
+ * que ya venían usando la app.
+ *
+ * La sincronización con `emailVerified` de Firebase Auth (el usuario hizo clic
+ * en el link) se hace en `subscribe` y en `refrescarVerificacionEmail`, que
+ * además persisten el flag.
+ */
+function derivarIsValidated(d: { isValidated?: boolean }): boolean {
+  return d.isValidated ?? true;
+}
+
 function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
   return {
     id: uid,
@@ -115,6 +133,7 @@ function buildUsuario(uid: string, d: UsuarioDoc): Usuario {
     preferencias: d.preferencias,
     mpConectado: d.mpConectado,
     esProfesional: derivarEsProfesional(d),
+    isValidated: derivarIsValidated(d),
   };
 }
 
@@ -162,6 +181,14 @@ async function upsertUsuario(
   return buildUsuario(uid, fresh.data() as UsuarioDoc);
 }
 
+/** Pone isValidated en true en el doc del usuario y devuelve el usuario fresco. */
+async function marcarValidado(uid: string): Promise<Usuario> {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(ref, { isValidated: true, updatedAt: serverTimestamp() });
+  const fresh = await getDoc(ref);
+  return buildUsuario(uid, fresh.data() as UsuarioDoc);
+}
+
 async function loginWithGoogleCredential(credential: AuthCredential): Promise<Usuario> {
   const cred = await signInWithCredential(auth, credential);
   const fbUser = cred.user;
@@ -173,6 +200,8 @@ async function loginWithGoogleCredential(credential: AuthCredential): Promise<Us
     telefono: fbUser.phoneNumber ?? '',
     rol: 'cliente',
     avatarUrl: fbUser.photoURL ?? undefined,
+    // Google ya verificó el mail: la cuenta entra directo.
+    isValidated: fbUser.emailVerified !== false,
   });
 }
 
@@ -197,6 +226,7 @@ export const authService = {
         telefono: cred.user.phoneNumber ?? '',
         rol: 'cliente',
         avatarUrl: cred.user.photoURL ?? undefined,
+        isValidated: cred.user.emailVerified === true,
       });
     }
     return usuario;
@@ -227,7 +257,17 @@ export const authService = {
         rol: payload.rol,
         perfil: payload.perfil,
         esProfesional: payload.rol === 'profesional' ? true : undefined,
+        // La cuenta nace sin validar: hasta que no confirme el mail, la app
+        // la deja en la pantalla "verificar-email".
+        isValidated: false,
       });
+      // Mail de verificación. Si falla (sin red, cuota), no rompemos el alta:
+      // desde la pantalla de verificación se puede reenviar.
+      try {
+        await sendEmailVerification(cred.user);
+      } catch (e) {
+        console.warn('[auth] no se pudo enviar el mail de verificación', e);
+      }
       return usuario;
     } finally {
       _signupInProgress = false;
@@ -263,6 +303,36 @@ export const authService = {
   /** Re-lee el usuario desde Firestore (p. ej. tras conectar Mercado Pago). */
   async recargarUsuario(uid: string): Promise<Usuario | null> {
     return fetchUsuario(uid);
+  },
+
+  /* ── Validación de email ─────────────────────────────────────────── */
+
+  /**
+   * Reenvía el mail de verificación al usuario logueado.
+   * Lanza el error de Firebase (p. ej. auth/too-many-requests) para que la
+   * pantalla pueda mostrar un mensaje adecuado.
+   */
+  async reenviarVerificacionEmail(): Promise<void> {
+    const fbUser = auth.currentUser;
+    if (!fbUser) throw new Error('SIN_SESION');
+    await sendEmailVerification(fbUser);
+  },
+
+  /**
+   * Vuelve a consultar a Firebase si el mail ya fue verificado.
+   * Si lo fue, persiste `isValidated: true` y devuelve el usuario actualizado.
+   * Devuelve null si todavía no está verificado.
+   */
+  async refrescarVerificacionEmail(): Promise<Usuario | null> {
+    const fbUser = auth.currentUser;
+    if (!fbUser) return null;
+    // reload() trae el estado real desde el servidor de Firebase Auth.
+    await fbUser.reload();
+    // El ID token viejo sigue diciendo email_verified:false; lo renovamos para
+    // que las reglas de Firestore (si algún día lo miran) vean el estado nuevo.
+    await fbUser.getIdToken(true).catch(() => {});
+    if (!auth.currentUser?.emailVerified) return null;
+    return marcarValidado(fbUser.uid);
   },
 
   subscribe(cb: (user: Usuario | null) => void): () => void {
@@ -320,7 +390,11 @@ export const authService = {
             telefono: fbUser.phoneNumber ?? '',
             rol: 'cliente',
             avatarUrl: fbUser.photoURL ?? undefined,
+            isValidated: fbUser.emailVerified === true,
           });
+        } else if (u.isValidated === false && fbUser.emailVerified) {
+          // Validó el mail en otro dispositivo/sesión: sincronizamos el flag.
+          u = await marcarValidado(fbUser.uid);
         }
         cb(u);
       } catch {

@@ -54,6 +54,29 @@ export const es = {
     googleRequiereDevBuild:
       'Google no funciona en Expo Go. Usá una dev build para probarlo; el ingreso con email funciona igual.',
 
+    verificarEmail: {
+      titulo1: 'Confirmá',
+      titulo2: 'tu email',
+      subtitulo:
+        'Te enviamos un mail con un enlace para validar tu cuenta. Necesitás confirmarlo para empezar a usar YOFI.',
+      paso1: 'Abrí el mail que te enviamos.',
+      paso2: 'Tocá el enlace de verificación.',
+      paso3: 'Volvé acá y tocá "Ya validé mi email".',
+      yaValide: 'Ya validé mi email',
+      reenviar: 'Reenviar el mail',
+      reenviarEn: 'Reenviar en {segundos}s',
+      spamHint: 'Si no lo ves, revisá la carpeta de spam o correo no deseado.',
+      cerrarSesion: 'Cerrar sesión y usar otra cuenta',
+      todaviaNoTitulo: 'Todavía no está validado',
+      todaviaNoMsg:
+        'No encontramos la confirmación. Abrí el enlace del mail y volvé a intentar.',
+      reenviadoTitulo: 'Mail enviado',
+      reenviadoMsg: 'Te reenviamos el enlace de verificación a {email}.',
+      errorReenvio: 'No pudimos reenviar el mail. Probá de nuevo en un rato.',
+      errorChequeo: 'No pudimos verificar el estado de tu email. Revisá tu conexión.',
+      demasiadosIntentos: 'Demasiados intentos. Esperá unos minutos antes de reenviar.',
+    },
+
     login: {
       tituloPrefijo: 'Ingresa a tu',
       subtitulo: 'Reserva turnos, gestiona tu agenda o vende insumos. Todo en un solo lugar.',
@@ -106,7 +129,7 @@ export const es = {
       fotoSalon: 'Foto del salón',
       tocaElegirFoto: 'Tocá para elegir una foto',
       razonSocialPlaceholder: 'Razón social del comercio',
-      cuitPlaceholder: 'CUIT (XX-XXXXXXXX-X)',
+      cuitPlaceholder: 'CUIT / CUIL (opcional)',
       cargandoRubros: 'Cargando rubros...',
       elegiRubro: 'Elegí tu rubro',
       queRubroVendes: '¿Qué rubro vendés?',

@@ -1,6 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { MP_CLIENT_ID_DEFAULT } from './config.service';
 
 /**
  * Conexión de la cuenta de Mercado Pago del vendedor (OAuth marketplace).
@@ -11,10 +12,9 @@ import { db } from './firebase';
  * link (?status=ok|error).
  *
  * El Client ID se administra desde el panel admin (config/plataforma).
- * Este valor queda solo como fallback si el doc no tiene el campo.
+ * El fallback vive en config.service (MP_CLIENT_ID_DEFAULT).
  */
-const MP_CLIENT_ID_DEFAULT = '7038717644366606';
-const MP_REDIRECT_URI = 'https://southamerica-east1-yopi-demo.cloudfunctions.net/mpCallback';
+const MP_REDIRECT_URI = 'https://southamerica-east1-yofi-db.cloudfunctions.net/mpCallback';
 const MP_AUTH_URL = 'https://auth.mercadopago.com.ar/authorization';
 const RETURN_URL = 'beautyapp://mp-conectado';
 

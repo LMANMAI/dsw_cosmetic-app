@@ -55,6 +55,29 @@ export const pt: Dict = {
     googleRequiereDevBuild:
       'O login com Google não funciona no Expo Go. Use uma dev build para testar; o login por email continua funcionando.',
 
+    verificarEmail: {
+      titulo1: 'Confirme',
+      titulo2: 'seu e-mail',
+      subtitulo:
+        'Enviamos um e-mail com um link para validar sua conta. Você precisa confirmá-lo para começar a usar o YOFI.',
+      paso1: 'Abra o e-mail que enviamos.',
+      paso2: 'Toque no link de verificação.',
+      paso3: 'Volte aqui e toque em "Já validei meu e-mail".',
+      yaValide: 'Já validei meu e-mail',
+      reenviar: 'Reenviar o e-mail',
+      reenviarEn: 'Reenviar em {segundos}s',
+      spamHint: 'Se não encontrar, verifique a pasta de spam ou lixo eletrônico.',
+      cerrarSesion: 'Sair e usar outra conta',
+      todaviaNoTitulo: 'Ainda não foi validado',
+      todaviaNoMsg:
+        'Não encontramos a confirmação. Abra o link do e-mail e tente novamente.',
+      reenviadoTitulo: 'E-mail enviado',
+      reenviadoMsg: 'Reenviamos o link de verificação para {email}.',
+      errorReenvio: 'Não conseguimos reenviar o e-mail. Tente novamente mais tarde.',
+      errorChequeo: 'Não conseguimos verificar o status do seu e-mail. Verifique sua conexão.',
+      demasiadosIntentos: 'Muitas tentativas. Aguarde alguns minutos antes de reenviar.',
+    },
+
     login: {
       tituloPrefijo: 'Entre no seu',
       subtitulo: 'Reserve horários, gerencie sua agenda ou venda insumos. Tudo em um só lugar.',
@@ -107,7 +130,7 @@ export const pt: Dict = {
       fotoSalon: 'Foto do salão',
       tocaElegirFoto: 'Toque para escolher uma foto',
       razonSocialPlaceholder: 'Razão social do comércio',
-      cuitPlaceholder: 'CNPJ/CUIT (XX-XXXXXXXX-X)',
+      cuitPlaceholder: 'CNPJ / CUIT (opcional)',
       cargandoRubros: 'Carregando categorias...',
       elegiRubro: 'Escolha sua categoria',
       queRubroVendes: 'Que categoria você vende?',

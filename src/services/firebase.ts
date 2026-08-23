@@ -12,13 +12,13 @@ const getReactNativePersistence = (firebaseAuth as any).getReactNativePersistenc
 import { initializeFirestore, getFirestore } from 'firebase/firestore';
 
 export const firebaseConfig = {
-  apiKey: 'AIzaSyDe4ABJYv4jNndDluLKlJcS9YC28t9drJ0',
-  authDomain: 'yopi-demo.firebaseapp.com',
-  projectId: 'yopi-demo',
-  storageBucket: 'yopi-demo.firebasestorage.app',
-  messagingSenderId: '883387668629',
-  appId: '1:883387668629:web:98b254a9b214b9c071239c',
-  measurementId: 'G-3VZ5FFV7QN',
+  apiKey: 'AIzaSyCYNIXnHtVfQnyok1UuMCI7a1PmxbP19p4',
+  authDomain: 'yofi-db.firebaseapp.com',
+  projectId: 'yofi-db',
+  storageBucket: 'yofi-db.firebasestorage.app',
+  messagingSenderId: '410806601848',
+  appId: '1:410806601848:web:7b5822dee9cca3fa0a458d',
+  measurementId: 'G-W74LVS9EFN',
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

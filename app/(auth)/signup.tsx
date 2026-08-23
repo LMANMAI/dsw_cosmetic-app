@@ -33,7 +33,7 @@ import { useGoogleSignIn } from '@/services/google-auth';
 import { describirErrorGoogle } from '@/services/google-native';
 import { uploadImage } from '@/services/upload.service';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
-import { formatCuit, cuitCompleto, cuitValido } from '@/utils/format';
+import { formatCuit } from '@/utils/format';
 import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type {
@@ -176,7 +176,8 @@ export default function SignupScreen() {
         case 'proveedor':
           return {
             razonSocial: razonSocial.trim(),
-            cuit: cuit.trim(),
+            // Opcional: si lo dejan vacío no se guarda el campo.
+            cuit: cuit.trim() || undefined,
             rubro: rubro.trim(),
             ciudad: ubicacionProv?.ciudad ?? '',
             direccion: ubicacionProv?.direccion ?? '',
@@ -203,9 +204,7 @@ export default function SignupScreen() {
     if (rol === 'proveedor') {
       const p = perfilExtra as PerfilProveedor;
       if (!p.razonSocial) return t('auth.signup.validaciones.razonSocial');
-      if (!p.cuit) return t('auth.signup.validaciones.cuit');
-      if (!cuitCompleto(p.cuit)) return t('auth.signup.validaciones.cuitIncompleto');
-      if (!cuitValido(p.cuit)) return t('auth.signup.validaciones.cuitInvalido');
+      // CUIT/CUIL es opcional y no se valida: se guarda tal cual lo cargan.
       if (!p.rubro) return t('auth.signup.validaciones.rubro');
       if (!ubicacionProv) return t('auth.signup.validaciones.direccion');
     }

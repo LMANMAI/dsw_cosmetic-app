@@ -31,3 +31,8 @@ expo-env.d.ts
 # @end expo-cli
 FIREBASE_SETUP.md
 firestore.rules
+
+# Service account keys de Firebase — NUNCA commitear
+claves/
+*-sa.json
+serviceAccountKey*.json

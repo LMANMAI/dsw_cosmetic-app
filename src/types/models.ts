@@ -83,7 +83,8 @@ export interface ResumenCliente {
 
 export interface PerfilProveedor {
   razonSocial: string;
-  cuit: string;
+  /** CUIT/CUIL. Opcional: no se valida ni se exige en el alta. */
+  cuit?: string;
   rubro: string; // p. ej. "Insumos para uñas"
   ciudad: string;
   direccion?: string; // dirección exacta seleccionada en el autocomplete
@@ -221,6 +222,15 @@ export interface Usuario {
    * visible mientras navega en vista cliente.
    */
   esProfesional?: boolean;
+  /**
+   * true si el usuario ya validó su email (link de verificación de Firebase
+   * Auth). Mientras esté en false la app lo deja en la pantalla
+   * "verificar-email" y no puede continuar al flujo normal.
+   *
+   * Compatibilidad: los docs creados antes de esta funcionalidad no tienen el
+   * campo. Se los considera validados (ver `buildUsuario` en auth.service).
+   */
+  isValidated?: boolean;
 }
 
 export type ModalidadTrabajo = 'salon' | 'domicilio' | 'ambos';

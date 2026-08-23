@@ -18,7 +18,7 @@ function ThemedStatusBar() {
 }
 
 function AuthGate() {
-  const { user, loading } = useSession();
+  const { user, loading, emailValidado } = useSession();
   const segments = useSegments();
   const router = useRouter();
 
@@ -41,9 +41,16 @@ function AuthGate() {
     if (loading) return;
 
     const inAuthRoute = segments[0] === '(auth)';
+    const enVerificacion = inAuthRoute && segments[1] === 'verificar-email';
 
     if (!user && !inAuthRoute) {
       router.replace('/(auth)/login');
+      return;
+    }
+    // Cuenta registrada pero sin confirmar el mail: no puede seguir al flujo
+    // de la app hasta validar.
+    if (user && !emailValidado) {
+      if (!enVerificacion) router.replace('/(auth)/verificar-email');
       return;
     }
     if (user && inAuthRoute) {
@@ -58,7 +65,7 @@ function AuthGate() {
           router.replace('/(cliente)/buscar');
       }
     }
-  }, [user, loading, segments, router]);
+  }, [user, loading, emailValidado, segments, router]);
 
   return <Slot />;
 }
