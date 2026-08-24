@@ -53,6 +53,7 @@
     "@babel/core": "^7.25.0",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "firebase-admin": "^14.3.0",
     "typescript": "~5.9.2"
   },
   "private": true

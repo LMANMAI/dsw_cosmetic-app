@@ -18,6 +18,8 @@ initializeApp();
 const db = getFirestore();
 
 // Mercado Pago (OAuth marketplace + split) — definidas en ./mercadopago.js
+const REGION = 'southamerica-east1';
+
 const mp = require('./mercadopago');
 exports.mpCallback = mp.mpCallback;
 exports.crearPreferenciaPedido = mp.crearPreferenciaPedido;
@@ -77,7 +79,9 @@ async function enviarEmail(to, subject, html) {
 /* ──────────────────────────────────────────────────────────────────────────
  * 1. Pedido pagado → push al proveedor
  * ──────────────────────────────────────────────────────────────────────── */
-exports.notificarPedidoProveedor = onDocumentWritten('pedidos/{pedidoId}', async (event) => {
+exports.notificarPedidoProveedor = onDocumentWritten(
+  { document: 'pedidos/{pedidoId}', region: REGION },
+  async (event) => {
   const before = event.data?.before?.data();
   const after = event.data?.after?.data();
   if (!after) return;
@@ -127,7 +131,9 @@ exports.notificarPedidoProveedor = onDocumentWritten('pedidos/{pedidoId}', async
 /* ──────────────────────────────────────────────────────────────────────────
  * 2. Turno nuevo → push al profesional
  * ──────────────────────────────────────────────────────────────────────── */
-exports.notificarTurnoProfesional = onDocumentCreated('turnos/{turnoId}', async (event) => {
+exports.notificarTurnoProfesional = onDocumentCreated(
+  { document: 'turnos/{turnoId}', region: REGION },
+  async (event) => {
   const turno = event.data?.data();
   if (!turno || !turno.profesionalId) return;
 
@@ -163,7 +169,7 @@ const OFFSET_MIN = { '1h': 60, '2h': 120, '24h': 1440 };
 const ESTADOS_ACTIVOS = ['pendiente', 'confirmado'];
 
 exports.recordatoriosTurnosCliente = onSchedule(
-  { schedule: 'every 15 minutes', timeZone: 'America/Argentina/Buenos_Aires' },
+  { schedule: 'every 15 minutes', timeZone: 'America/Argentina/Buenos_Aires', region: REGION },
   async () => {
     const ahora = Date.now();
     // Traemos turnos de hoy en adelante (incluye ayer por seguridad de zona horaria).
