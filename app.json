@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "YOPI",
+    "name": "YOFI",
     "slug": "beautyapp",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -59,6 +59,10 @@
     },
     "extra": {
       "apiBaseUrl": "https://api.beautyapp.local",
+      "google": {
+        "webClientId": "410806601848-m0fo806e5p0hqbvcu6lc776ih0hlu8o5.apps.googleusercontent.com",
+        "iosClientId": null
+      },
       "router": {},
       "eas": {
         "projectId": "285d6d01-7840-4287-855c-93e8dd969bc3"

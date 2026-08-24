@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
 import type { PerfilProfesional } from '@/types/models';
 
@@ -43,6 +44,7 @@ function calcRegion(items: PerfilProfesional[], userLat?: number, userLng?: numb
 
 export function MapaProfesionales({ items, badgeText, onMarkerPress, userLat, userLng, onRecenterPress, onSearchArea }: MapaProfesionalesProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const mapRef = useRef<MapView>(null);
   const itemsConUbicacion = useMemo(
     () => items.filter((p) => p.latitud !== 0 && p.longitud !== 0),
@@ -122,7 +124,7 @@ export function MapaProfesionales({ items, badgeText, onMarkerPress, userLat, us
         {userLat != null && userLng != null ? (
           <Marker
             coordinate={{ latitude: userLat, longitude: userLng }}
-            title="Tu ubicación"
+            title={t('componentes.mapa.tuUbicacion')}
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={styles.userMarker}>
@@ -159,7 +161,7 @@ export function MapaProfesionales({ items, badgeText, onMarkerPress, userLat, us
       {showSearchHere ? (
         <Pressable style={[styles.searchHereBtn, { backgroundColor: colors.primary }]} onPress={handleSearchHere}>
           <Ionicons name="refresh-outline" size={14} color="#FFFFFF" />
-          <Text style={styles.searchHereTxt}>Buscar en esta zona</Text>
+          <Text style={styles.searchHereTxt}>{t('componentes.mapa.buscarEnZona')}</Text>
         </Pressable>
       ) : null}
 

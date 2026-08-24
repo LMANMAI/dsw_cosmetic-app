@@ -20,23 +20,26 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button } from '@/components/Button';
 import { useSession } from '@/context/SessionContext';
 import { pedidosService } from '@/services';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
-import { formatARS } from '@/utils/format';
-import { ESTADO_PEDIDO, accionSiguiente, siguienteEstado, CORREOS } from '@/utils/pedidos';
+import { formatARS, formatDiaMes } from '@/utils/format';
+import { siguienteEstado, CORREOS } from '@/utils/pedidos';
+import { ESTADO_PEDIDO } from '@/utils/pedidos';
 import type { InfoEnvio, MetodoEnvio, Pedido } from '@/types/models';
 
 type Filtro = 'todos' | 'abiertos' | 'entregado' | 'cancelado';
 
-const FILTROS: { id: Filtro; label: string }[] = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'abiertos', label: 'En curso' },
-  { id: 'entregado', label: 'Entregados' },
-  { id: 'cancelado', label: 'Cancelados' },
+const FILTROS: { id: Filtro; labelKey: string }[] = [
+  { id: 'todos', labelKey: 'proveedor.pedidos.filtroTodos' },
+  { id: 'abiertos', labelKey: 'proveedor.pedidos.filtroEnCurso' },
+  { id: 'entregado', labelKey: 'proveedor.pedidos.filtroEntregados' },
+  { id: 'cancelado', labelKey: 'proveedor.pedidos.filtroCancelados' },
 ];
 
 export default function PedidosProveedorScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -97,10 +100,13 @@ export default function PedidosProveedorScreen() {
   };
 
   const cancelar = (p: Pedido) => {
-    Alert.alert('Cancelar pedido', `¿Cancelar el pedido de ${p.compradorNombre ?? 'este cliente'}?`, [
-      { text: 'No', style: 'cancel' },
+    Alert.alert(
+      t('proveedor.pedidos.cancelarTitulo'),
+      t('proveedor.pedidos.cancelarMsg', { nombre: p.compradorNombre ?? t('proveedor.pedidos.esteCliente') }),
+      [
+      { text: t('comun.no'), style: 'cancel' },
       {
-        text: 'Cancelar pedido',
+        text: t('proveedor.pedidos.cancelarTitulo'),
         style: 'destructive',
         onPress: async () => {
           await pedidosService.actualizarEstado(p.id, 'cancelado');
@@ -114,9 +120,12 @@ export default function PedidosProveedorScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerWrap}>
         <ScreenHeader
-          eyebrow="Tus ventas"
-          title="Pedidos"
-          subtitle={`${pedidos.length} ${pedidos.length === 1 ? 'pedido' : 'pedidos'} en total`}
+          eyebrow={t('proveedor.pedidos.eyebrow')}
+          title={t('proveedor.pedidos.titulo')}
+          subtitle={t('proveedor.pedidos.subtitulo', {
+            count: pedidos.length,
+            plural: pedidos.length === 1 ? t('proveedor.pedidos.pedido') : t('proveedor.pedidos.pedidos'),
+          })}
         />
         <View style={styles.filtros}>
           {FILTROS.map((f) => {
@@ -127,7 +136,7 @@ export default function PedidosProveedorScreen() {
                 onPress={() => setFiltro(f.id)}
                 style={[styles.filtroChip, active && styles.filtroChipActive]}
               >
-                <Text style={[styles.filtroLabel, active && styles.filtroLabelActive]}>{f.label}</Text>
+                <Text style={[styles.filtroLabel, active && styles.filtroLabelActive]}>{t(f.labelKey)}</Text>
               </Pressable>
             );
           })}
@@ -146,6 +155,7 @@ export default function PedidosProveedorScreen() {
               pedido={item}
               colors={colors}
               styles={styles}
+              t={t}
               onAvanzar={() => avanzar(item)}
               onCancelar={() => cancelar(item)}
             />
@@ -154,12 +164,9 @@ export default function PedidosProveedorScreen() {
             <View style={styles.empty}>
               <Ionicons name="receipt-outline" size={36} color={colors.muted} />
               <Text style={styles.emptyTitle}>
-                {filtro === 'todos' ? 'Todavía no recibiste pedidos' : 'Sin pedidos en este filtro'}
+                {filtro === 'todos' ? t('proveedor.pedidos.vacioTodos') : t('proveedor.pedidos.vacioFiltro')}
               </Text>
-              <Text style={styles.emptyText}>
-                Cuando un profesional compre tus insumos, los vas a ver acá para confirmarlos y
-                gestionar el envío.
-              </Text>
+              <Text style={styles.emptyText}>{t('proveedor.pedidos.vacioMsg')}</Text>
             </View>
           }
         />
@@ -169,6 +176,7 @@ export default function PedidosProveedorScreen() {
         pedido={enviando}
         colors={colors}
         styles={styles}
+        t={t}
         onClose={() => setEnviando(null)}
         onConfirm={confirmarEnvio}
       />
@@ -180,12 +188,14 @@ function EnvioModal({
   pedido,
   colors,
   styles,
+  t,
   onClose,
   onConfirm,
 }: {
   pedido: Pedido | null;
   colors: ThemeColors;
   styles: ReturnType<typeof createStyles>;
+  t: TranslateFn;
   onClose: () => void;
   onConfirm: (envio: InfoEnvio) => Promise<void> | void;
 }) {
@@ -229,16 +239,14 @@ function EnvioModal({
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.xxl }}>
-            <Text style={styles.sheetTitle}>Datos del envío</Text>
-            <Text style={styles.sheetSubtitle}>
-              Contale al comprador cómo viaja su pedido.
-            </Text>
+            <Text style={styles.sheetTitle}>{t('proveedor.pedidos.datosEnvio')}</Text>
+            <Text style={styles.sheetSubtitle}>{t('proveedor.pedidos.datosEnvioSub')}</Text>
 
-            <Text style={styles.fieldLabel}>¿Cómo lo enviás?</Text>
+            <Text style={styles.fieldLabel}>{t('proveedor.pedidos.comoEnvias')}</Text>
             <View style={styles.segmentRow}>
               {([
-                { id: 'correo' as const, label: 'Por correo', icon: 'cube-outline' as const },
-                { id: 'propio' as const, label: 'Envío propio', icon: 'bicycle-outline' as const },
+                { id: 'correo' as const, label: t('proveedor.pedidos.porCorreo'), icon: 'cube-outline' as const },
+                { id: 'propio' as const, label: t('proveedor.pedidos.envioPropio'), icon: 'bicycle-outline' as const },
               ]).map((opt) => {
                 const active = metodo === opt.id;
                 return (
@@ -262,7 +270,7 @@ function EnvioModal({
 
             {metodo === 'correo' ? (
               <>
-                <Text style={styles.fieldLabel}>Correo</Text>
+                <Text style={styles.fieldLabel}>{t('proveedor.pedidos.correo')}</Text>
                 <View style={styles.chipsWrap}>
                   {CORREOS.map((c) => {
                     const active = correo === c;
@@ -280,27 +288,27 @@ function EnvioModal({
                   })}
                 </View>
 
-                <Text style={styles.fieldLabel}>Número de seguimiento</Text>
+                <Text style={styles.fieldLabel}>{t('proveedor.pedidos.nroSeguimiento')}</Text>
                 <TextInput
                   style={styles.input}
                   value={nroSeguimiento}
                   onChangeText={setNroSeguimiento}
-                  placeholder="Ej: AR123456789"
+                  placeholder={t('proveedor.pedidos.nroSeguimientoPlaceholder')}
                   placeholderTextColor={colors.muted}
                   autoCapitalize="characters"
                 />
               </>
             ) : null}
 
-            <Text style={styles.fieldLabel}>Mensaje para el comprador</Text>
+            <Text style={styles.fieldLabel}>{t('proveedor.pedidos.mensajeComprador')}</Text>
             <TextInput
               style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
               value={mensaje}
               onChangeText={setMensaje}
               placeholder={
                 metodo === 'correo'
-                  ? 'Ej: Lo despaché hoy por Andreani, llega en 3-5 días hábiles.'
-                  : 'Ej: Te lo llevo yo mañana a la tarde, coordinamos horario.'
+                  ? t('proveedor.pedidos.mensajeCorreoPlaceholder')
+                  : t('proveedor.pedidos.mensajePropioPlaceholder')
               }
               placeholderTextColor={colors.muted}
               multiline
@@ -309,13 +317,13 @@ function EnvioModal({
             <View style={{ height: spacing.lg }} />
             <Button
               variant="dark"
-              label={saving ? 'Guardando…' : 'Marcar como enviado'}
+              label={saving ? t('proveedor.pedidos.guardando') : t('proveedor.pedidos.marcarEnviado')}
               onPress={guardar}
               loading={saving}
               fullWidth
             />
             <Pressable onPress={onClose} style={styles.cancelLink} hitSlop={8}>
-              <Text style={styles.cancelLinkText}>Cancelar</Text>
+              <Text style={styles.cancelLinkText}>{t('comun.cancelar')}</Text>
             </Pressable>
           </ScrollView>
         </View>
@@ -328,22 +336,22 @@ function PedidoCard({
   pedido,
   colors,
   styles,
+  t,
   onAvanzar,
   onCancelar,
 }: {
   pedido: Pedido;
   colors: ThemeColors;
   styles: ReturnType<typeof createStyles>;
+  t: TranslateFn;
   onAvanzar: () => void;
   onCancelar: () => void;
 }) {
   const meta = ESTADO_PEDIDO[pedido.estado];
   const tone = colors[meta.tone];
-  const fecha = new Date(pedido.fecha).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'short',
-  });
-  const accion = accionSiguiente(pedido.estado);
+  const fecha = formatDiaMes(pedido.fecha);
+  const sig = siguienteEstado(pedido.estado);
+  const accion = sig && pedido.estado !== 'entregado' ? t(`pedidosAcciones.${pedido.estado}`) : null;
   const abierto = pedido.estado !== 'entregado' && pedido.estado !== 'cancelado';
 
   return (
@@ -351,12 +359,12 @@ function PedidoCard({
       <View style={styles.cardTop}>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardNombre} numberOfLines={1}>
-            {pedido.compradorNombre ?? 'Cliente'}
+            {pedido.compradorNombre ?? t('proveedor.pedidos.cliente')}
           </Text>
           <Text style={styles.cardFecha}>{fecha}</Text>
         </View>
         <View style={[styles.estadoChip, { backgroundColor: `${tone}1A` }]}>
-          <Text style={[styles.estadoChipText, { color: tone }]}>{meta.label}</Text>
+          <Text style={[styles.estadoChipText, { color: tone }]}>{t(`estadosPedido.${pedido.estado}`)}</Text>
         </View>
       </View>
 
@@ -388,12 +396,12 @@ function PedidoCard({
             />
             <Text style={styles.envioBoxTitle}>
               {pedido.envio.metodo === 'correo'
-                ? pedido.envio.correo ?? 'Por correo'
-                : 'Envío propio'}
+                ? pedido.envio.correo ?? t('proveedor.pedidos.porCorreo')
+                : t('proveedor.pedidos.envioPropio')}
             </Text>
           </View>
           {pedido.envio.nroSeguimiento ? (
-            <Text style={styles.envioBoxText}>Seguimiento: {pedido.envio.nroSeguimiento}</Text>
+            <Text style={styles.envioBoxText}>{t('proveedor.pedidos.seguimiento', { nro: pedido.envio.nroSeguimiento })}</Text>
           ) : null}
           {pedido.envio.mensaje ? (
             <Text style={styles.envioBoxText}>“{pedido.envio.mensaje}”</Text>
@@ -406,7 +414,7 @@ function PedidoCard({
         {abierto ? (
           <View style={styles.acciones}>
             <Pressable onPress={onCancelar} hitSlop={6} style={styles.cancelarBtn}>
-              <Text style={styles.cancelarText}>Cancelar</Text>
+              <Text style={styles.cancelarText}>{t('comun.cancelar')}</Text>
             </Pressable>
             {accion ? (
               <Pressable onPress={onAvanzar} style={styles.avanzarBtn}>

@@ -8,26 +8,18 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { Linking } from 'react-native';
-import { db } from './firebase';
+import * as WebBrowser from 'expo-web-browser';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app, { db } from './firebase';
 import type { ComisionMensual, EstadoComision } from '@/types/models';
 
 const COLLECTION = 'comisiones';
 
-/**
- * Configuración de MercadoPago para generar el link de pago.
- * TODO: mover a variables de entorno / config remota.
- */
-const MP_CONFIG = {
-  /** Access token del dueño de la app (vendedor). Se usa server-side idealmente. */
-  accessToken: 'APP_MP_ACCESS_TOKEN',
-  /** URL base del checkout de MP (producción). */
-  checkoutBaseUrl: 'https://api.mercadopago.com/checkout/preferences',
-  /** URL a la que MP redirige tras el pago exitoso. */
-  successUrl: 'beautyapp://comision/success',
-  /** URL a la que MP redirige si falla o se cancela. */
-  failureUrl: 'beautyapp://comision/failure',
-};
+/** Cloud Functions del proyecto (misma región que el backend). */
+const functions = getFunctions(app, 'southamerica-east1');
+
+/** Deep link al que vuelve el checkout de la tarifa de servicio. */
+const COMISION_RETURN_URL = 'beautyapp://comision-pago';
 
 export const comisionesService = {
   /**
@@ -100,62 +92,24 @@ export const comisionesService = {
   },
 
   /**
-   * Genera una preferencia de pago en MercadoPago y retorna el link de checkout.
-   * El profesional hace clic en "Pagar comisión" → se abre este link en MP.
-   *
-   * NOTA: En producción, esta llamada debería hacerse desde un backend seguro
-   * para no exponer el access_token. Acá se deja como referencia de la lógica.
+   * Genera la preferencia de pago vía Cloud Function (crearPreferenciaComision)
+   * y retorna el link de checkout. La función usa el access token del dueño
+   * de la plataforma (Secret Manager): el dinero entra a su cuenta de MP y el
+   * webhook marca la tarifa como pagada automáticamente.
    */
   async generarLinkPago(comision: ComisionMensual): Promise<string> {
-    const nombreMes = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-    ][comision.mes];
-
-    const body = {
-      items: [
-        {
-          title: `Comisión BeautyApp - ${nombreMes} ${comision.anio}`,
-          description: `Comisión de servicios del mes de ${nombreMes} ${comision.anio}`,
-          quantity: 1,
-          unit_price: comision.montoTotal,
-          currency_id: 'ARS',
-        },
-      ],
-      external_reference: comision.id, // para identificar el pago en el webhook
-      back_urls: {
-        success: MP_CONFIG.successUrl,
-        failure: MP_CONFIG.failureUrl,
-        pending: MP_CONFIG.failureUrl,
-      },
-      auto_return: 'approved',
-    };
-
-    const res = await fetch(MP_CONFIG.checkoutBaseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${MP_CONFIG.accessToken}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-    const initPoint: string = data.init_point;
-
-    // Guardar el preferenceId en la comisión
-    const ref = doc(db, COLLECTION, comision.id);
-    await updateDoc(ref, { mercadoPagoPreferenceId: data.id });
-
-    return initPoint;
+    const fn = httpsCallable(functions, 'crearPreferenciaComision');
+    const res: any = await fn({ comisionId: comision.id });
+    return res.data.initPoint as string;
   },
 
   /**
-   * Abre el link de pago de MercadoPago en el navegador/app de MP.
+   * Abre el checkout de Mercado Pago y espera el retorno a la app.
+   * La confirmación real del pago la hace el webhook (mpWebhook?comision=...).
    */
   async pagarComision(comision: ComisionMensual): Promise<void> {
     const link = await this.generarLinkPago(comision);
-    await Linking.openURL(link);
+    await WebBrowser.openAuthSessionAsync(link, COMISION_RETURN_URL);
   },
 
   /**

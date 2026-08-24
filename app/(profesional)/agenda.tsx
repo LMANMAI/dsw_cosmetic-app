@@ -14,11 +14,14 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { turnosService } from '@/services';
 import { disponibilidadService } from '@/services/disponibilidad.service';
+import { serviciosService } from '@/services/servicios.service';
 import type { EstadoTurno, MetodoPago, Turno } from '@/types/models';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { ServiciosStatusBanner } from '@/components/ServiciosStatusBanner';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS, metodoPagoLabel } from '@/utils/format';
@@ -34,6 +37,7 @@ const ESTADO_TONE: Record<EstadoTurno, 'success' | 'warning' | 'danger' | 'info'
 
 export default function AgendaScreen() {
   const { colors } = useTheme();
+  const { t, locale } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const profesionalId = user?.id ?? '';
@@ -42,17 +46,28 @@ export default function AgendaScreen() {
   const [proximosTurnos, setProximosTurnos] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
   const [tieneAgenda, setTieneAgenda] = useState<boolean | null>(null);
+  const [tieneServicios, setTieneServicios] = useState<boolean | null>(null);
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const cargar = useCallback(() => {
     if (!profesionalId) return;
     setLoading(true);
+    // DIAGNÓSTICO (temporal): cada llamada se etiqueta para saber cuál falla.
+    // Ojo: es un Promise.all, así que si UNA revienta la agenda queda vacía.
+    const tag = <T,>(nombre: string, p: Promise<T>) =>
+      p.catch((e: any) => {
+        console.error(`[agenda] falló ${nombre}:`, e?.code ?? '', e?.message ?? e);
+        throw e;
+      });
+
     Promise.all([
-      turnosService.listarDelProfesional(profesionalId, todayISO),
-      turnosService.listarDelProfesional(profesionalId),
-      disponibilidadService.tieneAgenda(profesionalId),
+      tag('turnos(hoy)', turnosService.listarDelProfesional(profesionalId, todayISO)),
+      tag('turnos(todos)', turnosService.listarDelProfesional(profesionalId)),
+      tag('disponibilidad', disponibilidadService.tieneAgenda(profesionalId)),
+      tag('servicios', serviciosService.listar(profesionalId)),
     ])
-      .then(([turnos, todos, tiene]) => {
+      .then(([turnos, todos, tiene, servicios]) => {
+        setTieneServicios(servicios.length > 0);
         setItems(turnos);
         const futuros = todos.filter((t) => t.fecha > todayISO);
         setPendientesFuturos(
@@ -114,66 +129,17 @@ export default function AgendaScreen() {
   const totalPendientes = items.filter((t) => t.estado === 'pendiente').length + pendientesFuturos.length;
   const confirmados = items.filter((t) => t.estado === 'confirmado').length;
 
-  const RECORDATORIO_OPCIONES: { label: string; value: NonNullable<Turno['recordatorioCliente']> }[] = [
-    { label: '1h antes', value: '1h' },
-    { label: '2h antes', value: '2h' },
-    { label: '24h antes', value: '24h' },
-    { label: 'Sin recordatorio', value: 'off' },
-  ];
-
-  const recordatorioLabel = (t: Turno) =>
-    RECORDATORIO_OPCIONES.find((o) => o.value === (t.recordatorioCliente ?? '24h'))?.label ?? '24h antes';
-
-  const elegirRecordatorio = (turno: Turno) => {
-    Alert.alert(
-      'Recordatorio al cliente',
-      `Cuánto antes le avisamos a ${turno.clienteNombre}.\nActual: ${recordatorioLabel(turno)}`,
-      [
-        ...RECORDATORIO_OPCIONES.map((opt) => ({
-          text: opt.label,
-          onPress: async () => {
-            await turnosService.actualizarRecordatorio(turno.id, opt.value);
-            cargar();
-          },
-        })),
-        { text: 'Cancelar', style: 'cancel' as const },
-      ],
-    );
-  };
-
+  /**
+   * Tocar un turno abre su detalle, donde está la nota del cliente, la ficha
+   * y las acciones. Antes esto era un Alert con botones: se confirmaba a
+   * ciegas, sin ver lo que el cliente había pedido al reservar.
+   * La agenda se refresca sola al volver (useFocusEffect).
+   */
   const accionarTurno = (turno: Turno) => {
-    if (turno.estado === 'pendiente') {
-      Alert.alert('Confirmar turno', `¿Confirmar el turno de ${turno.clienteNombre}?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Recordatorio al cliente', onPress: () => elegirRecordatorio(turno) },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            await turnosService.actualizarEstado(turno.id, 'confirmado');
-            cargar();
-          },
-        },
-      ]);
-      return;
-    }
-    if (turno.estado === 'confirmado') {
-      Alert.alert(
-        'Turno confirmado',
-        `Cliente: ${turno.clienteNombre}\nMonto: ${formatARS(turno.monto)}`,
-        [
-          { text: 'Cobrar en efectivo', onPress: () => completar(turno, 'efectivo') },
-          { text: 'Cobrar por transferencia', onPress: () => completar(turno, 'transferencia') },
-          { text: 'Cobrar con Mercado Pago', onPress: () => completar(turno, 'mercado_pago') },
-          { text: 'Recordatorio al cliente', onPress: () => elegirRecordatorio(turno) },
-          { text: 'Cancelar', style: 'cancel' },
-        ],
-      );
-    }
-  };
-
-  const completar = async (turno: Turno, metodo: MetodoPago) => {
-    await turnosService.actualizarEstado(turno.id, 'completado', metodo);
-    cargar();
+    router.push({
+      pathname: '/(profesional)/turno-detalle',
+      params: { turnoId: turno.id },
+    });
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -183,8 +149,8 @@ export default function AgendaScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.huge }}>
         <View style={styles.headerWrap}>
           <ScreenHeader
-            eyebrow="Hoy"
-            title={new Date().toLocaleDateString('es-AR', {
+            eyebrow={t('profesional.agenda.eyebrowHoy')}
+            title={new Date().toLocaleDateString(locale, {
               weekday: 'long',
               day: '2-digit',
               month: 'long',
@@ -197,7 +163,7 @@ export default function AgendaScreen() {
               >
                 <Ionicons name="settings-outline" size={18} color={colors.primary} />
                 <Text style={[styles.editAgendaLabel, { color: colors.primary }]}>
-                  {tieneAgenda ? 'Editar horarios' : 'Configurar'}
+                  {tieneAgenda ? t('profesional.agenda.editarHorarios') : t('profesional.agenda.configurar')}
                 </Text>
               </Pressable>
             }
@@ -206,24 +172,24 @@ export default function AgendaScreen() {
 
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
-            <Text style={styles.statLabelLight}>Ingresos</Text>
+            <Text style={styles.statLabelLight}>{t('profesional.agenda.ingresos')}</Text>
             <Text style={styles.statValueLight}>{formatARS(ingresos)}</Text>
             {ingresos > 0 && (
               <View style={styles.desgloseWrap}>
                 {ingresoPorMetodo.efectivo > 0 && (
-                  <Text style={styles.desgloseLine}>💵 Efectivo: {formatARS(ingresoPorMetodo.efectivo)}</Text>
+                  <Text style={styles.desgloseLine}>💵 {t('profesional.agenda.efectivo')}: {formatARS(ingresoPorMetodo.efectivo)}</Text>
                 )}
                 {ingresoPorMetodo.transferencia > 0 && (
-                  <Text style={styles.desgloseLine}>🏦 Transferencia: {formatARS(ingresoPorMetodo.transferencia)}</Text>
+                  <Text style={styles.desgloseLine}>🏦 {t('profesional.agenda.transferencia')}: {formatARS(ingresoPorMetodo.transferencia)}</Text>
                 )}
                 {ingresoPorMetodo.mercado_pago > 0 && (
-                  <Text style={styles.desgloseLine}>🟢 Mercado Pago: {formatARS(ingresoPorMetodo.mercado_pago)}</Text>
+                  <Text style={styles.desgloseLine}>🟢 {t('profesional.agenda.mercadoPago')}: {formatARS(ingresoPorMetodo.mercado_pago)}</Text>
                 )}
                 {ingresoPorMetodo.mixto > 0 && (
-                  <Text style={styles.desgloseLine}>⚖️ Mixto: {formatARS(ingresoPorMetodo.mixto)}</Text>
+                  <Text style={styles.desgloseLine}>⚖️ {t('profesional.agenda.mixto')}: {formatARS(ingresoPorMetodo.mixto)}</Text>
                 )}
                 {ingresoPorMetodo.por_cobrar > 0 && (
-                  <Text style={styles.desgloseLine}>🕐 Por cobrar: {formatARS(ingresoPorMetodo.por_cobrar)}</Text>
+                  <Text style={styles.desgloseLine}>🕐 {t('profesional.agenda.porCobrar')}: {formatARS(ingresoPorMetodo.por_cobrar)}</Text>
                 )}
               </View>
             )}
@@ -231,14 +197,22 @@ export default function AgendaScreen() {
           <View style={styles.statSmallCol}>
             <View style={styles.statSmall}>
               <Text style={styles.statSmallVal}>{totalTurnos}</Text>
-              <Text style={styles.statSmallLbl}>Turnos</Text>
+              <Text style={styles.statSmallLbl}>{t('profesional.agenda.turnos')}</Text>
             </View>
             <View style={styles.statSmall}>
               <Text style={[styles.statSmallVal, { color: colors.warning }]}>{totalPendientes}</Text>
-              <Text style={styles.statSmallLbl}>Pendientes</Text>
+              <Text style={styles.statSmallLbl}>{t('profesional.agenda.pendientes')}</Text>
             </View>
           </View>
         </View>
+
+        {/* Aviso: sin servicios cargados no puede recibir turnos */}
+        {!loading && tieneServicios === false && (
+          <ServiciosStatusBanner
+            onPress={() => router.push('/(profesional)/servicios')}
+            style={{ marginHorizontal: spacing.xxl }}
+          />
+        )}
 
         {/* Estado: sin agenda configurada → CTA para crear */}
         {!loading && tieneAgenda === false && (
@@ -246,18 +220,16 @@ export default function AgendaScreen() {
             <View style={styles.setupIconWrap}>
               <Ionicons name="calendar-outline" size={48} color={colors.primary} />
             </View>
-            <Text style={styles.setupTitle}>Configurá tu agenda</Text>
-            <Text style={styles.setupDesc}>
-              Elegí los días y horarios en los que atendés para que tus clientes puedan reservar turnos con vos.
-            </Text>
+            <Text style={styles.setupTitle}>{t('profesional.agenda.configuraAgendaTitulo')}</Text>
+            <Text style={styles.setupDesc}>{t('profesional.agenda.configuraAgendaDesc')}</Text>
             <Button
-              label="Crear mi agenda"
+              label={t('profesional.agenda.crearAgenda')}
               onPress={() => router.push('/(profesional)/horarios')}
               fullWidth
               style={{ marginTop: spacing.lg }}
             />
             <Button
-              label="Lo hago después"
+              label={t('profesional.agenda.loHagoDespues')}
               variant="ghost"
               onPress={() => setTieneAgenda(true)}
               style={{ marginTop: spacing.xs }}
@@ -269,9 +241,12 @@ export default function AgendaScreen() {
         {(tieneAgenda === true || tieneAgenda === null) && (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Hoy</Text>
+              <Text style={styles.sectionTitle}>{t('profesional.agenda.hoy')}</Text>
               <Text style={styles.sectionMeta}>
-                {confirmados} confirmados · {items.filter((t) => t.estado === 'pendiente').length} pendientes
+                {t('profesional.agenda.resumenHoy', {
+                  confirmados,
+                  pendientes: items.filter((x) => x.estado === 'pendiente').length,
+                })}
               </Text>
             </View>
 
@@ -280,31 +255,31 @@ export default function AgendaScreen() {
             ) : items.length === 0 ? (
               <View style={[styles.emptySmall, { backgroundColor: colors.surfaceAlt, borderRadius: 12 }]}>
                 <Text style={[styles.emptySmallTxt, { color: colors.muted }]}>
-                  Sin turnos para hoy 💆‍♀️
+                  {t('profesional.agenda.sinTurnosHoy')}
                 </Text>
               </View>
             ) : (
-              items.map((t) => (
+              items.map((turno) => (
                 <Pressable
-                  key={t.id}
-                  onPress={() => accionarTurno(t)}
+                  key={turno.id}
+                  onPress={() => accionarTurno(turno)}
                   style={({ pressed }) => [styles.turnoCard, pressed && { opacity: 0.92 }]}
                 >
                   <View style={styles.horaCol}>
-                    <Text style={styles.hora}>{t.hora}</Text>
-                    <Text style={styles.dur}>{t.duracionMin}'</Text>
+                    <Text style={styles.hora}>{turno.hora}</Text>
+                    <Text style={styles.dur}>{turno.duracionMin}'</Text>
                   </View>
                   <View style={styles.divider} />
                   <View style={{ flex: 1, gap: 4 }}>
                     <View style={styles.rowSpace}>
-                      <Text style={styles.cliente}>{t.clienteNombre}</Text>
-                      <Badge label={t.estado} tone={ESTADO_TONE[t.estado]} />
+                      <Text style={styles.cliente}>{turno.clienteNombre}</Text>
+                      <Badge label={t(`estadosTurno.${turno.estado}`)} tone={ESTADO_TONE[turno.estado]} />
                     </View>
-                    <Text style={styles.servicio}>{t.servicioNombre}</Text>
+                    <Text style={styles.servicio}>{turno.servicioNombre}</Text>
                     <View style={styles.rowSpace}>
-                      <Text style={styles.monto}>{formatARS(t.monto)}</Text>
+                      <Text style={styles.monto}>{formatARS(turno.monto)}</Text>
                       <Text style={styles.pago}>
-                        {t.metodoPago ? `💳 ${metodoPagoLabel(t.metodoPago)}` : 'Sin cobrar'}
+                        {turno.metodoPago ? `💳 ${metodoPagoLabel(turno.metodoPago)}` : t('profesional.agenda.sinCobrar')}
                       </Text>
                     </View>
                   </View>
@@ -318,28 +293,28 @@ export default function AgendaScreen() {
         {pendientesFuturos.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Pendientes de confirmación</Text>
+              <Text style={styles.sectionTitle}>{t('profesional.agenda.pendientesConfirmacion')}</Text>
               <Badge label={`${pendientesFuturos.length}`} tone="warning" />
             </View>
-            {pendientesFuturos.map((t) => (
+            {pendientesFuturos.map((turno) => (
               <Pressable
-                key={t.id}
-                onPress={() => accionarTurno(t)}
+                key={turno.id}
+                onPress={() => accionarTurno(turno)}
                 style={({ pressed }) => [styles.turnoCard, pressed && { opacity: 0.92 }]}
               >
                 <View style={styles.horaCol}>
-                  <Text style={styles.hora}>{t.hora}</Text>
-                  <Text style={styles.dur}>{t.duracionMin}'</Text>
+                  <Text style={styles.hora}>{turno.hora}</Text>
+                  <Text style={styles.dur}>{turno.duracionMin}'</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={styles.rowSpace}>
-                    <Text style={styles.cliente}>{t.clienteNombre}</Text>
-                    <Badge label={t.estado} tone={ESTADO_TONE[t.estado]} />
+                    <Text style={styles.cliente}>{turno.clienteNombre}</Text>
+                    <Badge label={t(`estadosTurno.${turno.estado}`)} tone={ESTADO_TONE[turno.estado]} />
                   </View>
-                  <Text style={styles.servicio}>{t.servicioNombre}</Text>
+                  <Text style={styles.servicio}>{turno.servicioNombre}</Text>
                   <Text style={[styles.pago, { color: colors.muted }]}>
-                    📅 {new Date(t.fecha + 'T00:00:00').toLocaleDateString('es-AR', {
+                    📅 {new Date(turno.fecha + 'T00:00:00').toLocaleDateString(locale, {
                       weekday: 'long', day: '2-digit', month: 'long',
                     })}
                   </Text>
@@ -353,28 +328,28 @@ export default function AgendaScreen() {
         {proximosTurnos.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Próximos turnos</Text>
+              <Text style={styles.sectionTitle}>{t('profesional.agenda.proximosTurnos')}</Text>
               <Badge label={`${proximosTurnos.length}`} tone="success" />
             </View>
-            {proximosTurnos.map((t) => (
+            {proximosTurnos.map((turno) => (
               <Pressable
-                key={t.id}
-                onPress={() => accionarTurno(t)}
+                key={turno.id}
+                onPress={() => accionarTurno(turno)}
                 style={({ pressed }) => [styles.turnoCard, pressed && { opacity: 0.92 }]}
               >
                 <View style={styles.horaCol}>
-                  <Text style={styles.hora}>{t.hora}</Text>
-                  <Text style={styles.dur}>{t.duracionMin}'</Text>
+                  <Text style={styles.hora}>{turno.hora}</Text>
+                  <Text style={styles.dur}>{turno.duracionMin}'</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={styles.rowSpace}>
-                    <Text style={styles.cliente}>{t.clienteNombre}</Text>
-                    <Badge label={t.estado} tone={ESTADO_TONE[t.estado]} />
+                    <Text style={styles.cliente}>{turno.clienteNombre}</Text>
+                    <Badge label={t(`estadosTurno.${turno.estado}`)} tone={ESTADO_TONE[turno.estado]} />
                   </View>
-                  <Text style={styles.servicio}>{t.servicioNombre}</Text>
+                  <Text style={styles.servicio}>{turno.servicioNombre}</Text>
                   <Text style={[styles.pago, { color: colors.muted }]}>
-                    📅 {new Date(t.fecha + 'T00:00:00').toLocaleDateString('es-AR', {
+                    📅 {new Date(turno.fecha + 'T00:00:00').toLocaleDateString(locale, {
                       weekday: 'long', day: '2-digit', month: 'long',
                     })}
                   </Text>
@@ -388,9 +363,7 @@ export default function AgendaScreen() {
         {items.length > 0 && (
           <View style={styles.tip}>
             <Ionicons name="bulb-outline" size={18} color={colors.primary} />
-            <Text style={styles.tipText}>
-              Tocá un turno para confirmarlo o registrar el cobro al finalizar.
-            </Text>
+            <Text style={styles.tipText}>{t('profesional.agenda.tip')}</Text>
           </View>
         )}
       </ScrollView>

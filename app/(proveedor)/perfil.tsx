@@ -5,16 +5,24 @@ import { useRouter } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
+import { MpStatusBanner } from '@/components/MpStatusBanner';
 import { useSession } from '@/context/SessionContext';
 import { productosService } from '@/services';
+import { conectarMercadoPago } from '@/services/mp-connect.service';
+import { LanguageModal, useLanguageLabel } from '@/components/LanguageSelector';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import { confirm } from '@/utils/confirm';
 import { PREFERENCIAS_PROVEEDOR_DEFAULT, type PerfilProveedor } from '@/types/models';
 
 export default function PerfilProveedorScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
+  const idiomaActual = useLanguageLabel();
+  const [idiomaModal, setIdiomaModal] = useState(false);
   const router = useRouter();
-  const { user, logout, updateUser } = useSession();
+  const { user, logout, updateUser, refreshUser } = useSession();
+  const [conectandoMP, setConectandoMP] = useState(false);
   const perfil = user?.perfil as PerfilProveedor | undefined;
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -28,7 +36,7 @@ export default function PerfilProveedorScreen() {
   const guardarPref = (cambios: Partial<PerfilProveedor>) => {
     if (!perfil) return;
     updateUser({ perfil: { ...perfil, ...cambios } }).catch(() => {
-      Alert.alert('No se pudo guardar', 'Revisá tu conexión e intentá de nuevo.');
+      Alert.alert(t('perfil.compartido.errorGuardarTitulo'), t('perfil.compartido.errorGuardarMsg'));
     });
   };
 
@@ -50,11 +58,25 @@ export default function PerfilProveedorScreen() {
     }
   };
 
+  const conectarMP = async () => {
+    if (!user) return;
+    setConectandoMP(true);
+    const res = await conectarMercadoPago(user.id);
+    setConectandoMP(false);
+    if (res === 'ok') {
+      await refreshUser();
+      Alert.alert(t('perfil.compartido.cuentaConectadaTitulo'), t('perfil.proveedor.cuentaConectadaMsg'));
+    } else if (res === 'error') {
+      Alert.alert(t('perfil.compartido.mpErrorTitulo'), t('perfil.compartido.mpErrorMsg'));
+    }
+  };
+
   const confirmarLogout = async () => {
     const ok = await confirm({
-      title: 'Cerrar sesion',
-      message: 'Seguro queres salir?',
-      confirmLabel: 'Cerrar sesion',
+      title: t('perfil.compartido.cerrarSesion'),
+      message: t('perfil.compartido.cerrarSesionMsg'),
+      confirmLabel: t('perfil.compartido.cerrarSesion'),
+      cancelLabel: t('comun.cancelar'),
       destructive: true,
     });
     if (ok) await logout();
@@ -63,7 +85,7 @@ export default function PerfilProveedorScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xxl, paddingBottom: spacing.huge }}>
-        <ScreenHeader eyebrow="Tu cuenta" title="Mi perfil" />
+        <ScreenHeader eyebrow={t('perfil.compartido.tuCuenta')} title={t('perfil.compartido.miPerfil')} />
 
         <View style={styles.userBox}>
           <Avatar nombre={user?.nombre ?? '-'} size={72} />
@@ -78,98 +100,128 @@ export default function PerfilProveedorScreen() {
 
         {perfil ? (
           <View style={styles.dataCard}>
-            <Text style={styles.dataTitle}>Datos del comercio</Text>
-            <DataRow label="Razon social" value={perfil.razonSocial} styles={styles} />
-            <DataRow label="CUIT" value={perfil.cuit} styles={styles} />
-            <DataRow label="Rubro" value={perfil.rubro} styles={styles} />
+            <Text style={styles.dataTitle}>{t('perfil.proveedor.datosComercio')}</Text>
+            <DataRow label={t('perfil.proveedor.razonSocial')} value={perfil.razonSocial} styles={styles} />
+            <DataRow label={t('perfil.proveedor.cuit')} value={perfil.cuit} styles={styles} />
+            <DataRow label={t('perfil.proveedor.rubro')} value={perfil.rubro} styles={styles} />
             {perfil.direccion ? (
-              <DataRow label="Direccion" value={perfil.direccion} styles={styles} />
+              <DataRow label={t('perfil.proveedor.direccion')} value={perfil.direccion} styles={styles} />
             ) : null}
-            <DataRow label="Ciudad" value={perfil.ciudad} styles={styles} />
+            <DataRow label={t('perfil.proveedor.ciudad')} value={perfil.ciudad} styles={styles} />
           </View>
         ) : null}
 
-        <SettingsGroup title="Comercio">
+        <SettingsGroup title={t('perfil.proveedor.grupoComercio')}>
           <SettingsRow
             icon="business-outline"
-            label="Datos del comercio"
-            description="Razon social, CUIT, rubro, direccion"
+            label={t('perfil.proveedor.datosComercio')}
+            description={t('perfil.proveedor.datosComercioDesc')}
             onPress={() => router.navigate('/(proveedor)/editar-comercio')}
           />
           <SettingsRow
             icon="cube-outline"
-            label="Catalogo de productos"
-            description="Crear, editar precios y stock"
+            label={t('perfil.proveedor.catalogo')}
+            description={t('perfil.proveedor.catalogoDesc')}
             isLast
             onPress={() => router.navigate('/(proveedor)/productos')}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Ventas y envios">
+        <MpStatusBanner conectado={!!user?.mpConectado} onConnect={conectarMP} />
+
+        <SettingsGroup title={t('perfil.compartido.grupoCobros')}>
+          <SettingsRow
+            icon="card-outline"
+            label={user?.mpConectado ? t('perfil.compartido.mpConectado') : t('perfil.compartido.conectarMP')}
+            description={
+              conectandoMP
+                ? t('perfil.compartido.abriendoMP')
+                : user?.mpConectado
+                  ? t('perfil.proveedor.mpDescConectado')
+                  : t('perfil.proveedor.mpDescConectar')
+            }
+            isLast
+            onPress={conectarMP}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title={t('perfil.proveedor.grupoVentas')}>
           <SettingsRow
             icon="storefront-outline"
-            label="Acepto pedidos"
-            description="Si esta apagado, no aparecemos en busqueda"
+            label={t('perfil.proveedor.aceptoPedidos')}
+            description={t('perfil.proveedor.aceptoPedidosDesc')}
             toggle={aceptaPedidos}
             onToggle={(v) => togglePref(setAceptaPedidos, 'aceptaPedidos', v)}
           />
           <SettingsRow
             icon="bicycle-outline"
-            label="Envio propio"
-            description="Llevas los pedidos vos"
+            label={t('perfil.proveedor.envioPropio')}
+            description={t('perfil.proveedor.envioPropioDesc')}
             toggle={envioPropio}
             onToggle={(v) => togglePref(setEnvioPropio, 'envioPropio', v)}
           />
           <SettingsRow
             icon="location-outline"
-            label="Retiro en local"
+            label={t('perfil.proveedor.retiroLocal')}
             toggle={retiroLocal}
             onToggle={(v) => togglePref(setRetiroLocal, 'retiroLocal', v)}
             isLast
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Notificaciones">
+        <SettingsGroup title={t('perfil.compartido.grupoNotificaciones')}>
           <SettingsRow
             icon="notifications-outline"
-            label="Notificaciones push"
-            description="Nuevos pedidos y mensajes"
+            label={t('perfil.compartido.notifPush')}
+            description={t('perfil.proveedor.notifPushDesc')}
             toggle={pushEnabled}
             onToggle={(v) => togglePref(setPushEnabled, 'notifPush', v)}
           />
           <SettingsRow
             icon="mail-outline"
-            label="Email por cada pedido"
+            label={t('perfil.proveedor.emailPedidos')}
             toggle={emailPedidos}
             onToggle={(v) => togglePref(setEmailPedidos, 'emailPedidos', v)}
             isLast
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Ayuda">
+        <SettingsGroup title={t('perfil.compartido.grupoConfiguracion')}>
+          <SettingsRow
+            icon="language-outline"
+            label={t('idioma.titulo')}
+            description={t('idioma.descripcion')}
+            value={idiomaActual}
+            isLast
+            onPress={() => setIdiomaModal(true)}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title={t('perfil.compartido.grupoAyuda')}>
           <SettingsRow
             icon="help-circle-outline"
-            label="Centro de ayuda"
+            label={t('perfil.compartido.centroAyuda')}
             onPress={() => router.navigate('/(proveedor)/centro-ayuda')}
           />
           <SettingsRow
             icon="shield-checkmark-outline"
-            label="Terminos y privacidad"
+            label={t('perfil.compartido.terminos')}
             isLast
             onPress={() => router.navigate('/(proveedor)/terminos')}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Cuenta">
+        <SettingsGroup title={t('perfil.compartido.grupoCuenta')}>
           <SettingsRow
             icon="log-out-outline"
-            label="Cerrar sesion"
+            label={t('perfil.compartido.cerrarSesion')}
             destructive
             isLast
             onPress={confirmarLogout}
           />
         </SettingsGroup>
       </ScrollView>
+      <LanguageModal visible={idiomaModal} onClose={() => setIdiomaModal(false)} />
     </SafeAreaView>
   );
 }

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Usuario, UserRole, PerfilCliente, PerfilProfesionalSignup, PerfilProveedor, Direccion, PreferenciasNotificaciones } from '@/types/models';
 import { authService, type SignupPayload } from '@/services';
+import { auth as firebaseAuth } from '@/services/firebase';
 
 interface SessionState {
   user: Usuario | null;
@@ -11,7 +12,16 @@ interface SessionState {
   loginWithGoogleAccessToken: (accessToken: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  /**
+   * Cambia la vista activa (cliente ↔ profesional). No convierte la cuenta:
+   * si todavía no está habilitada como profesional, lanza un error.
+   */
   switchRole: (rol: UserRole) => Promise<void>;
+  /** true si la cuenta ya completó el alta profesional. */
+  esProfesional: boolean;
+  /** Da de alta el perfil profesional y deja la vista en 'profesional'. */
+  habilitarProfesional: (perfil: PerfilProfesionalSignup) => Promise<void>;
   updateUser: (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor; direcciones?: Direccion[]; preferencias?: PreferenciasNotificaciones }>) => Promise<void>;
 }
 
@@ -23,6 +33,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = authService.subscribe((u) => {
+      // DIAGNÓSTICO (temporal): las reglas de Firestore exigen
+      // request.auth != null. Si acá no hay uid de Firebase Auth, o no
+      // coincide con u.id, TODA lectura devuelve permission-denied.
+      const authUid = firebaseAuth.currentUser?.uid;
+      console.log(
+        '[sesion] uid firebase:', authUid ?? 'NULL',
+        '| user.id:', u?.id ?? 'NULL',
+        '| rol:', u?.rol ?? '-',
+        '| esProfesional:', u?.esProfesional ?? '-',
+      );
+      if (u && !authUid) {
+        console.warn('[sesion] hay usuario en la app pero NO hay sesión de Firebase Auth');
+      } else if (u && authUid && authUid !== u.id) {
+        console.warn('[sesion] uid de Auth != user.id → las queries apuntan al id equivocado');
+      }
       setUser(u);
       setLoading(false);
     });
@@ -58,6 +83,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    if (!user) return;
+    const fresh = await authService.recargarUsuario(user.id);
+    if (fresh) setUser(fresh);
+  }, [user]);
+
   const updateUser = useCallback(
     async (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor; direcciones?: Direccion[]; preferencias?: PreferenciasNotificaciones }>) => {
       if (!user) return;
@@ -67,11 +98,37 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [user],
   );
 
+  /**
+   * La cuenta está habilitada como profesional. Además del flag y del rol se
+   * mira el perfil: `especialidad` solo la tiene un perfil profesional, así que
+   * una cuenta vieja (sin flag) que ya completó el alta no vuelve a pedirla.
+   */
+  const esProfesional =
+    !!user &&
+    (user.esProfesional === true ||
+      user.rol === 'profesional' ||
+      !!(user.perfil as PerfilProfesionalSignup | undefined)?.especialidad);
+
   const switchRole = useCallback(
     async (rol: UserRole) => {
       if (!user) return;
-      await authService.updateRol(user.id, rol);
-      setUser({ ...user, rol });
+      if (rol === user.rol) return;
+      // Solo se puede entrar a la vista profesional si la cuenta está
+      // habilitada: el alta se hace desde el wizard "convertirse-profesional".
+      if (rol === 'profesional' && !esProfesional) {
+        throw new Error('PERFIL_PROFESIONAL_INCOMPLETO');
+      }
+      const actualizado = await authService.updateRol(user.id, rol);
+      setUser(actualizado);
+    },
+    [user, esProfesional],
+  );
+
+  const habilitarProfesional = useCallback(
+    async (perfil: PerfilProfesionalSignup) => {
+      if (!user) return;
+      const actualizado = await authService.habilitarProfesional(user.id, perfil);
+      setUser(actualizado);
     },
     [user],
   );
@@ -86,18 +143,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       loginWithGoogleAccessToken,
       sendPasswordReset,
       logout,
+      refreshUser,
       switchRole,
+      esProfesional,
+      habilitarProfesional,
       updateUser,
     }),
     [
       user,
       loading,
+      esProfesional,
+      habilitarProfesional,
       loginWithEmail,
       signupWithEmail,
       loginWithGoogleIdToken,
       loginWithGoogleAccessToken,
       sendPasswordReset,
       logout,
+      refreshUser,
       switchRole,
       updateUser,
     ],

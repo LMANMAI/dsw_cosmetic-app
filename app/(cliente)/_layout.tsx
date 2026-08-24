@@ -14,7 +14,9 @@ export default function ClienteLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="profesional/[id]" />
+      <Stack.Screen name="revisar-turno" />
       <Stack.Screen name="datos-personales" />
+      <Stack.Screen name="convertirse-profesional" />
       <Stack.Screen name="direcciones" />
       <Stack.Screen name="centro-ayuda" />
       <Stack.Screen name="terminos" />

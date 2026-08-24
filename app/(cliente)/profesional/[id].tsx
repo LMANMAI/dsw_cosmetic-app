@@ -14,19 +14,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { profesionalesService, turnosService } from '@/services';
+import { profesionalesService, turnosService, pagosService, configService } from '@/services';
+import { calcularTarifaCliente } from '@/services/config.service';
 import { disponibilidadService } from '@/services/disponibilidad.service';
-import type { Disponibilidad, PerfilProfesional, Servicio } from '@/types/models';
+import { valoracionesService } from '@/services/valoraciones.service';
+import type {
+  ComisionOrigen,
+  Disponibilidad,
+  PerfilProfesional,
+  Servicio,
+  Valoracion,
+} from '@/types/models';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS } from '@/utils/format';
-
-const NOMBRE_DIA_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const NOMBRE_DIA_LARGO = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 /** Genera las próximas N fechas que coinciden con los días de disponibilidad. */
 function generarProximasFechas(disponibilidad: Disponibilidad[], cantidad = 7): { fecha: Date; diaSemana: number }[] {
@@ -56,17 +62,26 @@ export default function PerfilProfesionalScreen() {
   const router = useRouter();
   const { user } = useSession();
   const { colors } = useTheme();
+  const { t } = useTranslation();
+  const NOMBRE_DIA_CORTO = t('comun.diasCortos').split(',');
+  const NOMBRE_DIA_LARGO = t('comun.dias').split(',');
   const [profesional, setProfesional] = useState<PerfilProfesional | null>(null);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad[]>([]);
+  const [valoraciones, setValoraciones] = useState<Valoracion[]>([]);
   const [servicioElegido, setServicioElegido] = useState<Servicio | null>(null);
   const [fechaElegida, setFechaElegida] = useState<{ fecha: Date; diaSemana: number } | null>(null);
   const [horarioElegido, setHorarioElegido] = useState<string | null>(null);
   const [slotsDisponibles, setSlotsDisponibles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [reservando, setReservando] = useState(false);
-  const [pagoModal, setPagoModal] = useState<{ turnoId: string; monto: number; servicio: string } | null>(null);
+  /** Tarifa de uso de la app vigente para ESTE cliente (global, personalizada o exenta). */
+  const [tarifaApp, setTarifaApp] = useState<{
+    fraccion: number;
+    porcentaje: number;
+    exento: boolean;
+    origen: ComisionOrigen;
+  }>({ fraccion: 0, porcentaje: 0, exento: false, origen: 'global' });
 
   // Cargar profesional, servicios y disponibilidad
   useEffect(() => {
@@ -80,11 +95,13 @@ export default function PerfilProfesionalScreen() {
       profesionalesService.obtenerPorId(id),
       profesionalesService.listarServiciosDe(id),
       disponibilidadService.listar(id),
+      valoracionesService.listarDelProfesional(id).catch(() => [] as Valoracion[]),
     ])
-      .then(([p, s, d]) => {
+      .then(([p, s, d, vals]) => {
         setProfesional(p);
         setServicios(s);
         setDisponibilidad(d);
+        setValoraciones(vals);
         setServicioElegido(s[0] ?? null);
         if (d.length > 0) {
           const proximas = generarProximasFechas(d, 7);
@@ -97,6 +114,17 @@ export default function PerfilProfesionalScreen() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Tarifa de uso de la app del cliente logueado (config/plataforma + override).
+  useEffect(() => {
+    if (!user?.id) return;
+    let vigente = true;
+    configService
+      .tarifaClienteDetallePara(user.id)
+      .then((d) => { if (vigente) setTarifaApp(d); })
+      .catch(() => {});
+    return () => { vigente = false; };
+  }, [user?.id]);
 
   // Calcular slots cuando cambia el servicio o el día elegido
   useEffect(() => {
@@ -134,6 +162,16 @@ export default function PerfilProfesionalScreen() {
     setHorarioElegido(null);
   }, [id, servicioElegido?.id, fechaElegida]);
 
+  // Resumen real de valoraciones (rating promedio + cantidad) a partir de la base de datos
+  const resumenValoraciones = useMemo(() => {
+    if (valoraciones.length === 0) return null;
+    const suma = valoraciones.reduce((acc, v) => acc + v.puntuacion, 0);
+    return {
+      rating: Math.round((suma / valoraciones.length) * 10) / 10,
+      cantidad: valoraciones.length,
+    };
+  }, [valoraciones]);
+
   // Próximas fechas disponibles
   const proximasFechas = useMemo(
     () => disponibilidad.length === 0 ? [] : generarProximasFechas(disponibilidad, 7),
@@ -141,57 +179,45 @@ export default function PerfilProfesionalScreen() {
   );
 
   // Cálculo de seña según config del profesional
-  const porcentajeAnticipo = (profesional?.anticipoPorcentaje ?? 20) / 100;
+  const pctAnticipo = profesional?.anticipoPorcentaje ?? 20;
+  const porcentajeAnticipo = pctAnticipo / 100;
   const montoSena = servicioElegido ? Math.round(servicioElegido.precio * porcentajeAnticipo) : 0;
 
-  const reservar = async () => {
+  // Tarifa de uso de la app que paga el cliente (se suma al total).
+  const tarifaCliente = servicioElegido
+    ? calcularTarifaCliente(servicioElegido.precio, tarifaApp.fraccion)
+    : 0;
+  const totalCliente = (servicioElegido?.precio ?? 0) + tarifaCliente;
+
+  /**
+   * Ya no reserva directo: lleva al paso "Revisá y confirmá", donde el
+   * cliente repasa el turno y puede dejar una nota. La creación del turno y
+   * el pago de la seña viven ahora en (cliente)/revisar-turno.
+   */
+  const reservar = () => {
     if (!profesional || !servicioElegido || !horarioElegido || !fechaElegida || !user) return;
-    setReservando(true);
-    try {
-      const fd = fechaElegida.fecha;
-      const fechaISO = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
-      const turno = await turnosService.reservar(
-        {
-          clienteId: user.id,
-          clienteNombre: user.nombre,
-          profesionalId: profesional.id,
-          servicioId: servicioElegido.id,
-          servicioNombre: servicioElegido.nombre,
-          fecha: fechaISO,
-          hora: horarioElegido,
-          duracionMin: servicioElegido.duracionMin,
-          monto: servicioElegido.precio,
-          montoSena: montoSena,
-        },
-        profesional.autoConfirmarTurnos,
-      );
-
-      // Si hay seña, mostrar modal de pago
-      if (montoSena > 0) {
-        setPagoModal({ turnoId: turno.id, monto: montoSena, servicio: servicioElegido.nombre });
-      } else {
-        const estadoMsg = profesional.autoConfirmarTurnos ? 'confirmado' : 'pendiente de confirmación';
-        Alert.alert(
-          '¡Turno reservado!',
-          `${servicioElegido.nombre} el ${NOMBRE_DIA_LARGO[fechaElegida.diaSemana]} ${fd.getDate()}/${fd.getMonth() + 1} a las ${horarioElegido} (${estadoMsg}).`,
-          [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
-        );
-      }
-    } finally {
-      setReservando(false);
-    }
-  };
-
-  const simularPagoMP = async () => {
-    if (!pagoModal || !profesional) return;
-    // TODO: Reemplazar con integración real de MercadoPago Checkout Pro
-    await turnosService.confirmarPagoSena(pagoModal.turnoId, profesional.autoConfirmarTurnos);
-    setPagoModal(null);
-    Alert.alert(
-      '¡Pago confirmado!',
-      'Tu seña fue registrada. El turno está confirmado.',
-      [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
-    );
+    const fd = fechaElegida.fecha;
+    const fechaISO = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
+    router.push({
+      pathname: '/(cliente)/revisar-turno',
+      params: {
+        profesionalId: profesional.id,
+        profesionalNombre: profesional.nombre,
+        direccion: profesional.direccion ?? '',
+        servicioId: servicioElegido.id,
+        servicioNombre: servicioElegido.nombre,
+        precio: String(servicioElegido.precio),
+        duracionMin: String(servicioElegido.duracionMin),
+        fecha: fechaISO,
+        hora: horarioElegido,
+        montoSena: String(montoSena),
+        tarifaCliente: String(tarifaCliente),
+        tarifaClientePorcentaje: String(tarifaApp.porcentaje),
+        tarifaClienteExento: tarifaApp.exento ? '1' : '0',
+        tarifaClienteOrigen: tarifaApp.origen,
+        autoConfirmar: profesional.autoConfirmarTurnos ? '1' : '0',
+      },
+    });
   };
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -215,11 +241,11 @@ export default function PerfilProfesionalScreen() {
         </Pressable>
         <View style={styles.empty}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.muted} />
-          <Text style={[styles.emptyTitle, { color: colors.ink }]}>Profesional no encontrado</Text>
+          <Text style={[styles.emptyTitle, { color: colors.ink }]}>{t('cliente.proDetalle.noEncontrado')}</Text>
           <Text style={[styles.emptyText, { color: colors.muted }]}>
-            No pudimos cargar este perfil. Intentá de nuevo.
+            {t('cliente.proDetalle.noEncontradoMsg')}
           </Text>
-          <Button label="Volver" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
+          <Button label={t('comun.volver')} onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
         </View>
       </SafeAreaView>
     );
@@ -252,31 +278,40 @@ export default function PerfilProfesionalScreen() {
             <Text style={styles.heroZona}>📍 {profesional.zona}{profesional.distanciaKm != null ? ` · ${profesional.distanciaKm}km` : ''}</Text>
             <View style={styles.heroStats}>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>⭐ {profesional.rating}</Text>
-                <Text style={styles.statLabel}>{profesional.reviews} reseñas</Text>
+                <Text style={styles.statValue}>⭐ {resumenValoraciones?.rating ?? profesional.rating}</Text>
+                <Text style={styles.statLabel}>{resumenValoraciones?.cantidad ?? profesional.reviews} {t('cliente.proDetalle.resenas')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{servicios.length}</Text>
-                <Text style={styles.statLabel}>servicios</Text>
+                <Text style={styles.statLabel}>{t('cliente.proDetalle.servicios')}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Badge label="Verificada" tone="success" />
+                <Badge label={t('cliente.proDetalle.verificada')} tone="success" />
               </View>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sobre {profesional.nombre.split(' ')[0]}</Text>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.sobre', { nombre: profesional.nombre.split(' ')[0] })}</Text>
           <Text style={styles.descripcion}>{profesional.descripcion}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Servicios y precios</Text>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.serviciosPrecios')}</Text>
+          {servicios.length === 0 && (
+            <View style={styles.sinDisponibilidad}>
+              <Ionicons name="pricetags-outline" size={28} color={colors.muted} />
+              <Text style={styles.sinDisponibilidadTxt}>
+                {t('cliente.proDetalle.sinServicios')}
+              </Text>
+            </View>
+          )}
           {servicios.map((s) => {
             const elegido = servicioElegido?.id === s.id;
+            const senaServicio = Math.round(s.precio * porcentajeAnticipo);
             return (
               <Pressable
                 key={s.id}
@@ -285,7 +320,14 @@ export default function PerfilProfesionalScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.servicioNombre}>{s.nombre}</Text>
-                  <Text style={styles.servicioMeta}>{s.duracionMin} min</Text>
+                  <Text style={styles.servicioMeta}>{t('cliente.proDetalle.minutos', { min: s.duracionMin })}</Text>
+                  {senaServicio > 0 && (
+                    <Text style={styles.servicioSena}>
+                      {pctAnticipo === 100
+                        ? t('cliente.proDetalle.requierePagoTotal', { monto: formatARS(senaServicio) })
+                        : t('cliente.proDetalle.requiereSena', { monto: formatARS(senaServicio), pct: pctAnticipo })}
+                    </Text>
+                  )}
                 </View>
                 <Text style={styles.servicioPrecio}>{formatARS(s.precio)}</Text>
               </Pressable>
@@ -295,12 +337,12 @@ export default function PerfilProfesionalScreen() {
 
         {/* Selección de día */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Elegí un día</Text>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.elegiDia')}</Text>
           {disponibilidad.length === 0 ? (
             <View style={styles.sinDisponibilidad}>
               <Ionicons name="calendar-outline" size={28} color={colors.muted} />
               <Text style={styles.sinDisponibilidadTxt}>
-                Esta profesional aún no configuró sus horarios de atención.
+                {t('cliente.proDetalle.sinHorariosConfig')}
               </Text>
             </View>
           ) : (
@@ -332,10 +374,13 @@ export default function PerfilProfesionalScreen() {
         {fechaElegida && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Horarios disponibles — {NOMBRE_DIA_LARGO[fechaElegida.diaSemana]} {fechaElegida.fecha.getDate()}/{fechaElegida.fecha.getMonth() + 1}
+              {t('cliente.proDetalle.horariosDisponibles', {
+                dia: NOMBRE_DIA_LARGO[fechaElegida.diaSemana],
+                fecha: `${fechaElegida.fecha.getDate()}/${fechaElegida.fecha.getMonth() + 1}`,
+              })}
             </Text>
             {slotsDisponibles.length === 0 ? (
-              <Text style={styles.sinSlots}>No hay horarios disponibles para este día.</Text>
+              <Text style={styles.sinSlots}>{t('cliente.proDetalle.sinSlots')}</Text>
             ) : (
               <View style={styles.horariosGrid}>
                 {slotsDisponibles.map((h) => {
@@ -354,65 +399,66 @@ export default function PerfilProfesionalScreen() {
             )}
           </View>
         )}
+
+        {/* Reseñas de otros clientes */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('cliente.proDetalle.resenasTitulo')}</Text>
+          {valoraciones.length === 0 ? (
+            <View style={styles.sinDisponibilidad}>
+              <Ionicons name="chatbubble-ellipses-outline" size={28} color={colors.muted} />
+              <Text style={styles.sinDisponibilidadTxt}>{t('cliente.proDetalle.sinResenas')}</Text>
+            </View>
+          ) : (
+            valoraciones.map((v) => (
+              <View key={v.id} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewName}>{v.clienteNombre || t('cliente.proDetalle.clienteAnonimo')}</Text>
+                  <Text style={styles.reviewDate}>{v.fecha}</Text>
+                </View>
+                <View style={styles.reviewStars}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Ionicons
+                      key={i}
+                      name={i <= v.puntuacion ? 'star' : 'star-outline'}
+                      size={14}
+                      color={i <= v.puntuacion ? colors.warning : colors.muted}
+                    />
+                  ))}
+                </View>
+                {v.comentario ? (
+                  <Text style={styles.reviewComment}>{v.comentario}</Text>
+                ) : null}
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.footerLabel}>Servicio: {servicioElegido ? formatARS(servicioElegido.precio) : '—'}</Text>
+          <Text style={styles.footerLabel}>{t('cliente.proDetalle.servicioLabel', { monto: servicioElegido ? formatARS(servicioElegido.precio) : '—' })}</Text>
+          {tarifaCliente > 0 && (
+            <Text style={styles.footerLabel}>
+              {t('cliente.proDetalle.tarifaAppLabel', { monto: formatARS(tarifaCliente) })}
+            </Text>
+          )}
           <View style={styles.footerRow}>
             <Text style={styles.footerTotal}>
-              Seña: {montoSena > 0 ? formatARS(montoSena) : '—'}
+              {tarifaCliente > 0
+                ? t('cliente.proDetalle.totalLabel', { monto: formatARS(totalCliente) })
+                : t('cliente.proDetalle.senaLabel', { monto: montoSena > 0 ? formatARS(montoSena) : '—' })}
             </Text>
-            {montoSena > 0 && (
+            {tarifaCliente === 0 && montoSena > 0 && (
               <Text style={styles.footerPct}>({profesional?.anticipoPorcentaje ?? 20}%)</Text>
             )}
           </View>
         </View>
         <Button
-          label={horarioElegido ? `Reservar ${horarioElegido}` : 'Elegí un horario'}
+          label={horarioElegido ? t('cliente.proDetalle.reservarHora', { hora: horarioElegido }) : t('cliente.proDetalle.elegiHorario')}
           onPress={reservar}
-          loading={reservando}
           disabled={!horarioElegido || !servicioElegido || !fechaElegida}
         />
       </View>
-
-      {/* Modal de pago MercadoPago */}
-      <Modal visible={!!pagoModal} animationType="slide" transparent onRequestClose={() => setPagoModal(null)}>
-        <Pressable style={styles.pagoBackdrop} onPress={() => setPagoModal(null)} />
-        <View style={styles.pagoWrap} pointerEvents="box-none">
-          <View style={styles.pagoCard}>
-            <View style={styles.pagoIconWrap}>
-              <Ionicons name="card-outline" size={40} color={colors.primary} />
-            </View>
-            <Text style={styles.pagoTitle}>Pagar seña</Text>
-            <Text style={styles.pagoSub}>{pagoModal?.servicio}</Text>
-
-            <View style={styles.pagoMontoBox}>
-              <Text style={styles.pagoMontoLabel}>Monto a pagar</Text>
-              <Text style={styles.pagoMonto}>{formatARS(pagoModal?.monto ?? 0)}</Text>
-            </View>
-
-            <Pressable
-              style={styles.mpButton}
-              onPress={simularPagoMP}
-            >
-              <Text style={styles.mpButtonText}>Pagar con </Text>
-              <Text style={[styles.mpButtonText, { fontWeight: '800' }]}>Mercado Pago</Text>
-            </Pressable>
-
-            <Pressable onPress={() => {
-              setPagoModal(null);
-              Alert.alert(
-                'Turno reservado sin pago',
-                'Tu turno quedó como pendiente de pago. Podés pagar la seña desde "Mis turnos".',
-                [{ text: 'Ver mis turnos', onPress: () => router.replace('/(cliente)/turnos') }],
-              );
-            }} style={styles.pagoLater}>
-              <Text style={styles.pagoLaterTxt}>Pagar más tarde</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -501,6 +547,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   servicioNombre: { fontSize: 15, fontWeight: '600', color: c.ink },
   servicioMeta: { fontSize: 12, color: c.muted, marginTop: 2 },
+  servicioSena: { fontSize: 12, color: c.primary, fontStyle: 'italic', marginTop: 2 },
   servicioPrecio: { fontSize: 16, fontWeight: '700', color: c.primary },
   sinDisponibilidad: {
     alignItems: 'center',
@@ -516,6 +563,23 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  reviewCard: {
+    backgroundColor: c.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    marginBottom: spacing.sm,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewName: { fontSize: 14, fontWeight: '600', color: c.ink },
+  reviewDate: { fontSize: 12, color: c.muted },
+  reviewStars: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
+  reviewComment: { fontSize: 13, color: c.ink, marginTop: spacing.sm, lineHeight: 19 },
   diasRow: {
     flexDirection: 'row',
     gap: spacing.sm,

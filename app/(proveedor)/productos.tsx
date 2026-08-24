@@ -22,12 +22,14 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { productosService, catalogoService } from '@/services';
 import { uploadImage } from '@/services/upload.service';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import { formatARS } from '@/utils/format';
 import type { Categoria, PerfilProveedor, Producto } from '@/types/models';
 
 export default function ProductosProveedorScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const proveedorId = user?.id ?? '';
@@ -84,12 +86,12 @@ export default function ProductosProveedorScreen() {
 
   const onDelete = (p: Producto) => {
     Alert.alert(
-      'Eliminar producto',
-      `¿Borrar "${p.nombre}"? No se puede deshacer.`,
+      t('proveedor.productos.eliminarTitulo'),
+      t('proveedor.productos.eliminarMsg', { nombre: p.nombre }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('comun.cancelar'), style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: t('comun.eliminar'),
           style: 'destructive',
           onPress: async () => {
             await productosService.eliminar(p.id);
@@ -110,9 +112,9 @@ export default function ProductosProveedorScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.headerWrap}>
         <ScreenHeader
-          eyebrow="Tu catálogo"
-          title="Productos"
-          subtitle={`${items.length} productos cargados`}
+          eyebrow={t('proveedor.productos.eyebrow')}
+          title={t('proveedor.productos.titulo')}
+          subtitle={t('proveedor.productos.subtitulo', { count: items.length })}
         />
       </View>
 
@@ -132,15 +134,14 @@ export default function ProductosProveedorScreen() {
               onDelete={() => onDelete(item)}
               colors={colors}
               styles={styles}
+              t={t}
             />
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="cube-outline" size={32} color={colors.muted} />
-              <Text style={styles.emptyTitle}>Todavía no cargaste productos</Text>
-              <Text style={styles.emptyText}>
-                Tocá el botón rosado para sumar el primero a tu catálogo.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('proveedor.productos.vacioTitulo')}</Text>
+              <Text style={styles.emptyText}>{t('proveedor.productos.vacioMsg')}</Text>
             </View>
           }
         />
@@ -162,6 +163,7 @@ export default function ProductosProveedorScreen() {
         onDelete={editing ? () => onDelete(editing) : undefined}
         colors={colors}
         styles={styles}
+        t={t}
       />
     </SafeAreaView>
   );
@@ -176,6 +178,7 @@ function ProductRow({
   onDelete,
   colors,
   styles,
+  t,
 }: {
   producto: Producto;
   categorias: Categoria[];
@@ -184,6 +187,7 @@ function ProductRow({
   onDelete: () => void;
   colors: ReturnType<typeof import('@/theme').useTheme>['colors'];
   styles: ReturnType<typeof createStyles>;
+  t: TranslateFn;
 }) {
   const stockTone =
     producto.stock === 0 ? colors.danger : producto.stock < 5 ? colors.warning : colors.success;
@@ -192,12 +196,12 @@ function ProductRow({
     <Pressable onPress={onPress} onLongPress={onDelete} style={styles.card}>
       <View style={{ flex: 1 }}>
         <Text style={styles.cardTitle}>{producto.nombre}</Text>
-        <Text style={styles.cardCat}>{cat ? `${cat.emoji} ${cat.nombre}` : producto.categoria}</Text>
+        <Text style={styles.cardCat}>{cat ? `${cat.emoji} ${t(`categorias.${cat.slug}`)}` : producto.categoria}</Text>
         <View style={styles.cardMeta}>
           <Text style={styles.cardPrice}>{formatARS(producto.precio)}</Text>
           <View style={[styles.stockPill, { backgroundColor: `${stockTone}22` }]}>
             <Text style={[styles.stockText, { color: stockTone }]}>
-              Stock: {producto.stock}
+              {t('proveedor.productos.stock', { count: producto.stock })}
             </Text>
           </View>
         </View>
@@ -234,7 +238,7 @@ interface EditorProps {
   styles: ReturnType<typeof createStyles>;
 }
 
-function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelete, colors, styles }: EditorProps) {
+function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelete, colors, styles, t }: EditorProps & { t: TranslateFn }) {
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
   const [stock, setStock] = useState('');
@@ -265,7 +269,7 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
   const elegirImagen = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para subir la foto.');
+      Alert.alert(t('proveedor.productos.permisoNecesarioTitulo'), t('proveedor.productos.permisoGaleriaMsg'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -281,21 +285,21 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
 
   const handleSave = async () => {
     if (!nombre.trim()) {
-      Alert.alert('Falta el nombre', 'Poné un nombre al producto.');
+      Alert.alert(t('proveedor.productos.faltaNombreTitulo'), t('proveedor.productos.faltaNombreMsg'));
       return;
     }
     const precioNum = Number(precio);
     if (Number.isNaN(precioNum) || precioNum < 0) {
-      Alert.alert('Precio inválido', 'Ingresá un número mayor o igual a 0.');
+      Alert.alert(t('proveedor.productos.precioInvalidoTitulo'), t('proveedor.productos.precioInvalidoMsg'));
       return;
     }
     const stockNum = Number(stock);
     if (Number.isNaN(stockNum) || stockNum < 0) {
-      Alert.alert('Stock inválido', 'Ingresá un número mayor o igual a 0.');
+      Alert.alert(t('proveedor.productos.stockInvalidoTitulo'), t('proveedor.productos.stockInvalidoMsg'));
       return;
     }
     if (!categoria) {
-      Alert.alert('Falta la categoría', 'Elegí una categoría para el producto.');
+      Alert.alert(t('proveedor.productos.faltaCategoriaTitulo'), t('proveedor.productos.faltaCategoriaMsg'));
       return;
     }
     setSaving(true);
@@ -308,7 +312,7 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
           imagenUrl = await uploadImage(imagenUri, 'productos');
         } catch (e) {
           console.warn('[productos] upload error', e);
-          Alert.alert('Error al subir la imagen', 'Probá de nuevo en unos segundos.');
+          Alert.alert(t('proveedor.productos.errorSubirImagenTitulo'), t('proveedor.productos.errorSubirImagenMsg'));
           return;
         } finally {
           setSubiendo(false);
@@ -344,21 +348,21 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
           <View style={styles.handle} />
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.xxl }}>
             <Text style={styles.sheetTitle}>
-              {producto ? 'Editar producto' : 'Nuevo producto'}
+              {producto ? t('proveedor.productos.editarProducto') : t('proveedor.productos.nuevoProducto')}
             </Text>
 
-            <Field label="Nombre" required colors={colors} styles={styles}>
+            <Field label={t('proveedor.productos.nombre')} required colors={colors} styles={styles}>
               <TextInput
                 style={styles.input}
                 value={nombre}
                 onChangeText={setNombre}
-                placeholder="Esmalte permanente rojo"
+                placeholder={t('proveedor.productos.nombrePlaceholder')}
                 placeholderTextColor={colors.muted}
               />
             </Field>
 
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <Field label="Precio (ARS)" required style={{ flex: 1 }} colors={colors} styles={styles}>
+              <Field label={t('proveedor.productos.precioLabel')} required style={{ flex: 1 }} colors={colors} styles={styles}>
                 <TextInput
                   style={styles.input}
                   value={precio}
@@ -368,7 +372,7 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
                   placeholderTextColor={colors.muted}
                 />
               </Field>
-              <Field label="Stock" required style={{ flex: 1 }} colors={colors} styles={styles}>
+              <Field label={t('proveedor.productos.stockLabel')} required style={{ flex: 1 }} colors={colors} styles={styles}>
                 <TextInput
                   style={styles.input}
                   value={stock}
@@ -380,7 +384,7 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
               </Field>
             </View>
 
-            <Field label="Categoría" required colors={colors} styles={styles}>
+            <Field label={t('proveedor.productos.categoriaLabel')} required colors={colors} styles={styles}>
               <View style={styles.chipsRow}>
                 {categorias.map((c) => {
                   const active = categoria === c.slug;
@@ -391,7 +395,7 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
                       style={[styles.chip, active && styles.chipActive]}
                     >
                       <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
-                        {c.emoji} {c.nombre}
+                        {c.emoji} {t(`categorias.${c.slug}`)}
                       </Text>
                     </Pressable>
                   );
@@ -399,32 +403,32 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
               </View>
             </Field>
 
-            <Field label="Descripción" colors={colors} styles={styles}>
+            <Field label={t('proveedor.productos.descripcion')} colors={colors} styles={styles}>
               <TextInput
                 style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
                 value={descripcion}
                 onChangeText={setDescripcion}
-                placeholder="Detalles, aplicaciones, presentación..."
+                placeholder={t('proveedor.productos.descripcionPlaceholder')}
                 placeholderTextColor={colors.muted}
                 multiline
               />
             </Field>
 
-            <Field label="Imagen (opcional)" colors={colors} styles={styles}>
+            <Field label={t('proveedor.productos.imagenOpcional')} colors={colors} styles={styles}>
               <Pressable style={styles.imagePicker} onPress={elegirImagen}>
                 {imagenUri ? (
                   <Image source={{ uri: imagenUri }} style={styles.imagePreview} resizeMode="cover" />
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Ionicons name="camera-outline" size={28} color={colors.muted} />
-                    <Text style={styles.imagePlaceholderText}>Tocá para elegir una foto</Text>
+                    <Text style={styles.imagePlaceholderText}>{t('proveedor.productos.tocaElegirFoto')}</Text>
                   </View>
                 )}
               </Pressable>
               {imagenUri ? (
                 <Pressable onPress={() => setImagenUri(null)} hitSlop={8} style={styles.removeImageLink}>
                   <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                  <Text style={styles.removeImageText}>Quitar imagen</Text>
+                  <Text style={styles.removeImageText}>{t('proveedor.productos.quitarImagen')}</Text>
                 </Pressable>
               ) : null}
             </Field>
@@ -434,10 +438,10 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
               variant="dark"
               label={
                 subiendo
-                  ? 'Subiendo imagen...'
+                  ? t('proveedor.productos.subiendoImagen')
                   : producto
-                    ? 'Guardar cambios'
-                    : 'Crear producto'
+                    ? t('proveedor.productos.guardarCambios')
+                    : t('proveedor.productos.crearProducto')
               }
               onPress={handleSave}
               loading={saving || subiendo}
@@ -446,11 +450,11 @@ function ProductEditor({ visible, producto, categorias, onClose, onSave, onDelet
             {onDelete ? (
               <Pressable onPress={onDelete} style={styles.deleteLink} hitSlop={8}>
                 <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                <Text style={styles.deleteLinkLabel}>Eliminar producto</Text>
+                <Text style={styles.deleteLinkLabel}>{t('proveedor.productos.eliminarProducto')}</Text>
               </Pressable>
             ) : null}
             <Pressable onPress={onClose} style={styles.cancelLink} hitSlop={8}>
-              <Text style={styles.cancelLinkLabel}>Cancelar</Text>
+              <Text style={styles.cancelLinkLabel}>{t('comun.cancelar')}</Text>
             </Pressable>
           </ScrollView>
         </View>

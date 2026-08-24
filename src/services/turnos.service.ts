@@ -11,6 +11,7 @@ import {
 import { db } from './firebase';
 import type { CierreCaja, DetalleCobro, EstadoTurno, MetodoPago, Turno } from '@/types/models';
 import { COMISION_PLATAFORMA } from '@/types/models';
+import { configService } from './config.service';
 
 const COLLECTION = 'turnos';
 
@@ -43,27 +44,30 @@ export const turnosService = {
   },
 
   /** Crea un turno nuevo.
-   *  - Si hay seña > 0: estado = pendiente_pago (espera pago por MercadoPago)
-   *  - Si no hay seña y autoConfirmar: estado = confirmado
-   *  - Si no hay seña y no autoConfirmar: estado = pendiente */
+   *  - Si hay algo para cobrar al reservar (seña y/o tarifa de uso de la app):
+   *    estado = pendiente_pago (espera el pago por MercadoPago)
+   *  - Si no hay nada que cobrar y autoConfirmar: estado = confirmado
+   *  - Si no hay nada que cobrar y no autoConfirmar: estado = pendiente */
   async reservar(input: Omit<Turno, 'id' | 'estado'>, autoConfirmar?: boolean): Promise<Turno> {
-    const tieneSeña = (input.montoSena ?? 0) > 0;
+    const aCobrarAhora = (input.montoSena ?? 0) + (input.tarifaCliente ?? 0);
     let estado: EstadoTurno;
-    if (tieneSeña) {
+    if (aCobrarAhora > 0) {
       estado = 'pendiente_pago';
     } else {
       estado = autoConfirmar ? 'confirmado' : 'pendiente';
     }
-    const nuevo = { ...input, estado, senaPagada: false };
+    const nuevo = { ...input, estado, senaPagada: false, autoConfirmar: !!autoConfirmar };
     const ref = await addDoc(collection(db, COLLECTION), nuevo);
     return { ...nuevo, id: ref.id };
   },
 
-  /** Marca la seña como pagada y avanza el turno al estado correspondiente. */
+  /** Marca la seña (y la tarifa de uso, que se cobra en el mismo checkout)
+   *  como pagadas y avanza el turno al estado correspondiente. */
   async confirmarPagoSena(turnoId: string, autoConfirmar?: boolean): Promise<void> {
     const estado: EstadoTurno = autoConfirmar ? 'confirmado' : 'pendiente';
     await updateDoc(doc(db, COLLECTION, turnoId), {
       senaPagada: true,
+      tarifaClientePagada: true,
       metodoPago: 'mercado_pago',
       estado,
     });
@@ -81,10 +85,19 @@ export const turnosService = {
     if (metodo) cambios.metodoPago = metodo;
 
     // Al completar, calcular comisión de la plataforma
+    // (global de config/plataforma, personalizada del profesional, o 0 si
+    // tiene exención vigente por premio de competencia).
+    // Se snapshot-ea el % aplicado en el turno para que el histórico quede
+    // congelado aunque después se ajuste la comisión.
     if (estado === 'completado') {
       const snap = await getDoc(ref);
       const turno = snap.data() as Turno;
-      cambios.comisionPlataforma = Math.round(turno.monto * COMISION_PLATAFORMA);
+      const { fraccion, porcentaje, exento, origen } =
+        await configService.comisionDetallePara(turno.profesionalId);
+      cambios.comisionPlataforma = Math.round(turno.monto * fraccion);
+      cambios.comisionPorcentaje = porcentaje;
+      cambios.comisionExento = exento;
+      cambios.comisionOrigen = origen;
     }
 
     await updateDoc(ref, cambios);
@@ -98,6 +111,12 @@ export const turnosService = {
     recordatorioCliente: NonNullable<Turno['recordatorioCliente']>,
   ): Promise<void> {
     await updateDoc(doc(db, COLLECTION, turnoId), { recordatorioCliente });
+  },
+
+  /** Trae un turno puntual por id (lo usa la pantalla de detalle). */
+  async obtener(turnoId: string): Promise<Turno | null> {
+    const snap = await getDoc(doc(db, COLLECTION, turnoId));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Turno) : null;
   },
 
   /** Marca un turno como cancelado. */

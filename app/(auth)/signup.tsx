@@ -20,19 +20,24 @@ import {
   AuthDivider,
   AuthHero,
   AuthInput,
+  AuthMultiSelect,
   AuthSelect,
   GoogleGlyph,
   SocialButton,
 } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
+import { useCategorias } from '@/hooks/useCategorias';
 import { rubrosService } from '@/services/rubros.service';
 import type { Rubro } from '@/data/rubros';
 import { useGoogleSignIn } from '@/services/google-auth';
+import { describirErrorGoogle } from '@/services/google-native';
 import { uploadImage } from '@/services/upload.service';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
-import { formatCuit, cuitCompleto, cuitValido } from '@/utils/format';
+import { formatCuit } from '@/utils/format';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type {
+  CategoriaSlug,
   PerfilCliente,
   PerfilProfesionalSignup,
   PerfilProveedor,
@@ -40,14 +45,15 @@ import type {
 
 type SignupRole = 'cliente' | 'profesional' | 'proveedor';
 
-const ROLES: { id: SignupRole; label: string; emoji: string; desc: string }[] = [
-  { id: 'cliente', label: 'Cliente', emoji: '\u{1F486}‍♀️', desc: 'Reservar turnos y comprar productos' },
-  { id: 'profesional', label: 'Profesional', emoji: '\u{1F485}', desc: 'Manejar agenda y atender clientes' },
-  { id: 'proveedor', label: 'Proveedor', emoji: '\u{1F4E6}', desc: 'Vender insumos a profesionales' },
+const ROLES: { id: SignupRole; emoji: string }[] = [
+  { id: 'cliente', emoji: '\u{1F486}‍♀️' },
+  { id: 'profesional', emoji: '\u{1F485}' },
+  { id: 'proveedor', emoji: '\u{1F4E6}' },
 ];
 
 export default function SignupScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { signupWithEmail } = useSession();
@@ -62,7 +68,7 @@ export default function SignupScreen() {
 
   const [ciudadCli, setCiudadCli] = useState('');
 
-  const [especialidad, setEspecialidad] = useState('');
+  const [especialidades, setEspecialidades] = useState<CategoriaSlug[]>([]);
   const [ubicacionPro, setUbicacionPro] = useState<DireccionSeleccionada | null>(null);
   const [aniosExp, setAniosExp] = useState('');
   const [matricula, setMatricula] = useState('');
@@ -98,10 +104,33 @@ export default function SignupScreen() {
     };
   }, [rol, rubros.length]);
 
+  // Especialidades = categorías del catálogo (las mismas que después usa para
+  // armar sus servicios). Se cargan recién cuando elige el rol profesional.
+  const { categorias, loading: categoriasLoading } = useCategorias(rol === 'profesional');
+
+  const opcionesEspecialidad = useMemo(
+    () =>
+      categorias.map((c) => ({
+        value: c.slug,
+        label: t(`categorias.${c.slug}`),
+        emoji: c.emoji,
+      })),
+    [categorias, t],
+  );
+
+  /** Texto legible que se guarda junto a los slugs (para mostrar sin traducir). */
+  const especialidadTexto = useMemo(
+    () =>
+      especialidades
+        .map((slug) => opcionesEspecialidad.find((o) => o.value === slug)?.label ?? slug)
+        .join(', '),
+    [especialidades, opcionesEspecialidad],
+  );
+
   const elegirFotoSalon = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para subir la foto.');
+      Alert.alert(t('auth.signup.permisoNecesarioTitulo'), t('auth.signup.permisoGaleriaMsg'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -117,9 +146,14 @@ export default function SignupScreen() {
 
   const necesitaFotoSalon = modalidad === 'salon' || modalidad === 'ambos';
 
-  const { request: googleRequest, promptAsync: promptGoogle } = useGoogleSignIn({
-    onError: () =>
-      Alert.alert('Google Sign-In', 'No pudimos completar el ingreso con Google.'),
+  const {
+    ready: googleReady,
+    disponible: googleDisponible,
+    loading: googleLoading,
+    promptAsync: promptGoogle,
+  } = useGoogleSignIn({
+    onError: (e) =>
+      Alert.alert(t('auth.googleErrorTitulo'), describirErrorGoogle(e)),
   });
 
   const perfilExtra: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor =
@@ -127,7 +161,8 @@ export default function SignupScreen() {
       switch (rol) {
         case 'profesional':
           return {
-            especialidad: especialidad.trim(),
+            especialidad: especialidadTexto,
+            categorias: especialidades,
             ciudad: ubicacionPro?.ciudad ?? '',
             direccion: ubicacionPro?.direccion ?? '',
             aniosExperiencia: Number(aniosExp) || 0,
@@ -141,7 +176,8 @@ export default function SignupScreen() {
         case 'proveedor':
           return {
             razonSocial: razonSocial.trim(),
-            cuit: cuit.trim(),
+            // Opcional: si lo dejan vacío no se guarda el campo.
+            cuit: cuit.trim() || undefined,
             rubro: rubro.trim(),
             ciudad: ubicacionProv?.ciudad ?? '',
             direccion: ubicacionProv?.direccion ?? '',
@@ -151,29 +187,26 @@ export default function SignupScreen() {
         default:
           return { ciudad: ciudadCli.trim() || undefined };
       }
-    }, [rol, especialidad, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ubicacionProv, ciudadCli]);
+    }, [rol, especialidades, especialidadTexto, ubicacionPro, aniosExp, matricula, instagram, modalidad, razonSocial, cuit, rubro, ubicacionProv, ciudadCli]);
 
   const validate = (): string | null => {
-    if (!nombre.trim()) return 'Ingresá tu nombre.';
-    if (!email.trim()) return 'Ingresá tu email.';
-    if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
-    if (password !== confirm) return 'Las contraseñas no coinciden.';
+    if (!nombre.trim()) return t('auth.signup.validaciones.nombre');
+    if (!email.trim()) return t('auth.signup.validaciones.email');
+    if (password.length < 6) return t('auth.signup.validaciones.password');
+    if (password !== confirm) return t('auth.signup.validaciones.passwordNoCoincide');
     if (rol === 'profesional') {
-      const p = perfilExtra as PerfilProfesionalSignup;
-      if (!p.especialidad) return 'Ingresá tu especialidad.';
-      if (!ubicacionPro) return 'Seleccioná tu dirección en el buscador.';
+      if (especialidades.length === 0) return t('auth.signup.validaciones.especialidad');
+      if (!ubicacionPro) return t('auth.signup.validaciones.direccion');
       if ((modalidad === 'salon' || modalidad === 'ambos') && !fotoSalonUri) {
-        return 'Subí una foto de tu salón.';
+        return t('auth.signup.validaciones.fotoSalon');
       }
     }
     if (rol === 'proveedor') {
       const p = perfilExtra as PerfilProveedor;
-      if (!p.razonSocial) return 'Ingresá la razón social.';
-      if (!p.cuit) return 'Ingresá el CUIT.';
-      if (!cuitCompleto(p.cuit)) return 'El CUIT debe tener 11 dígitos (XX-XXXXXXXX-X).';
-      if (!cuitValido(p.cuit)) return 'El CUIT no es válido. Revisá los números.';
-      if (!p.rubro) return 'Elegí tu rubro.';
-      if (!ubicacionProv) return 'Seleccioná tu dirección en el buscador.';
+      if (!p.razonSocial) return t('auth.signup.validaciones.razonSocial');
+      // CUIT/CUIL es opcional y no se valida: se guarda tal cual lo cargan.
+      if (!p.rubro) return t('auth.signup.validaciones.rubro');
+      if (!ubicacionProv) return t('auth.signup.validaciones.direccion');
     }
     return null;
   };
@@ -181,7 +214,7 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     const err = validate();
     if (err) {
-      Alert.alert('Revisá los datos', err);
+      Alert.alert(t('auth.signup.revisaDatosTitulo'), err);
       return;
     }
     setLoading(true);
@@ -208,8 +241,8 @@ export default function SignupScreen() {
     } catch (e: any) {
       console.warn('[auth] signup error', e);
       Alert.alert(
-        'No pudimos crear la cuenta',
-        mapSignupError(e?.code) ?? 'Probá de nuevo en unos minutos.',
+        t('auth.signup.errorTitulo'),
+        mapSignupError(e?.code, t) ?? t('auth.signup.errorFallback'),
       );
     } finally {
       setLoading(false);
@@ -231,13 +264,13 @@ export default function SignupScreen() {
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.title}>
-              Sumate a{'\n'}
-              <Text style={{ color: colors.primary }}>BeautyApp</Text>
+              {t('auth.signup.tituloPrefijo')}{'\n'}
+              <Text style={{ color: colors.primary }}>YOFI</Text>
             </Text>
-            <Text style={styles.subtitle}>Elegí cómo querés usar la app y completá tus datos.</Text>
+            <Text style={styles.subtitle}>{t('auth.signup.subtitulo')}</Text>
 
 
-            <Text style={styles.sectionLabel}>Soy</Text>
+            <Text style={styles.sectionLabel}>{t('auth.signup.soy')}</Text>
             <View style={styles.roleRow}>
               {ROLES.map((r) => {
                 const active = rol === r.id;
@@ -249,26 +282,28 @@ export default function SignupScreen() {
                   >
                     <Text style={styles.roleEmoji}>{r.emoji}</Text>
                     <Text style={[styles.roleLabel, active && styles.roleLabelActive]}>
-                      {r.label}
+                      {t(`comun.roles.${r.id}`)}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
-            <Text style={styles.roleDesc}>{ROLES.find((r) => r.id === rol)!.desc}</Text>
+            <Text style={styles.roleDesc}>{t(`auth.signup.rol${rol.charAt(0).toUpperCase()}${rol.slice(1)}Desc`)}</Text>
 
-            <Text style={styles.sectionLabel}>Tus datos</Text>
+            <Text style={styles.sectionLabel}>{t('auth.signup.tusDatos')}</Text>
             <AuthInput
               icon="person-outline"
               placeholder={
-                rol === 'proveedor' ? 'Nombre del responsable' : 'Tu nombre y apellido'
+                rol === 'proveedor'
+                  ? t('auth.signup.nombreResponsablePlaceholder')
+                  : t('auth.signup.nombrePlaceholder')
               }
               value={nombre}
               onChangeText={setNombre}
             />
             <AuthInput
               icon="mail-outline"
-              placeholder="Tu email"
+              placeholder={t('auth.signup.emailPlaceholder')}
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
@@ -276,7 +311,7 @@ export default function SignupScreen() {
             />
             <AuthInput
               icon="call-outline"
-              placeholder="Tu teléfono (opcional)"
+              placeholder={t('auth.signup.telefonoPlaceholder')}
               keyboardType="phone-pad"
               value={telefono}
               onChangeText={setTelefono}
@@ -285,7 +320,7 @@ export default function SignupScreen() {
             {rol === 'cliente' ? (
               <AuthInput
                 icon="location-outline"
-                placeholder="Tu ciudad (opcional)"
+                placeholder={t('auth.signup.ciudadPlaceholder')}
                 value={ciudadCli}
                 onChangeText={setCiudadCli}
               />
@@ -293,44 +328,48 @@ export default function SignupScreen() {
 
             {rol === 'profesional' ? (
               <>
-                <AuthInput
+                <AuthMultiSelect
                   icon="brush-outline"
-                  placeholder="Especialidad (uñas, pestañas, masajes...)"
-                  value={especialidad}
-                  onChangeText={setEspecialidad}
+                  placeholder={t('auth.signup.especialidadPlaceholder')}
+                  title={t('auth.signup.especialidadTitulo')}
+                  values={especialidades}
+                  options={opcionesEspecialidad}
+                  onChange={(v) => setEspecialidades(v as CategoriaSlug[])}
+                  loading={categoriasLoading}
+                  doneLabel={t('comun.aceptar')}
                 />
-                <Text style={styles.sectionLabel}>Dirección de trabajo</Text>
+                <Text style={styles.sectionLabel}>{t('auth.signup.direccionTrabajo')}</Text>
                 <DireccionAutocomplete
                   onSelect={setUbicacionPro}
-                  placeholder="Buscá tu dirección..."
+                  placeholder={t('auth.signup.buscaDireccionPlaceholder')}
                 />
                 <AuthInput
                   icon="time-outline"
-                  placeholder="Años de experiencia"
+                  placeholder={t('auth.signup.aniosExpPlaceholder')}
                   keyboardType="number-pad"
                   value={aniosExp}
                   onChangeText={setAniosExp}
                 />
                 <AuthInput
                   icon="ribbon-outline"
-                  placeholder="Matrícula (opcional)"
+                  placeholder={t('auth.signup.matriculaPlaceholder')}
                   value={matricula}
                   onChangeText={setMatricula}
                 />
                 <AuthInput
                   icon="logo-instagram"
-                  placeholder="Instagram (opcional, sin @)"
+                  placeholder={t('auth.signup.instagramPlaceholder')}
                   autoCapitalize="none"
                   value={instagram}
                   onChangeText={setInstagram}
                 />
 
-                <Text style={styles.sectionLabel}>Modalidad de trabajo</Text>
+                <Text style={styles.sectionLabel}>{t('auth.signup.modalidadTrabajo')}</Text>
                 <View style={styles.roleRow}>
                   {([
-                    { id: 'salon' as const, label: 'Salón', emoji: '\u{1F3E0}' },
-                    { id: 'domicilio' as const, label: 'A domicilio', emoji: '\u{1F697}' },
-                    { id: 'ambos' as const, label: 'Ambos', emoji: '✨' },
+                    { id: 'salon' as const, label: t('auth.signup.modalidadSalon'), emoji: '\u{1F3E0}' },
+                    { id: 'domicilio' as const, label: t('auth.signup.modalidadDomicilio'), emoji: '\u{1F697}' },
+                    { id: 'ambos' as const, label: t('auth.signup.modalidadAmbos'), emoji: '✨' },
                   ]).map((m) => {
                     const active = modalidad === m.id;
                     return (
@@ -350,7 +389,7 @@ export default function SignupScreen() {
 
                 {necesitaFotoSalon ? (
                   <>
-                    <Text style={styles.sectionLabel}>Foto del salón</Text>
+                    <Text style={styles.sectionLabel}>{t('auth.signup.fotoSalon')}</Text>
                     <Pressable style={styles.fotoPicker} onPress={elegirFotoSalon}>
                       {fotoSalonUri ? (
                         <Image
@@ -362,7 +401,7 @@ export default function SignupScreen() {
                         <View style={styles.fotoPlaceholder}>
                           <Ionicons name="camera-outline" size={32} color={colors.muted} />
                           <Text style={styles.fotoPlaceholderText}>
-                            Tocá para elegir una foto
+                            {t('auth.signup.tocaElegirFoto')}
                           </Text>
                         </View>
                       )}
@@ -376,13 +415,13 @@ export default function SignupScreen() {
               <>
                 <AuthInput
                   icon="business-outline"
-                  placeholder="Razón social del comercio"
+                  placeholder={t('auth.signup.razonSocialPlaceholder')}
                   value={razonSocial}
                   onChangeText={setRazonSocial}
                 />
                 <AuthInput
                   icon="document-text-outline"
-                  placeholder="CUIT (XX-XXXXXXXX-X)"
+                  placeholder={t('auth.signup.cuitPlaceholder')}
                   keyboardType="number-pad"
                   value={cuit}
                   onChangeText={(t) => setCuit(formatCuit(t))}
@@ -390,8 +429,8 @@ export default function SignupScreen() {
                 />
                 <AuthSelect
                   icon="cube-outline"
-                  placeholder={rubrosLoading ? 'Cargando rubros...' : 'Elegí tu rubro'}
-                  title="¿Qué rubro vendés?"
+                  placeholder={rubrosLoading ? t('auth.signup.cargandoRubros') : t('auth.signup.elegiRubro')}
+                  title={t('auth.signup.queRubroVendes')}
                   value={rubro || null}
                   loading={rubrosLoading}
                   options={rubros.map((r) => ({
@@ -401,18 +440,18 @@ export default function SignupScreen() {
                   }))}
                   onChange={setRubro}
                 />
-                <Text style={styles.sectionLabel}>Dirección del comercio</Text>
+                <Text style={styles.sectionLabel}>{t('auth.signup.direccionComercio')}</Text>
                 <DireccionAutocomplete
                   onSelect={setUbicacionProv}
-                  placeholder="Buscá la dirección de tu comercio..."
+                  placeholder={t('auth.signup.buscaDireccionComercioPlaceholder')}
                 />
               </>
             ) : null}
 
-            <Text style={styles.sectionLabel}>Contraseña</Text>
+            <Text style={styles.sectionLabel}>{t('auth.signup.passwordSeccion')}</Text>
             <AuthInput
               icon="lock-closed-outline"
-              placeholder="Mínimo 6 caracteres"
+              placeholder={t('auth.signup.passwordPlaceholder')}
               secureTextEntry={!showPassword}
               showToggle
               secureVisible={showPassword}
@@ -422,7 +461,7 @@ export default function SignupScreen() {
             />
             <AuthInput
               icon="lock-closed-outline"
-              placeholder="Repetí la contraseña"
+              placeholder={t('auth.signup.confirmPlaceholder')}
               secureTextEntry={!showPassword}
               value={confirm}
               onChangeText={setConfirm}
@@ -430,31 +469,33 @@ export default function SignupScreen() {
 
             <Button
               variant="primary"
-              label="Crear cuenta"
+              label={t('auth.signup.crearCuenta')}
               loading={loading}
               fullWidth
               onPress={handleSignup}
               style={{ marginTop: spacing.lg }}
             />
 
-            <AuthDivider />
+            <AuthDivider label={t('auth.dividerLabel')} />
 
             <SocialButton
-              label="Continuar con Google"
+              label={t('auth.continuarGoogle')}
               iconRender={<GoogleGlyph />}
-              disabled={!googleRequest}
+              disabled={!googleReady || googleLoading}
               onPress={() => promptGoogle()}
             />
             <Text style={styles.googleHint}>
-              <Ionicons name="information-circle-outline" size={12} color={colors.muted} /> Al usar
-              Google se crea una cuenta de cliente. Podés cambiar a profesional o proveedor desde tu
-              perfil.
+              <Ionicons name="information-circle-outline" size={12} color={colors.muted} />{' '}
+              {t('auth.signup.googleHint')}
             </Text>
+            {!googleDisponible && (
+              <Text style={styles.googleHint}>{t('auth.googleRequiereDevBuild')}</Text>
+            )}
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>¿Ya tenés cuenta? </Text>
+              <Text style={styles.footerText}>{t('auth.signup.yaTenesCuenta')}</Text>
               <Pressable onPress={() => router.push('/(auth)/login')} hitSlop={6}>
-                <Text style={styles.footerLink}>Ingresar</Text>
+                <Text style={styles.footerLink}>{t('auth.signup.ingresar')}</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -464,16 +505,16 @@ export default function SignupScreen() {
   );
 }
 
-function mapSignupError(code?: string): string | null {
+function mapSignupError(code: string | undefined, t: TranslateFn): string | null {
   switch (code) {
     case 'auth/email-already-in-use':
-      return 'Ya existe una cuenta con ese email.';
+      return t('auth.signup.errores.emailEnUso');
     case 'auth/invalid-email':
-      return 'El email no es válido.';
+      return t('auth.signup.errores.emailInvalido');
     case 'auth/weak-password':
-      return 'La contraseña es muy débil.';
+      return t('auth.signup.errores.passwordDebil');
     case 'auth/network-request-failed':
-      return 'Sin conexión. Revisá tu internet.';
+      return t('auth.signup.errores.sinConexion');
     default:
       return null;
   }

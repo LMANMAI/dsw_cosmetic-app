@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { valoracionesService } from '@/services/valoraciones.service';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { Valoracion } from '@/types/models';
@@ -14,6 +15,7 @@ import type { Valoracion } from '@/types/models';
 export default function ReputacionScreen() {
   const { user } = useSession();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const [valoraciones, setValoraciones] = useState<Valoracion[]>([]);
   const [rating, setRating] = useState(0);
@@ -55,7 +57,7 @@ export default function ReputacionScreen() {
           >
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
           </Pressable>
-          <ScreenHeader eyebrow="Mi negocio" title="Mi reputación" />
+          <ScreenHeader eyebrow={t('profesional.reputacion.eyebrow')} title={t('profesional.reputacion.titulo')} />
           <ActivityIndicator style={{ marginTop: spacing.huge }} color={colors.primary} />
         </ScrollView>
       </SafeAreaView>
@@ -88,7 +90,7 @@ export default function ReputacionScreen() {
             ))}
           </View>
           <Text style={styles.totalReviews}>
-            {valoraciones.length} {valoraciones.length === 1 ? 'reseña' : 'reseñas'}
+            {valoraciones.length} {valoraciones.length === 1 ? t('profesional.reputacion.resena') : t('profesional.reputacion.resenas')}
           </Text>
         </View>
 
@@ -115,14 +117,12 @@ export default function ReputacionScreen() {
         {valoraciones.length === 0 ? (
           <View style={styles.emptyBox}>
             <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.muted} />
-            <Text style={styles.emptyText}>Aún no tenés valoraciones</Text>
-            <Text style={styles.emptyHint}>
-              Cuando tus clientes completen un turno podrán dejarte una reseña.
-            </Text>
+            <Text style={styles.emptyText}>{t('profesional.reputacion.sinValoraciones')}</Text>
+            <Text style={styles.emptyHint}>{t('profesional.reputacion.sinValoracionesHint')}</Text>
           </View>
         ) : (
           <View style={{ marginTop: spacing.xl }}>
-            <Text style={styles.sectionTitle}>Reseñas de clientes</Text>
+            <Text style={styles.sectionTitle}>{t('profesional.reputacion.resenasClientes')}</Text>
             {valoraciones.map((v) => (
               <View key={v.id} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>

@@ -3,10 +3,12 @@ import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme';
 
 export default function ProveedorLayout() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom;
 
@@ -29,7 +31,7 @@ export default function ProveedorLayout() {
       <Tabs.Screen
         name="inicio"
         options={{
-          title: 'Inicio',
+          title: t('proveedor.tabs.inicio'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
@@ -38,7 +40,7 @@ export default function ProveedorLayout() {
       <Tabs.Screen
         name="productos"
         options={{
-          title: 'Productos',
+          title: t('proveedor.tabs.productos'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cube-outline" size={size} color={color} />
           ),
@@ -47,7 +49,7 @@ export default function ProveedorLayout() {
       <Tabs.Screen
         name="pedidos"
         options={{
-          title: 'Pedidos',
+          title: t('proveedor.tabs.pedidos'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="receipt-outline" size={size} color={color} />
           ),
@@ -56,7 +58,7 @@ export default function ProveedorLayout() {
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Perfil',
+          title: t('cliente.tabs.perfil'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
           ),

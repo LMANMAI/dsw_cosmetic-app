@@ -3,37 +3,41 @@ import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { auth as firebaseAuth } from '@/services/firebase';
 import { Avatar } from '@/components/Avatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsGroup, SettingsRow } from '@/components/SettingsRow';
+import { MpStatusBanner } from '@/components/MpStatusBanner';
+import { ServiciosStatusBanner } from '@/components/ServiciosStatusBanner';
 import { useSession } from '@/context/SessionContext';
+import { conectarMercadoPago } from '@/services/mp-connect.service';
 import { disponibilidadService } from '@/services/disponibilidad.service';
 import { serviciosService } from '@/services/servicios.service';
 import { valoracionesService } from '@/services/valoraciones.service';
+import { LanguageModal, useLanguageLabel } from '@/components/LanguageSelector';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { confirm } from '@/utils/confirm';
-import { seedCatalogo } from '@/services/seed-catalogo';
 import type { PerfilProfesionalSignup } from '@/types/models';
 
-const ANTICIPO_OPTIONS: { label: string; value: 0 | 20 | 50 | 100 }[] = [
-  { label: 'Sin anticipo', value: 0 },
-  { label: '20% del monto', value: 20 },
-  { label: '50% del monto', value: 50 },
-  { label: '100% del monto', value: 100 },
-];
+const ANTICIPO_VALUES: (0 | 20 | 50 | 100)[] = [0, 20, 50, 100];
 
-function anticipoLabel(pct: number): string {
-  return ANTICIPO_OPTIONS.find((o) => o.value === pct)?.label ?? '20% del monto';
+function anticipoLabel(pct: number, t: TranslateFn): string {
+  return pct === 0 ? t('perfil.profesional.anticipoSin') : t('perfil.profesional.anticipoPct', { pct });
 }
 
 export default function PerfilProfesionalScreen() {
-  const { user, logout, switchRole, updateUser } = useSession();
+  const { user, logout, switchRole, updateUser, refreshUser } = useSession();
   const { colors, isDark, toggleTheme } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
+  const idiomaActual = useLanguageLabel();
+  const [idiomaModal, setIdiomaModal] = useState(false);
   const perfil = user?.perfil as PerfilProfesionalSignup | undefined;
-  const [horariosLabel, setHorariosLabel] = useState('Sin configurar');
-  const [cantServicios, setCantServicios] = useState(0);
+  const [conectandoMP, setConectandoMP] = useState(false);
+  const [horariosLabel, setHorariosLabel] = useState<string | null>(null);
+  const [cantServicios, setCantServicios] = useState<number | null>(null);
   const [cantResenas, setCantResenas] = useState(0);
   const [ratingProm, setRatingProm] = useState(0);
 
@@ -41,31 +45,68 @@ export default function PerfilProfesionalScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
-      disponibilidadService.listar(user.id).then((slots) => {
-        if (slots.length > 0) {
-          const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          const resumen = slots.map((s) => diasNombres[s.diaSemana]).join(', ');
-          setHorariosLabel(resumen);
-        } else {
-          setHorariosLabel('Sin configurar');
-        }
-      });
-      serviciosService.listar(user.id).then((svcs) => setCantServicios(svcs.length));
-      valoracionesService.obtenerResumen(user.id).then((r) => {
-        setCantResenas(r.cantidad);
-        setRatingProm(r.rating);
-      });
-    }, [user?.id]),
+
+      // DIAGNÓSTICO (temporal): si el uid de Firebase Auth no coincide con
+      // user.id —o directamente no existe— todas las lecturas de Firestore
+      // fallan con "Missing or insufficient permissions", porque las reglas
+      // exigen request.auth != null.
+      const authUid = firebaseAuth.currentUser?.uid;
+      console.log('[perfil] uid firebase:', authUid ?? 'NULL', '| user.id:', user.id);
+      if (!authUid) {
+        console.warn('[perfil] SIN SESIÓN DE FIREBASE AUTH → toda lectura va a dar permission-denied');
+      } else if (authUid !== user.id) {
+        console.warn('[perfil] uid de Auth y user.id NO coinciden');
+      }
+
+      disponibilidadService
+        .listar(user.id)
+        .then((slots) => {
+          if (slots.length > 0) {
+            const diasNombres = t('comun.diasCortos').split(',');
+            const resumen = slots.map((s) => diasNombres[s.diaSemana]).join(', ');
+            setHorariosLabel(resumen);
+          } else {
+            setHorariosLabel(null);
+          }
+        })
+        .catch((e) => console.error('[perfil] disponibilidad:', e?.code ?? '', e?.message ?? e));
+
+      serviciosService
+        .listar(user.id)
+        .then((svcs) => setCantServicios(svcs.length))
+        .catch((e) => console.error('[perfil] servicios:', e?.code ?? '', e?.message ?? e));
+
+      valoracionesService
+        .obtenerResumen(user.id)
+        .then((r) => {
+          setCantResenas(r.cantidad);
+          setRatingProm(r.rating);
+        })
+        .catch((e) => console.error('[perfil] valoraciones:', e?.code ?? '', e?.message ?? e));
+    }, [user?.id, t]),
   );
+
+  const conectarMP = async () => {
+    if (!user) return;
+    setConectandoMP(true);
+    const res = await conectarMercadoPago(user.id);
+    setConectandoMP(false);
+    if (res === 'ok') {
+      await refreshUser();
+      Alert.alert(t('perfil.compartido.cuentaConectadaTitulo'), t('perfil.profesional.cuentaConectadaMsg'));
+    } else if (res === 'error') {
+      Alert.alert(t('perfil.compartido.mpErrorTitulo'), t('perfil.compartido.mpErrorMsg'));
+    }
+  };
 
   const modalidadLabel =
     perfil?.modalidad === 'salon'
-      ? 'Salón'
+      ? t('perfil.profesional.modalidadSalon')
       : perfil?.modalidad === 'domicilio'
-        ? 'A domicilio'
+        ? t('perfil.profesional.modalidadDomicilio')
         : perfil?.modalidad === 'ambos'
-          ? 'Salón y domicilio'
-          : 'Sin definir';
+          ? t('perfil.profesional.modalidadAmbos')
+          : t('perfil.profesional.modalidadSinDefinir');
 
   const [perfilPublico, setPerfilPublico] = useState(perfil?.perfilVisible !== false);
   const [anticipo, setAnticipo] = useState<0 | 20 | 50 | 100>(perfil?.anticipoPorcentaje ?? 20);
@@ -74,29 +115,30 @@ export default function PerfilProfesionalScreen() {
 
   const elegirAnticipo = () => {
     Alert.alert(
-      'Anticipo de pago',
-      'Cuanto se le pide al cliente al reservar.',
-      ANTICIPO_OPTIONS.map((opt) => ({
-        text: opt.label,
+      t('perfil.profesional.anticipoTitulo'),
+      t('perfil.profesional.anticipoMsg'),
+      ANTICIPO_VALUES.map((value) => ({
+        text: anticipoLabel(value, t),
         onPress: async () => {
-          setAnticipo(opt.value);
+          setAnticipo(value);
           try {
             await updateUser({
-              perfil: { ...(perfil as PerfilProfesionalSignup), anticipoPorcentaje: opt.value },
+              perfil: { ...(perfil as PerfilProfesionalSignup), anticipoPorcentaje: value },
             });
           } catch {
             setAnticipo(anticipo); // revertir
           }
         },
-      })).concat([{ text: 'Cancelar', onPress: async () => {} }]),
+      })).concat([{ text: t('comun.cancelar'), onPress: async () => {} }]),
     );
   };
 
   const confirmarLogout = async () => {
     const ok = await confirm({
-      title: 'Cerrar sesion',
-      message: 'Seguro queres salir?',
-      confirmLabel: 'Cerrar sesion',
+      title: t('perfil.compartido.cerrarSesion'),
+      message: t('perfil.compartido.cerrarSesionMsg'),
+      confirmLabel: t('perfil.compartido.cerrarSesion'),
+      cancelLabel: t('comun.cancelar'),
       destructive: true,
     });
     if (ok) await logout();
@@ -107,7 +149,7 @@ export default function PerfilProfesionalScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xxl, paddingBottom: spacing.huge }}>
-        <ScreenHeader eyebrow="Tu negocio" title="Mi perfil profesional" />
+        <ScreenHeader eyebrow={t('perfil.profesional.eyebrow')} title={t('perfil.profesional.titulo')} />
 
         <View style={styles.userBox}>
           <Avatar nombre={user?.nombre ?? '-'} size={72} />
@@ -115,7 +157,7 @@ export default function PerfilProfesionalScreen() {
             <Text style={styles.name}>{user?.nombre}</Text>
             <Text style={styles.email}>{user?.email}</Text>
             <Text style={styles.tel}>
-            {(user?.perfil as any)?.ciudad ?? 'Sin ubicación'} - Activa
+            {(user?.perfil as any)?.ciudad ?? t('perfil.profesional.sinUbicacion')} - {t('perfil.profesional.activa')}
           </Text>
           </View>
         </View>
@@ -123,17 +165,21 @@ export default function PerfilProfesionalScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statVal}>{cantResenas}</Text>
-            <Text style={styles.statLbl}>Resenas</Text>
+            <Text style={styles.statLbl}>{t('perfil.profesional.statsResenas')}</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statVal}>{ratingProm > 0 ? ratingProm.toFixed(1) : '—'}</Text>
-            <Text style={styles.statLbl}>Rating</Text>
+            <Text style={styles.statLbl}>{t('perfil.profesional.statsRating')}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>{cantServicios}</Text>
-            <Text style={styles.statLbl}>Servicios</Text>
+            <Text style={styles.statVal}>{cantServicios ?? 0}</Text>
+            <Text style={styles.statLbl}>{t('perfil.profesional.statsServicios')}</Text>
           </View>
         </View>
+
+        {cantServicios === 0 && (
+          <ServiciosStatusBanner onPress={() => router.push('/(profesional)/servicios')} />
+        )}
 
         {perfil?.fotoSalonUrl ? (
           <Image
@@ -143,39 +189,49 @@ export default function PerfilProfesionalScreen() {
           />
         ) : null}
 
-        <SettingsGroup title="Mi negocio">
+        <SettingsGroup title={t('perfil.profesional.grupoMiNegocio')}>
           <SettingsRow
             icon="storefront-outline"
-            label="Datos del negocio"
-            description={`${perfil?.nombreNegocio ?? perfil?.especialidad ?? 'Sin especialidad'} · ${modalidadLabel}`}
+            label={t('perfil.profesional.datosNegocio')}
+            description={`${perfil?.nombreNegocio ?? perfil?.especialidad ?? t('perfil.profesional.sinEspecialidad')} · ${modalidadLabel}`}
             onPress={() => router.push('/(profesional)/editar-negocio')}
           />
           <SettingsRow
             icon="cut-outline"
-            label="Servicios y precios"
-            description={`${cantServicios} ${cantServicios === 1 ? 'activo' : 'activos'}`}
+            label={t('perfil.profesional.serviciosPrecios')}
+            description={`${cantServicios ?? 0} ${cantServicios === 1 ? t('perfil.profesional.activo') : t('perfil.profesional.activos')}`}
             onPress={() => router.push('/(profesional)/servicios')}
           />
           <SettingsRow
             icon="time-outline"
-            label="Horarios laborales"
-            description={horariosLabel}
+            label={t('perfil.profesional.horarios')}
+            description={horariosLabel ?? t('perfil.profesional.sinConfigurar')}
             onPress={() => router.push('/(profesional)/horarios')}
           />
           <SettingsRow
+            icon="people-outline"
+            label={t('perfil.profesional.misClientes')}
+            description={t('perfil.profesional.misClientesDesc')}
+            onPress={() => router.push('/(profesional)/clientes')}
+          />
+          <SettingsRow
             icon="star-outline"
-            label="Mi reputación"
-            description={ratingProm > 0 ? `${ratingProm.toFixed(1)} ★ · ${cantResenas} reseñas` : 'Sin valoraciones aún'}
+            label={t('perfil.profesional.reputacion')}
+            description={
+              ratingProm > 0
+                ? t('perfil.profesional.reputacionDesc', { rating: ratingProm.toFixed(1), count: cantResenas })
+                : t('perfil.profesional.sinValoraciones')
+            }
             isLast
             onPress={() => router.push('/(profesional)/reputacion')}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Reservas">
+        <SettingsGroup title={t('perfil.profesional.grupoReservas')}>
           <SettingsRow
             icon="eye-outline"
-            label="Perfil visible al publico"
-            description="Si esta apagado, no aparecemos en busquedas"
+            label={t('perfil.profesional.perfilVisible')}
+            description={t('perfil.profesional.perfilVisibleDesc')}
             toggle={perfilPublico}
             onToggle={async (val) => {
               setPerfilPublico(val);
@@ -190,8 +246,8 @@ export default function PerfilProfesionalScreen() {
           />
           <SettingsRow
             icon="checkmark-done-outline"
-            label="Auto-confirmar turnos"
-            description="Aceptar reservas sin revision manual"
+            label={t('perfil.profesional.autoConfirmar')}
+            description={t('perfil.profesional.autoConfirmarDesc')}
             toggle={autoConfirmar}
             onToggle={async (val) => {
               setAutoConfirmar(val);
@@ -206,70 +262,92 @@ export default function PerfilProfesionalScreen() {
           />
           <SettingsRow
             icon="cash-outline"
-            label="Anticipo al reservar"
-            value={anticipoLabel(anticipo)}
+            label={t('perfil.profesional.anticipo')}
+            value={anticipoLabel(anticipo, t)}
             isLast
             onPress={elegirAnticipo}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Notificaciones">
+        <MpStatusBanner conectado={!!user?.mpConectado} onConnect={conectarMP} />
+
+        <SettingsGroup title={t('perfil.compartido.grupoCobros')}>
+          <SettingsRow
+            icon="card-outline"
+            label={user?.mpConectado ? t('perfil.compartido.mpConectado') : t('perfil.compartido.conectarMP')}
+            description={
+              conectandoMP
+                ? t('perfil.compartido.abriendoMP')
+                : user?.mpConectado
+                  ? t('perfil.profesional.mpDescConectado')
+                  : t('perfil.profesional.mpDescConectar')
+            }
+            onPress={conectarMP}
+          />
+          <SettingsRow
+            icon="wallet-outline"
+            label={t('perfil.profesional.infoFacturacion')}
+            description={
+              perfil?.facturacion?.valor
+                ? `${perfil.facturacion.tipo === 'alias' ? 'Alias' : 'CBU/CVU'}: ${perfil.facturacion.valor}`
+                : t('perfil.profesional.infoFacturacionSinCargar')
+            }
+            isLast
+            onPress={() => router.push('/(profesional)/informacion-facturacion')}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title={t('perfil.compartido.grupoNotificaciones')}>
           <SettingsRow
             icon="notifications-outline"
-            label="Notificaciones push"
+            label={t('perfil.compartido.notifPush')}
             toggle={pushEnabled}
             onToggle={setPushEnabled}
             isLast
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Apariencia">
+        <SettingsGroup title={t('perfil.compartido.grupoConfiguracion')}>
+          <SettingsRow
+            icon="language-outline"
+            label={t('idioma.titulo')}
+            description={t('idioma.descripcion')}
+            value={idiomaActual}
+            onPress={() => setIdiomaModal(true)}
+          />
           <SettingsRow
             icon={isDark ? 'moon-outline' : 'sunny-outline'}
-            label="Tema oscuro"
-            description={isDark ? 'Activado' : 'Desactivado'}
+            label={t('perfil.profesional.temaOscuro')}
+            description={isDark ? t('perfil.profesional.activado') : t('perfil.profesional.desactivado')}
             toggle={isDark}
             onToggle={toggleTheme}
             isLast
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Cuenta">
+        <SettingsGroup title={t('perfil.compartido.grupoCuenta')}>
           <SettingsRow
             icon="person-outline"
-            label="Cambiar a vista cliente"
-            description="Probar la app como si reservaras un turno"
-            onPress={() => switchRole('cliente')}
+            label={t('perfil.profesional.vistaCliente')}
+            description={t('perfil.profesional.vistaClienteDesc')}
+            onPress={async () => {
+              // La cuenta sigue siendo profesional (esProfesional queda true):
+              // solo cambia la vista para poder reservar con otros colegas.
+              await switchRole('cliente');
+              router.replace('/(cliente)/(tabs)/buscar');
+            }}
           />
           <SettingsRow
             icon="log-out-outline"
-            label="Cerrar sesion"
+            label={t('perfil.compartido.cerrarSesion')}
             destructive
             isLast
             onPress={confirmarLogout}
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Desarrollo">
-          <SettingsRow
-            icon="cloud-upload-outline"
-            label="Subir catálogo a Firestore"
-            description="Sube categorías y servicios a la base de datos"
-            isLast
-            onPress={async () => {
-              try {
-                const res = await seedCatalogo();
-                Alert.alert(
-                  'Seed completado',
-                  `${res.categorias} categorías y ${res.servicios} servicios subidos.`,
-                );
-              } catch (err: any) {
-                Alert.alert('Error', err.message);
-              }
-            }}
-          />
-        </SettingsGroup>
       </ScrollView>
+      <LanguageModal visible={idiomaModal} onClose={() => setIdiomaModal(false)} />
     </SafeAreaView>
   );
 }

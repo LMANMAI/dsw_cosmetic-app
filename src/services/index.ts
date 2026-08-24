@@ -1,11 +1,13 @@
 export { authService } from './auth.service';
 export type { SignupPayload } from './auth.service';
 export { catalogoService } from './catalogo.service';
+export { bannersService } from './banners.service';
 export { rubrosService } from './rubros.service';
 export { disponibilidadService } from './disponibilidad.service';
 export { profesionalesService } from './profesionales.service';
 export { turnosService } from './turnos.service';
 export { comisionesService } from './comisiones.service';
+export { configService } from './config.service';
 export { productosService } from './productos.service';
 export { pedidosService } from './pedidos.service';
 export type { ItemCarrito, CrearPedidoInput } from './pedidos.service';

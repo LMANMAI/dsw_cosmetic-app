@@ -3,10 +3,12 @@ import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme';
 
 export default function ClienteTabsLayout() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom;
 
@@ -29,7 +31,7 @@ export default function ClienteTabsLayout() {
       <Tabs.Screen
         name="buscar"
         options={{
-          title: 'Buscar',
+          title: t('cliente.tabs.buscar'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="map-outline" size={size} color={color} />
           ),
@@ -38,7 +40,7 @@ export default function ClienteTabsLayout() {
       <Tabs.Screen
         name="turnos"
         options={{
-          title: 'Mis turnos',
+          title: t('cliente.tabs.turnos'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
@@ -47,7 +49,7 @@ export default function ClienteTabsLayout() {
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Perfil',
+          title: t('cliente.tabs.perfil'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
           ),

@@ -6,12 +6,14 @@ import { turnosService, comisionesService } from '@/services';
 import type { CierreCaja, ComisionMensual } from '@/types/models';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing, shadow } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import { formatARS, metodoPagoLabel, nombreMes } from '@/utils/format';
 
 export default function CierreCajaScreen() {
   const { colors } = useTheme();
+  const { t, locale } = useTranslation();
   const { user } = useSession();
   const profesionalId = user?.id ?? '';
   const [data, setData] = useState<CierreCaja | null>(null);
@@ -55,7 +57,7 @@ export default function CierreCajaScreen() {
       }
       await comisionesService.pagarComision(com);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo generar el link de pago. Intentá de nuevo.');
+      Alert.alert(t('comun.error'), t('profesional.caja.errorLinkPago'));
     } finally {
       setPagando(false);
     }
@@ -76,18 +78,18 @@ export default function CierreCajaScreen() {
   }
 
   const metodos = [
-    { key: 'efectivo', label: 'Efectivo', emoji: '💵', color: colors.success },
-    { key: 'transferencia', label: 'Transferencia', emoji: '🏦', color: colors.info },
-    { key: 'mercado_pago', label: 'Mercado Pago', emoji: '🟢', color: '#00B1EA' },
-    { key: 'mixto', label: 'Pagos mixtos', emoji: '⚖️', color: colors.warning },
+    { key: 'efectivo', label: t('comun.metodosPago.efectivo'), emoji: '💵', color: colors.success },
+    { key: 'transferencia', label: t('comun.metodosPago.transferencia'), emoji: '🏦', color: colors.info },
+    { key: 'mercado_pago', label: t('comun.metodosPago.mercadoPago'), emoji: '🟢', color: '#00B1EA' },
+    { key: 'mixto', label: t('profesional.caja.pagosMixtos'), emoji: '⚖️', color: colors.warning },
   ] as const;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xxl, paddingBottom: spacing.huge }}>
         <ScreenHeader
-          eyebrow="Tu negocio"
-          title="Cierre de caja"
+          eyebrow={t('profesional.caja.eyebrow')}
+          title={t('profesional.caja.titulo')}
           subtitle={`${user?.nombre ?? ''} · ${nombreMes(mes)} ${anio}`}
         />
 
@@ -104,16 +106,16 @@ export default function CierreCajaScreen() {
 
         {/* Hero card — total cobrado */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroLabel}>Total cobrado este mes</Text>
+          <Text style={styles.heroLabel}>{t('profesional.caja.totalCobradoMes')}</Text>
           <Text style={styles.heroValue}>{formatARS(data.totalCobrado)}</Text>
           <View style={styles.heroDivider} />
           <View style={styles.heroFooter}>
             <View>
-              <Text style={styles.heroFooterLbl}>Turnos completados</Text>
+              <Text style={styles.heroFooterLbl}>{t('profesional.caja.turnosCompletados')}</Text>
               <Text style={styles.heroFooterVal}>{data.cantidadTurnos}</Text>
             </View>
             <View>
-              <Text style={styles.heroFooterLbl}>Promedio por turno</Text>
+              <Text style={styles.heroFooterLbl}>{t('profesional.caja.promedioPorTurno')}</Text>
               <Text style={styles.heroFooterVal}>
                 {data.cantidadTurnos
                   ? formatARS(Math.round(data.totalCobrado / data.cantidadTurnos))
@@ -124,7 +126,7 @@ export default function CierreCajaScreen() {
         </View>
 
         {/* Desglose por método de pago */}
-        <Text style={styles.sectionTitle}>Desglose por método de pago</Text>
+        <Text style={styles.sectionTitle}>{t('profesional.caja.desgloseTitulo')}</Text>
         {metodos.map((m) => {
           const monto = data.porMetodo[m.key];
           const porc = data.totalCobrado > 0 ? Math.round((monto / data.totalCobrado) * 100) : 0;
@@ -145,16 +147,16 @@ export default function CierreCajaScreen() {
                   ]}
                 />
               </View>
-              <Text style={styles.metodoPct}>{porc}% del total</Text>
+              <Text style={styles.metodoPct}>{t('profesional.caja.pctDelTotal', { pct: porc })}</Text>
             </View>
           );
         })}
 
         {/* Detalle de cobros individuales */}
-        <Text style={styles.sectionTitle}>Detalle de cobros</Text>
+        <Text style={styles.sectionTitle}>{t('profesional.caja.detalleCobros')}</Text>
         {data.detalleCobros.length === 0 ? (
           <View style={styles.emptyDetail}>
-            <Text style={styles.emptyDetailText}>Sin cobros registrados este mes</Text>
+            <Text style={styles.emptyDetailText}>{t('profesional.caja.sinCobros')}</Text>
           </View>
         ) : (
           data.detalleCobros.map((cobro, idx) => {
@@ -176,13 +178,13 @@ export default function CierreCajaScreen() {
                 </View>
                 <View style={styles.cobroBottom}>
                   <Text style={styles.cobroFecha}>
-                    {new Date(cobro.fecha + 'T00:00:00').toLocaleDateString('es-AR', {
+                    {new Date(cobro.fecha + 'T00:00:00').toLocaleDateString(locale, {
                       day: '2-digit', month: 'short',
                     })}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                     <Text style={[styles.cobroComision, { color: colors.danger }]}>
-                      Com. {formatARS(cobro.comision)}
+                      {t('profesional.caja.comisionAbrev', { monto: formatARS(cobro.comision) })}
                     </Text>
                     <View style={[styles.cobroMetodoBadge, { backgroundColor: metodoInfo.color + '18' }]}>
                       <Text style={styles.cobroMetodoEmoji}>{metodoInfo.emoji}</Text>
@@ -200,24 +202,24 @@ export default function CierreCajaScreen() {
         {/* Insumos descontados */}
         <View style={styles.netCard}>
           <View style={styles.netRow}>
-            <Text style={styles.netLbl}>Total cobrado</Text>
+            <Text style={styles.netLbl}>{t('profesional.caja.totalCobrado')}</Text>
             <Text style={styles.netVal}>{formatARS(data.totalCobrado)}</Text>
           </View>
           <View style={styles.netRow}>
-            <Text style={styles.netLbl}>Comisión plataforma (20%)</Text>
+            <Text style={styles.netLbl}>{t('profesional.caja.comisionPlataforma')}</Text>
             <Text style={[styles.netVal, { color: colors.danger }]}>
               − {formatARS(data.totalComisionPlataforma)}
             </Text>
           </View>
           <View style={styles.netRow}>
-            <Text style={styles.netLbl}>Insumos comprados en el mes</Text>
+            <Text style={styles.netLbl}>{t('profesional.caja.insumosComprados')}</Text>
             <Text style={[styles.netVal, { color: colors.danger }]}>
               − {formatARS(data.insumosComprados)}
             </Text>
           </View>
           <View style={styles.netDivider} />
           <View style={styles.netRow}>
-            <Text style={styles.netLblBold}>Ganancia neta estimada</Text>
+            <Text style={styles.netLblBold}>{t('profesional.caja.gananciaNeta')}</Text>
             <Text style={styles.netValBold}>{formatARS(data.gananciaNeta)}</Text>
           </View>
         </View>
@@ -227,11 +229,9 @@ export default function CierreCajaScreen() {
           <View style={styles.alertCard}>
             <View style={styles.alertHeader}>
               <Ionicons name="warning" size={20} color="#D32F2F" />
-              <Text style={styles.alertTitle}>Comisión vencida</Text>
+              <Text style={styles.alertTitle}>{t('profesional.caja.comisionVencida')}</Text>
             </View>
-            <Text style={styles.alertText}>
-              Tenés comisiones impagas. Tu perfil no será visible para clientes hasta que regularices tu situación.
-            </Text>
+            <Text style={styles.alertText}>{t('profesional.caja.comisionVencidaMsg')}</Text>
             {comisionesVencidas.map((cv) => (
               <View key={cv.id} style={styles.alertRow}>
                 <Text style={styles.alertMes}>
@@ -258,7 +258,7 @@ export default function CierreCajaScreen() {
                 <>
                   <Ionicons name="card-outline" size={18} color="#FFF" />
                   <Text style={styles.pagarBtnText}>
-                    Pagar {formatARS(comisionesVencidas.reduce((s, c) => s + c.montoTotal, 0))}
+                    {t('profesional.caja.pagarMonto', { monto: formatARS(comisionesVencidas.reduce((s, c) => s + c.montoTotal, 0)) })}
                   </Text>
                 </>
               )}
@@ -271,15 +271,15 @@ export default function CierreCajaScreen() {
           <View style={styles.comisionCard}>
             <View style={styles.comisionHeader}>
               <Ionicons name="cash-outline" size={20} color={colors.primary} />
-              <Text style={styles.comisionTitle}>Comisión del mes</Text>
+              <Text style={styles.comisionTitle}>{t('profesional.caja.comisionDelMes')}</Text>
             </View>
             <Text style={styles.comisionSubtitle}>
               {comisionMes?.estado === 'vencida'
-                ? 'Esta comisión está vencida. Abonala para mantener tu cuenta activa.'
-                : 'Aboná tu comisión de servicios para mantener tu cuenta al día.'}
+                ? t('profesional.caja.comisionVencidaSub')
+                : t('profesional.caja.comisionPendienteSub')}
             </Text>
             <View style={styles.comisionMontoRow}>
-              <Text style={styles.comisionMontoLabel}>Total a pagar</Text>
+              <Text style={styles.comisionMontoLabel}>{t('profesional.caja.totalAPagar')}</Text>
               <Text style={styles.comisionMontoValue}>
                 {formatARS(data.totalComisionPlataforma)}
               </Text>
@@ -304,7 +304,7 @@ export default function CierreCajaScreen() {
               ) : (
                 <>
                   <Ionicons name="logo-usd" size={18} color="#FFF" />
-                  <Text style={styles.pagarBtnText}>Pagar comisión con Mercado Pago</Text>
+                  <Text style={styles.pagarBtnText}>{t('profesional.caja.pagarComisionMP')}</Text>
                 </>
               )}
             </RNPressable>
@@ -317,23 +317,23 @@ export default function CierreCajaScreen() {
             <View style={styles.comisionHeader}>
               <Ionicons name="checkmark-circle" size={20} color={colors.success} />
               <Text style={[styles.comisionTitle, { color: colors.success }]}>
-                Comisión pagada
+                {t('profesional.caja.comisionPagada')}
               </Text>
             </View>
             <Text style={styles.comisionSubtitle}>
-              Abonaste {formatARS(comisionMes.montoTotal)} el{' '}
-              {comisionMes.fechaPago
-                ? new Date(comisionMes.fechaPago).toLocaleDateString('es-AR')
-                : '—'}
+              {t('profesional.caja.comisionPagadaMsg', {
+                monto: formatARS(comisionMes.montoTotal),
+                fecha: comisionMes.fechaPago
+                  ? new Date(comisionMes.fechaPago).toLocaleDateString(locale)
+                  : '—',
+              })}
             </Text>
           </View>
         )}
 
         <View style={styles.tip}>
           <Ionicons name="information-circle-outline" size={18} color={colors.muted} />
-          <Text style={styles.tipText}>
-            Estos datos se generan automáticamente con cada turno completado y compra de insumos.
-          </Text>
+          <Text style={styles.tipText}>{t('profesional.caja.tip')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

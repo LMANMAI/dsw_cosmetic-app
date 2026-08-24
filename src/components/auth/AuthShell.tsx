@@ -180,6 +180,121 @@ export function AuthSelect({
   );
 }
 
+interface AuthMultiSelectProps {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  placeholder: string;
+  values: string[];
+  options: AuthSelectOption[];
+  onChange: (values: string[]) => void;
+  title?: string;
+  loading?: boolean;
+  doneLabel?: string;
+}
+
+/**
+ * Igual que AuthSelect pero permite elegir varias opciones. Muestra las
+ * seleccionadas como chips debajo del campo.
+ */
+export function AuthMultiSelect({
+  icon,
+  placeholder,
+  values,
+  options,
+  onChange,
+  title,
+  loading,
+  doneLabel = 'Listo',
+}: AuthMultiSelectProps) {
+  const { colors } = useTheme();
+  const [open, setOpen] = React.useState(false);
+  const seleccionadas = options.filter((o) => values.includes(o.value));
+
+  const toggle = (value: string) => {
+    onChange(
+      values.includes(value) ? values.filter((v) => v !== value) : [...values, value],
+    );
+  };
+
+  return (
+    <>
+      <Pressable
+        onPress={() => !loading && setOpen(true)}
+        style={[styles.inputWrap, { backgroundColor: colors.bone }, seleccionadas.length > 0 && { marginBottom: spacing.sm }]}
+      >
+        <Ionicons name={icon} size={18} color={colors.muted} style={{ marginRight: spacing.sm }} />
+        <Text
+          style={[styles.input, { color: seleccionadas.length ? colors.ink : colors.muted }]}
+          numberOfLines={1}
+        >
+          {seleccionadas.length ? seleccionadas.map((o) => o.label).join(', ') : placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color={colors.muted} />
+      </Pressable>
+
+      {seleccionadas.length > 0 ? (
+        <View style={styles.chipsRow}>
+          {seleccionadas.map((o) => (
+            <Pressable
+              key={o.value}
+              onPress={() => toggle(o.value)}
+              style={[styles.chip, { backgroundColor: colors.primaryTint }]}
+            >
+              <Text style={[styles.chipLabel, { color: colors.primary }]}>
+                {o.emoji ? `${o.emoji} ` : ''}
+                {o.label}
+              </Text>
+              <Ionicons name="close" size={14} color={colors.primary} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.bone3 }]} />
+            <Text style={[styles.modalTitle, { color: colors.ink }]}>{title ?? placeholder}</Text>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {options.map((opt) => {
+                const active = values.includes(opt.value);
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => toggle(opt.value)}
+                    style={({ pressed }) => [
+                      styles.optionRow,
+                      { borderColor: colors.bone3 },
+                      (active || pressed) && { backgroundColor: colors.primaryTint },
+                    ]}
+                  >
+                    {opt.emoji ? <Text style={styles.optionEmoji}>{opt.emoji}</Text> : null}
+                    <Text
+                      style={[styles.optionLabel, { color: active ? colors.primary : colors.ink }]}
+                    >
+                      {opt.label}
+                    </Text>
+                    <Ionicons
+                      name={active ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color={active ? colors.primary : colors.muted}
+                    />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Pressable
+              onPress={() => setOpen(false)}
+              style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.doneLabel, { color: colors.surface }]}>{doneLabel}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
 export function AuthDivider({ label = 'o continuá con' }: { label?: string }) {
   const { colors } = useTheme();
   return (
@@ -320,6 +435,28 @@ const styles = StyleSheet.create({
   },
   optionEmoji: { fontSize: 20 },
   optionLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+  },
+  chipLabel: { fontSize: 13, fontWeight: '600' },
+  doneBtn: {
+    marginTop: spacing.md,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  doneLabel: { fontSize: 15, fontWeight: '700' },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',

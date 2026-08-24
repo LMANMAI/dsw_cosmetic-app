@@ -1,5 +1,5 @@
 /**
- * Cloud Functions de BeautyApp — notificaciones push.
+ * Cloud Functions de YOFI — notificaciones push.
  *
  * Viven en el mismo repo y se despliegan al mismo proyecto de Firebase.
  * El push lo entrega el sistema operativo (APNs/FCM) vía Expo Push API, así
@@ -12,10 +12,20 @@
 const { onDocumentWritten, onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 
 initializeApp();
 const db = getFirestore();
+
+// Mercado Pago (OAuth marketplace + split) — definidas en ./mercadopago.js
+const REGION = 'southamerica-east1';
+
+const mp = require('./mercadopago');
+exports.mpCallback = mp.mpCallback;
+exports.crearPreferenciaPedido = mp.crearPreferenciaPedido;
+exports.crearPreferenciaSena = mp.crearPreferenciaSena;
+exports.crearPreferenciaComision = mp.crearPreferenciaComision;
+exports.mpWebhook = mp.mpWebhook;
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -69,7 +79,9 @@ async function enviarEmail(to, subject, html) {
 /* ──────────────────────────────────────────────────────────────────────────
  * 1. Pedido pagado → push al proveedor
  * ──────────────────────────────────────────────────────────────────────── */
-exports.notificarPedidoProveedor = onDocumentWritten('pedidos/{pedidoId}', async (event) => {
+exports.notificarPedidoProveedor = onDocumentWritten(
+  { document: 'pedidos/{pedidoId}', region: REGION },
+  async (event) => {
   const before = event.data?.before?.data();
   const after = event.data?.after?.data();
   if (!after) return;
@@ -108,7 +120,7 @@ exports.notificarPedidoProveedor = onDocumentWritten('pedidos/{pedidoId}', async
   if (!prov.perfil || prov.perfil.emailPedidos !== false) {
     await enviarEmail(
       prov.email,
-      'Nuevo pedido en BeautyApp',
+      'Nuevo pedido en YOFI',
       `<h2>Tenés un nuevo pedido 🎉</h2>
        <p><strong>${comprador}</strong> compró por <strong>$${total}</strong>.</p>
        <p>Entrá a la app para confirmarlo y gestionar el envío.</p>`,
@@ -119,7 +131,9 @@ exports.notificarPedidoProveedor = onDocumentWritten('pedidos/{pedidoId}', async
 /* ──────────────────────────────────────────────────────────────────────────
  * 2. Turno nuevo → push al profesional
  * ──────────────────────────────────────────────────────────────────────── */
-exports.notificarTurnoProfesional = onDocumentCreated('turnos/{turnoId}', async (event) => {
+exports.notificarTurnoProfesional = onDocumentCreated(
+  { document: 'turnos/{turnoId}', region: REGION },
+  async (event) => {
   const turno = event.data?.data();
   if (!turno || !turno.profesionalId) return;
 
@@ -155,7 +169,7 @@ const OFFSET_MIN = { '1h': 60, '2h': 120, '24h': 1440 };
 const ESTADOS_ACTIVOS = ['pendiente', 'confirmado'];
 
 exports.recordatoriosTurnosCliente = onSchedule(
-  { schedule: 'every 15 minutes', timeZone: 'America/Argentina/Buenos_Aires' },
+  { schedule: 'every 15 minutes', timeZone: 'America/Argentina/Buenos_Aires', region: REGION },
   async () => {
     const ahora = Date.now();
     // Traemos turnos de hoy en adelante (incluye ayer por seguridad de zona horaria).

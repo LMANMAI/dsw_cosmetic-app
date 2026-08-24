@@ -5,12 +5,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button } from '@/components/Button';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 
 // TODO: reemplazar por el número real de soporte (código de país + número, sin "+" ni espacios)
 const SOPORTE_WHATSAPP = '5493510000000';
-const MENSAJE_INICIAL = 'Hola! Necesito ayuda con BeautyApp.';
 
 export interface Faq {
   pregunta: string;
@@ -26,21 +26,19 @@ interface CentroAyudaScreenProps {
  * Pantalla de Centro de ayuda reutilizable: lista de FAQs + contacto por
  * WhatsApp. El contenido de las FAQs lo define cada rol (cliente, proveedor).
  */
-export function CentroAyudaScreen({
-  faqs,
-  subtitle = 'Respuestas a las dudas más comunes',
-}: CentroAyudaScreenProps) {
+export function CentroAyudaScreen({ faqs, subtitle }: CentroAyudaScreenProps) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const [abierta, setAbierta] = useState<number | null>(null);
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const abrirWhatsApp = async () => {
-    const url = `https://wa.me/${SOPORTE_WHATSAPP}?text=${encodeURIComponent(MENSAJE_INICIAL)}`;
+    const url = `https://wa.me/${SOPORTE_WHATSAPP}?text=${encodeURIComponent(t('ayuda.mensajeInicial'))}`;
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Error', 'No se pudo abrir WhatsApp. ¿Lo tenés instalado?');
+      Alert.alert(t('comun.error'), t('ayuda.errorWhatsApp'));
     }
   };
 
@@ -50,7 +48,7 @@ export function CentroAyudaScreen({
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={colors.ink} />
         </Pressable>
-        <ScreenHeader eyebrow="Ayuda" title="Centro de ayuda" subtitle={subtitle} />
+        <ScreenHeader eyebrow={t('ayuda.eyebrow')} title={t('ayuda.titulo')} subtitle={subtitle ?? t('ayuda.subtituloDefault')} />
 
         {faqs.map((faq, i) => {
           const expandida = abierta === i;
@@ -75,11 +73,9 @@ export function CentroAyudaScreen({
 
         <View style={styles.contactoBox}>
           <Ionicons name="logo-whatsapp" size={28} color={colors.success} />
-          <Text style={styles.contactoTitulo}>¿No encontraste lo que buscabas?</Text>
-          <Text style={styles.contactoTexto}>
-            Escribinos por WhatsApp y te ayudamos personalmente.
-          </Text>
-          <Button label="Chatear por WhatsApp" onPress={abrirWhatsApp} fullWidth />
+          <Text style={styles.contactoTitulo}>{t('ayuda.contactoTitulo')}</Text>
+          <Text style={styles.contactoTexto}>{t('ayuda.contactoTexto')}</Text>
+          <Button label={t('ayuda.chatear')} onPress={abrirWhatsApp} fullWidth />
         </View>
       </ScrollView>
     </SafeAreaView>

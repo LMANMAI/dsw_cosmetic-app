@@ -18,12 +18,11 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button } from '@/components/Button';
 import { DireccionAutocomplete, type DireccionSeleccionada } from '@/components/DireccionAutocomplete';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { Direccion } from '@/types/models';
 import { confirm } from '@/utils/confirm';
-
-const ETIQUETAS_RAPIDAS = ['Casa', 'Trabajo', 'Otro'];
 
 const ICONO_POR_ETIQUETA: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   casa: 'home-outline',
@@ -37,7 +36,14 @@ function iconoDe(etiqueta: string): React.ComponentProps<typeof Ionicons>['name'
 export default function DireccionesScreen() {
   const { user, updateUser } = useSession();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
+
+  const ETIQUETAS_RAPIDAS = [
+    t('cliente.direcciones.etiquetaCasa'),
+    t('cliente.direcciones.etiquetaTrabajo'),
+    t('cliente.direcciones.etiquetaOtro'),
+  ];
 
   const direcciones = user?.direcciones ?? [];
 
@@ -79,11 +85,11 @@ export default function DireccionesScreen() {
 
   const guardar = async () => {
     if (!ubicacion) {
-      Alert.alert('Falta la dirección', 'Buscá y seleccioná una dirección.');
+      Alert.alert(t('cliente.direcciones.faltaDireccionTitulo'), t('cliente.direcciones.faltaDireccionMsg'));
       return;
     }
     if (!etiqueta.trim()) {
-      Alert.alert('Falta la etiqueta', 'Poné un nombre como "Casa" o "Trabajo".');
+      Alert.alert(t('cliente.direcciones.faltaEtiquetaTitulo'), t('cliente.direcciones.faltaEtiquetaMsg'));
       return;
     }
     setSaving(true);
@@ -103,7 +109,7 @@ export default function DireccionesScreen() {
       await updateUser({ direcciones: lista });
       cerrarForm();
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo guardar la dirección.');
+      Alert.alert(t('comun.error'), err.message ?? t('cliente.direcciones.errorGuardarMsg'));
     } finally {
       setSaving(false);
     }
@@ -111,16 +117,17 @@ export default function DireccionesScreen() {
 
   const eliminar = async (d: Direccion) => {
     const ok = await confirm({
-      title: 'Eliminar dirección',
-      message: `¿Eliminar "${d.etiqueta}" (${d.direccion}, ${d.ciudad})?`,
-      confirmLabel: 'Eliminar',
+      title: t('cliente.direcciones.eliminarTitulo'),
+      message: t('cliente.direcciones.eliminarMsg', { etiqueta: d.etiqueta, direccion: d.direccion, ciudad: d.ciudad }),
+      confirmLabel: t('comun.eliminar'),
+      cancelLabel: t('comun.cancelar'),
       destructive: true,
     });
     if (!ok) return;
     try {
       await updateUser({ direcciones: direcciones.filter((x) => x.id !== d.id) });
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo eliminar la dirección.');
+      Alert.alert(t('comun.error'), err.message ?? t('cliente.direcciones.errorEliminarMsg'));
     }
   };
 
@@ -135,16 +142,16 @@ export default function DireccionesScreen() {
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
           <ScreenHeader
-            eyebrow="Tu cuenta"
-            title="Direcciones guardadas"
-            subtitle="Para que las profesionales sepan dónde atenderte"
+            eyebrow={t('perfil.compartido.tuCuenta')}
+            title={t('perfil.cliente.direcciones')}
+            subtitle={t('perfil.cliente.direccionesDesc')}
           />
 
           {/* Lista de direcciones */}
           {direcciones.length === 0 && !formVisible ? (
             <View style={styles.emptyBox}>
               <Ionicons name="location-outline" size={32} color={colors.muted} />
-              <Text style={styles.emptyText}>Todavía no guardaste ninguna dirección.</Text>
+              <Text style={styles.emptyText}>{t('cliente.direcciones.vacio')}</Text>
             </View>
           ) : null}
 
@@ -175,10 +182,10 @@ export default function DireccionesScreen() {
           {formVisible ? (
             <View style={styles.formBox}>
               <Text style={styles.formTitle}>
-                {editandoId ? 'Editar dirección' : 'Nueva dirección'}
+                {editandoId ? t('cliente.direcciones.editarTitulo') : t('cliente.direcciones.nuevaTitulo')}
               </Text>
 
-              <Text style={styles.label}>Etiqueta</Text>
+              <Text style={styles.label}>{t('cliente.direcciones.etiqueta')}</Text>
               <View style={styles.chipRow}>
                 {ETIQUETAS_RAPIDAS.map((opt) => {
                   const activa = etiqueta.toLowerCase() === opt.toLowerCase();
@@ -211,11 +218,11 @@ export default function DireccionesScreen() {
                 style={styles.input}
                 value={etiqueta}
                 onChangeText={setEtiqueta}
-                placeholder='Ej: "Casa de mamá"'
+                placeholder={t('cliente.direcciones.etiquetaPlaceholder')}
                 placeholderTextColor={colors.muted}
               />
 
-              <Text style={styles.label}>Dirección</Text>
+              <Text style={styles.label}>{t('cliente.direcciones.direccion')}</Text>
               {ubicacion ? (
                 <View style={styles.direccionActual}>
                   <View style={{ flex: 1 }}>
@@ -225,35 +232,35 @@ export default function DireccionesScreen() {
                   </View>
                   <Pressable onPress={() => setUbicacion(null)} hitSlop={8}>
                     <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-                      Cambiar
+                      {t('cliente.direcciones.cambiar')}
                     </Text>
                   </Pressable>
                 </View>
               ) : (
                 <DireccionAutocomplete
                   onSelect={setUbicacion}
-                  placeholder="Buscá la dirección..."
+                  placeholder={t('cliente.direcciones.buscaPlaceholder')}
                 />
               )}
 
-              <Text style={styles.label}>Notas (opcional)</Text>
+              <Text style={styles.label}>{t('cliente.direcciones.notas')}</Text>
               <TextInput
                 style={styles.input}
                 value={notas}
                 onChangeText={setNotas}
-                placeholder="Piso, depto, indicaciones para llegar..."
+                placeholder={t('cliente.direcciones.notasPlaceholder')}
                 placeholderTextColor={colors.muted}
               />
 
               <View style={styles.formButtons}>
                 <Button
-                  label="Cancelar"
+                  label={t('comun.cancelar')}
                   variant="secondary"
                   onPress={cerrarForm}
                   style={{ flex: 1 }}
                 />
                 <Button
-                  label={editandoId ? 'Guardar' : 'Agregar'}
+                  label={editandoId ? t('comun.guardar') : t('cliente.direcciones.agregar')}
                   onPress={guardar}
                   loading={saving}
                   disabled={saving}
@@ -263,7 +270,7 @@ export default function DireccionesScreen() {
             </View>
           ) : (
             <Button
-              label="Agregar dirección"
+              label={t('cliente.direcciones.agregarDireccion')}
               onPress={abrirAlta}
               fullWidth
               style={{ marginTop: spacing.xl }}

@@ -4,10 +4,25 @@ export type UserRole = 'cliente' | 'profesional' | 'proveedor' | 'admin';
 export interface PerfilCliente {
   ciudad?: string;
   fechaNacimiento?: string; // ISO YYYY-MM-DD
+  /** Tarifa de uso de la app personalizada para este cliente (0-100).
+   *  Si falta, se usa la global de config/plataforma.tarifaClientePorcentaje. */
+  tarifaClientePorcentaje?: number;
+  /** Hasta esta fecha (YYYY-MM-DD) el cliente no paga tarifa de uso. */
+  tarifaClienteExentaHasta?: string;
 }
 
 export interface PerfilProfesionalSignup {
-  especialidad: string; // p. ej. "Manicura", "Pestañas"
+  /**
+   * Texto legible de las especialidades ("Uñas, Pestañas y cejas").
+   * Se deriva de `categorias`; se mantiene para las cuentas antiguas que
+   * cargaron texto libre y para mostrarlo en la UI sin traducir.
+   */
+  especialidad: string;
+  /**
+   * Especialidades elegidas del catálogo de categorías (colección
+   * `categorias` de Firestore), las mismas con las que arma sus servicios.
+   */
+  categorias?: CategoriaSlug[];
   ciudad: string;
   direccion: string;
   aniosExperiencia: number;
@@ -24,11 +39,52 @@ export interface PerfilProfesionalSignup {
   perfilVisible?: boolean;    // si false, no aparece en búsquedas de clientes
   autoConfirmarTurnos?: boolean; // si true, los turnos se confirman sin revisión manual
   anticipoPorcentaje?: 0 | 20 | 50 | 100; // porcentaje de anticipo que se pide al reservar
+  /** Comisión personalizada (0-100). Si falta, se usa la global de config/plataforma. */
+  comisionPorcentaje?: number;
+  /** Premio de competencia: hasta esta fecha (YYYY-MM-DD) no paga comisión. */
+  comisionExentaHasta?: string;
+  /** Datos de facturación: destino para recibir premios/transferencias. */
+  facturacion?: DatosFacturacion;
+}
+
+/** Destino de cobro que carga el profesional (alias o CBU/CVU). */
+export interface DatosFacturacion {
+  tipo: 'alias' | 'cbu';
+  valor: string;
+}
+
+/* ── Ficha de cliente (privada de cada profesional) ─────────────────── */
+
+/** Datos editables que el profesional guarda sobre un cliente. */
+export interface FichaCliente {
+  profesionalId: string;
+  clienteId: string;
+  clienteNombre?: string;
+  telefono?: string;
+  email?: string;
+  /** Notas libres: alergias, preferencias, fórmulas, etc. */
+  notas?: string;
+  /** true si la creó el profesional a mano (cliente sin cuenta en la app). */
+  esManual?: boolean;
+  actualizadoEn?: string; // ISO
+}
+
+/** Resumen de un cliente derivado de los turnos o de una ficha manual. */
+export interface ResumenCliente {
+  clienteId: string;
+  nombre: string;
+  cantTurnos: number;
+  completados: number;
+  totalGastado: number;
+  ultimoTurno: string; // YYYY-MM-DD ('' si es ficha manual sin turnos)
+  ultimoServicio?: string;
+  esManual?: boolean;
 }
 
 export interface PerfilProveedor {
   razonSocial: string;
-  cuit: string;
+  /** CUIT/CUIL. Opcional: no se valida ni se exige en el alta. */
+  cuit?: string;
   rubro: string; // p. ej. "Insumos para uñas"
   ciudad: string;
   direccion?: string; // dirección exacta seleccionada en el autocomplete
@@ -78,6 +134,28 @@ export interface Categoria {
   slug: CategoriaSlug;
   nombre: string;
   emoji: string;
+  /** Foto de la categoría (Cloudinary). Se carga desde el panel admin.
+   *  Si falta, la app muestra el emoji sobre un fondo de color. */
+  imagenUrl?: string;
+}
+
+/**
+ * Banner promocional del home del cliente (colección `banners`).
+ * Se administran desde el panel admin: imagen, textos, orden y si está
+ * activo. Tocarlo puede llevar a una categoría concreta.
+ */
+export interface Banner {
+  id: string;
+  titulo: string;
+  subtitulo?: string;
+  /** Imagen de fondo (Cloudinary). */
+  imagenUrl: string;
+  /** Categoría a la que lleva al tocarlo. Si falta, no navega. */
+  categoriaSlug?: CategoriaSlug;
+  /** Orden de aparición en el carrusel (menor primero). */
+  orden: number;
+  activo: boolean;
+  creadoEn?: string;
 }
 
 /**
@@ -135,6 +213,24 @@ export interface Usuario {
   perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor;
   direcciones?: Direccion[];
   preferencias?: PreferenciasNotificaciones;
+  mpConectado?: boolean; // true si conectó su cuenta de Mercado Pago (OAuth)
+  /**
+   * true si la cuenta está habilitada como profesional (completó el alta).
+   * Es permanente: `rol` indica la VISTA activa (cliente/profesional) y puede
+   * ir y venir, pero esProfesional nunca vuelve a false. Las búsquedas y las
+   * reglas de Firestore usan este flag para que el profesional siga siendo
+   * visible mientras navega en vista cliente.
+   */
+  esProfesional?: boolean;
+  /**
+   * true si el usuario ya validó su email (link de verificación de Firebase
+   * Auth). Mientras esté en false la app lo deja en la pantalla
+   * "verificar-email" y no puede continuar al flujo normal.
+   *
+   * Compatibilidad: los docs creados antes de esta funcionalidad no tienen el
+   * campo. Se los considera validados (ver `buildUsuario` en auth.service).
+   */
+  isValidated?: boolean;
 }
 
 export type ModalidadTrabajo = 'salon' | 'domicilio' | 'ambos';
@@ -184,8 +280,31 @@ export type EstadoTurno =
 
 export type MetodoPago = 'efectivo' | 'transferencia' | 'mercado_pago' | 'mixto';
 
-/** Porcentaje de comisión que cobra la plataforma sobre cada servicio (0-1). */
+/**
+ * Porcentaje de comisión por defecto (0-1). Es solo el FALLBACK:
+ * el valor real se lee de Firestore config/plataforma.comisionPorcentaje
+ * (editable desde el panel admin) vía configService.
+ */
 export const COMISION_PLATAFORMA = 0.20;
+
+/**
+ * Tarifa de uso de la app que paga el CLIENTE (0-1). Es solo el FALLBACK:
+ * el valor real se lee de Firestore config/plataforma.tarifaClientePorcentaje
+ * (editable desde el panel admin). Arranca en 0 para que no se cobre nada
+ * hasta que el dueño la configure.
+ *
+ * A diferencia de la comisión del profesional (que se descuenta de lo que
+ * factura), esta tarifa se SUMA al total que paga el cliente al reservar.
+ */
+export const TARIFA_CLIENTE = 0;
+
+/**
+ * Regla que determinó la comisión aplicada a un turno:
+ *  - 'global':       se usó el % global de config/plataforma.
+ *  - 'personalizada': el profesional tenía un % propio.
+ *  - 'exencion':     no se cobró comisión por un premio de competencia vigente.
+ */
+export type ComisionOrigen = 'global' | 'personalizada' | 'exencion';
 
 export interface Turno {
   id: string;
@@ -201,10 +320,30 @@ export interface Turno {
   monto: number;
   montoSena?: number;          // monto de la seña/anticipo
   senaPagada?: boolean;        // true cuando se pagó la seña por MercadoPago
+  /** true si el profesional auto-confirma; lo usa el webhook al acreditar la seña. */
+  autoConfirmar?: boolean;
   metodoPago?: MetodoPago;
   notas?: string;
   /** Monto de comisión que corresponde a la plataforma. */
   comisionPlataforma?: number;
+  /** Snapshot del % de comisión aplicado a ESTE turno al completarlo (0-100).
+   *  Se congela para que el histórico no cambie si luego se ajusta la comisión. */
+  comisionPorcentaje?: number;
+  /** true si al completarse no se cobró comisión por una exención vigente (premio). */
+  comisionExento?: boolean;
+  /** Qué regla determinó la comisión de este turno (para reportes del panel). */
+  comisionOrigen?: ComisionOrigen;
+  /** Tarifa de uso de la app que paga el cliente. Se SUMA al total: el
+   *  profesional cobra `monto` completo y esto va a la plataforma. */
+  tarifaCliente?: number;
+  /** Snapshot del % aplicado al cliente en ESTE turno (0-100). */
+  tarifaClientePorcentaje?: number;
+  /** true si no se cobró tarifa al cliente por una exención vigente. */
+  tarifaClienteExento?: boolean;
+  /** Qué regla determinó la tarifa del cliente (para reportes del panel). */
+  tarifaClienteOrigen?: ComisionOrigen;
+  /** true cuando el cliente ya abonó la tarifa (se cobra junto con la seña). */
+  tarifaClientePagada?: boolean;
   /** Anticipación del recordatorio que se le envía al cliente para este turno. */
   recordatorioCliente?: '1h' | '2h' | '24h' | 'off';
   /** true cuando la Cloud Function ya envió el recordatorio push (para no repetir). */

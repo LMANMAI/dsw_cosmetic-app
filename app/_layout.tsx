@@ -1,14 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Slot, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { CartProvider } from '@/context/CartContext';
+import { LanguageProvider } from '@/i18n';
 import { useRegistrarPush } from '@/hooks/useRegistrarPush';
 import { ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
 
 function ThemedStatusBar() {
   const { isDark } = useTheme();
@@ -16,21 +18,39 @@ function ThemedStatusBar() {
 }
 
 function AuthGate() {
-  const { user, loading } = useSession();
+  const { user, loading, emailValidado } = useSession();
   const segments = useSegments();
   const router = useRouter();
 
   // Registra el token de push del dispositivo cuando hay sesión.
   useRegistrarPush(user?.id ?? '');
 
+  // Oculta el splash una sola vez, cuando termina la carga inicial. Si se
+  // llamara en cada re-render, al volver del navegador de OAuth (Mercado Pago)
+  // se intentaría ocultar el splash del view controller del navegador, que no
+  // tiene ninguno registrado, y se lanzaría un error.
+  const splashOculto = useRef(false);
+  useEffect(() => {
+    if (!loading && !splashOculto.current) {
+      splashOculto.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading]);
+
   useEffect(() => {
     if (loading) return;
-    SplashScreen.hideAsync().catch(() => {});
 
     const inAuthRoute = segments[0] === '(auth)';
+    const enVerificacion = inAuthRoute && segments[1] === 'verificar-email';
 
     if (!user && !inAuthRoute) {
       router.replace('/(auth)/login');
+      return;
+    }
+    // Cuenta registrada pero sin confirmar el mail: no puede seguir al flujo
+    // de la app hasta validar.
+    if (user && !emailValidado) {
+      if (!enVerificacion) router.replace('/(auth)/verificar-email');
       return;
     }
     if (user && inAuthRoute) {
@@ -45,7 +65,7 @@ function AuthGate() {
           router.replace('/(cliente)/buscar');
       }
     }
-  }, [user, loading, segments, router]);
+  }, [user, loading, emailValidado, segments, router]);
 
   return <Slot />;
 }
@@ -55,12 +75,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <SessionProvider>
-            <CartProvider>
-              <ThemedStatusBar />
-              <AuthGate />
-            </CartProvider>
-          </SessionProvider>
+          <LanguageProvider>
+            <SessionProvider>
+              <CartProvider>
+                <ThemedStatusBar />
+                <AuthGate />
+              </CartProvider>
+            </SessionProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

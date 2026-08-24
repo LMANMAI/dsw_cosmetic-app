@@ -21,6 +21,7 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { useSession } from '@/context/SessionContext';
 import { uploadImage } from '@/services/upload.service';
+import { useTranslation } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { PerfilCliente } from '@/types/models';
@@ -36,6 +37,7 @@ function validarFechaNacimiento(value: string): boolean {
 export default function DatosPersonalesScreen() {
   const { user, updateUser } = useSession();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const perfil = (user?.perfil as PerfilCliente | undefined) ?? {};
 
@@ -50,7 +52,7 @@ export default function DatosPersonalesScreen() {
   const elegirAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para cambiar la foto.');
+      Alert.alert(t('cliente.datos.permisoRequeridoTitulo'), t('cliente.datos.permisoGaleriaMsg'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -66,7 +68,7 @@ export default function DatosPersonalesScreen() {
       const url = await uploadImage(result.assets[0].uri, 'avatars');
       setAvatarUri(url);
     } catch {
-      Alert.alert('Error', 'No se pudo subir la imagen. Intentá de nuevo.');
+      Alert.alert(t('comun.error'), t('cliente.datos.errorSubirImagen'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -74,12 +76,12 @@ export default function DatosPersonalesScreen() {
 
   const guardar = async () => {
     if (!nombre.trim()) {
-      Alert.alert('Campo requerido', 'El nombre no puede estar vacío.');
+      Alert.alert(t('cliente.datos.campoRequeridoTitulo'), t('cliente.datos.nombreVacioMsg'));
       return;
     }
     const fecha = fechaNacimiento.trim();
     if (fecha && !validarFechaNacimiento(fecha)) {
-      Alert.alert('Fecha inválida', 'Usá el formato AAAA-MM-DD, por ejemplo 1995-08-24.');
+      Alert.alert(t('cliente.datos.fechaInvalidaTitulo'), t('cliente.datos.fechaInvalidaMsg'));
       return;
     }
     setSaving(true);
@@ -98,11 +100,11 @@ export default function DatosPersonalesScreen() {
         payload.avatarUrl = avatarUri;
       }
       await updateUser(payload);
-      Alert.alert('Guardado', 'Tus datos se actualizaron correctamente.', [
-        { text: 'OK', onPress: () => router.back() },
+      Alert.alert(t('cliente.datos.guardadoTitulo'), t('cliente.datos.guardadoMsg'), [
+        { text: t('comun.aceptar'), onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo guardar.');
+      Alert.alert(t('comun.error'), err.message ?? t('cliente.datos.errorGuardarMsg'));
     } finally {
       setSaving(false);
     }
@@ -120,7 +122,7 @@ export default function DatosPersonalesScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
-          <ScreenHeader eyebrow="Tu cuenta" title="Datos personales" />
+          <ScreenHeader eyebrow={t('perfil.compartido.tuCuenta')} title={t('cliente.datos.titulo')} />
 
           {/* Foto de perfil */}
           <Pressable style={styles.avatarPicker} onPress={elegirAvatar}>
@@ -139,52 +141,52 @@ export default function DatosPersonalesScreen() {
           </Pressable>
 
           {/* Nombre */}
-          <Text style={styles.label}>Nombre completo</Text>
+          <Text style={styles.label}>{t('cliente.datos.nombreCompleto')}</Text>
           <TextInput
             style={styles.input}
             value={nombre}
             onChangeText={setNombre}
-            placeholder="Tu nombre"
+            placeholder={t('cliente.datos.nombrePlaceholder')}
             placeholderTextColor={colors.muted}
           />
 
           {/* Email (solo lectura) */}
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.hint}>El email de tu cuenta no se puede cambiar desde acá</Text>
+          <Text style={styles.label}>{t('cliente.datos.email')}</Text>
+          <Text style={styles.hint}>{t('cliente.datos.emailHint')}</Text>
           <View style={[styles.input, styles.inputDisabled]}>
             <Text style={{ color: colors.muted, fontSize: 15 }}>{user?.email ?? '-'}</Text>
           </View>
 
           {/* Teléfono */}
-          <Text style={styles.label}>Teléfono</Text>
+          <Text style={styles.label}>{t('cliente.datos.telefono')}</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="call-outline" size={18} color={colors.muted} />
             <TextInput
               style={[styles.input, { flex: 1, marginBottom: 0 }]}
               value={telefono}
               onChangeText={setTelefono}
-              placeholder="Ej: 3515551234"
+              placeholder={t('cliente.datos.telefonoPlaceholder')}
               placeholderTextColor={colors.muted}
               keyboardType="phone-pad"
             />
           </View>
 
           {/* Ciudad */}
-          <Text style={styles.label}>Ciudad</Text>
+          <Text style={styles.label}>{t('cliente.datos.ciudad')}</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="location-outline" size={18} color={colors.muted} />
             <TextInput
               style={[styles.input, { flex: 1, marginBottom: 0 }]}
               value={ciudad}
               onChangeText={setCiudad}
-              placeholder="Ej: Córdoba"
+              placeholder={t('cliente.datos.ciudadPlaceholder')}
               placeholderTextColor={colors.muted}
             />
           </View>
 
           {/* Fecha de nacimiento */}
-          <Text style={styles.label}>Fecha de nacimiento</Text>
-          <Text style={styles.hint}>Formato AAAA-MM-DD (opcional)</Text>
+          <Text style={styles.label}>{t('cliente.datos.fechaNacimiento')}</Text>
+          <Text style={styles.hint}>{t('cliente.datos.fechaHint')}</Text>
           <View style={styles.inputWithIcon}>
             <Ionicons name="gift-outline" size={18} color={colors.muted} />
             <TextInput
@@ -199,7 +201,7 @@ export default function DatosPersonalesScreen() {
           </View>
 
           <Button
-            label="Guardar cambios"
+            label={t('cliente.datos.guardarCambios')}
             onPress={guardar}
             loading={saving}
             disabled={saving}

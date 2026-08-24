@@ -15,10 +15,12 @@ import { useRouter } from 'expo-router';
 import { Button } from '@/components/Button';
 import { AuthCard, AuthHero, AuthInput } from '@/components/auth/AuthShell';
 import { useSession } from '@/context/SessionContext';
+import { useTranslation } from '@/i18n';
 import { useTheme, spacing } from '@/theme';
 
 export default function ForgotPasswordScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { sendPasswordReset } = useSession();
@@ -28,7 +30,7 @@ export default function ForgotPasswordScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      Alert.alert('Email requerido', 'Ingresá el email de tu cuenta.');
+      Alert.alert(t('auth.forgot.emailRequeridoTitulo'), t('auth.forgot.emailRequeridoMsg'));
       return;
     }
     setLoading(true);
@@ -40,7 +42,7 @@ export default function ForgotPasswordScreen() {
       // Por privacidad Firebase a veces no informa user-not-found, igualmente
       // mostramos confirmación genérica.
       if (e?.code === 'auth/invalid-email') {
-        Alert.alert('Email inválido', 'Revisá el email ingresado.');
+        Alert.alert(t('auth.forgot.emailInvalidoTitulo'), t('auth.forgot.emailInvalidoMsg'));
       } else {
         setSent(true);
       }
@@ -64,24 +66,21 @@ export default function ForgotPasswordScreen() {
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.title}>
-              Recuperá{'\n'}
-              <Text style={{ color: colors.primary }}>tu acceso</Text>
+              {t('auth.forgot.titulo1')}{'\n'}
+              <Text style={{ color: colors.primary }}>{t('auth.forgot.titulo2')}</Text>
             </Text>
-            <Text style={styles.subtitle}>
-              Te enviamos un enlace al mail para que crees una contraseña nueva.
-            </Text>
+            <Text style={styles.subtitle}>{t('auth.forgot.subtitulo')}</Text>
 
             {sent ? (
               <View style={styles.successCard}>
                 <Ionicons name="checkmark-circle" size={28} color={colors.success} />
-                <Text style={styles.successTitle}>¡Listo!</Text>
+                <Text style={styles.successTitle}>{t('comun.listo')}</Text>
                 <Text style={styles.successText}>
-                  Si {email.trim()} corresponde a una cuenta de BeautyApp, te llegó un enlace para
-                  resetear tu contraseña. Revisá también la carpeta de spam.
+                  {t('auth.forgot.exitoTexto', { email: email.trim() })}
                 </Text>
                 <Button
                   variant="dark"
-                  label="Volver al login"
+                  label={t('auth.forgot.volverLogin')}
                   fullWidth
                   onPress={() => router.replace('/(auth)/login')}
                   style={{ marginTop: spacing.lg }}
@@ -91,7 +90,7 @@ export default function ForgotPasswordScreen() {
               <>
                 <AuthInput
                   icon="mail-outline"
-                  placeholder="Tu email"
+                  placeholder={t('auth.forgot.emailPlaceholder')}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   value={email}
@@ -102,7 +101,7 @@ export default function ForgotPasswordScreen() {
 
                 <Button
                   variant="dark"
-                  label="Enviar enlace"
+                  label={t('auth.forgot.enviarEnlace')}
                   loading={loading}
                   fullWidth
                   onPress={handleSubmit}
@@ -111,7 +110,7 @@ export default function ForgotPasswordScreen() {
 
                 <Pressable onPress={() => router.back()} style={styles.backLink} hitSlop={6}>
                   <Ionicons name="arrow-back" size={14} color={colors.muted} />
-                  <Text style={styles.backLinkLabel}>Volver al login</Text>
+                  <Text style={styles.backLinkLabel}>{t('auth.forgot.volverLogin')}</Text>
                 </Pressable>
               </>
             )}

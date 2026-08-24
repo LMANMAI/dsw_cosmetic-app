@@ -15,20 +15,17 @@ import { Button } from '@/components/Button';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useSession } from '@/context/SessionContext';
 import { disponibilidadService } from '@/services/disponibilidad.service';
+import { serviciosService } from '@/services/servicios.service';
+import { useTranslation, type TranslateFn } from '@/i18n';
 import { useTheme, radius, spacing } from '@/theme';
 import type { ThemeColors } from '@/theme';
 import type { Franja } from '@/types/models';
 
 /* ─── Constantes ─── */
 
+// Orden Lunes→Domingo; los nombres se resuelven por idioma con comun.dias.
 const DIAS_SEMANA = [
-  { valor: 1, nombre: 'Lunes',     corto: 'Lun' },
-  { valor: 2, nombre: 'Martes',    corto: 'Mar' },
-  { valor: 3, nombre: 'Miércoles', corto: 'Mié' },
-  { valor: 4, nombre: 'Jueves',    corto: 'Jue' },
-  { valor: 5, nombre: 'Viernes',   corto: 'Vie' },
-  { valor: 6, nombre: 'Sábado',    corto: 'Sáb' },
-  { valor: 0, nombre: 'Domingo',   corto: 'Dom' },
+  { valor: 1 }, { valor: 2 }, { valor: 3 }, { valor: 4 }, { valor: 5 }, { valor: 6 }, { valor: 0 },
 ] as const;
 
 // Todas las medias horas del día: 00:00 a 23:30
@@ -40,10 +37,10 @@ const HORAS_OPCIONES = Array.from({ length: 48 }, (_, i) => {
 
 // Grupos de 6 horas para que el selector sea navegable
 const GRUPOS_HORARIOS = [
-  { label: 'Madrugada (00 a 06)', desde: 0, hasta: 6 },
-  { label: 'Mañana (06 a 12)', desde: 6, hasta: 12 },
-  { label: 'Tarde (12 a 18)', desde: 12, hasta: 18 },
-  { label: 'Noche (18 a 24)', desde: 18, hasta: 24 },
+  { labelKey: 'profesional.horarios.grupoMadrugada', desde: 0, hasta: 6 },
+  { labelKey: 'profesional.horarios.grupoManana', desde: 6, hasta: 12 },
+  { labelKey: 'profesional.horarios.grupoTarde', desde: 12, hasta: 18 },
+  { labelKey: 'profesional.horarios.grupoNoche', desde: 18, hasta: 24 },
 ] as const;
 
 const FRANJA_DEFAULT: Franja = { horaInicio: '09:00', horaFin: '18:00' };
@@ -71,31 +68,33 @@ function HoraPicker({
   opciones,
   onSelect,
   colors,
+  t,
 }: {
   label: string;
   value: string;
   opciones: string[];
   onSelect: (h: string) => void;
   colors: ThemeColors;
+  t: TranslateFn;
 }) {
   const mostrarHorasDelGrupo = (desde: number, hasta: number) => {
     const horas = opciones.filter((h) => {
       const [hh] = h.split(':').map(Number);
       return hh >= desde && hh < hasta;
     });
-    Alert.alert(label, 'Seleccioná el horario', [
+    Alert.alert(label, t('profesional.horarios.seleccionaHorario'), [
       ...horas.map((h) => ({ text: h, onPress: () => onSelect(h) })),
-      { text: 'Cancelar', style: 'cancel' },
+      { text: t('comun.cancelar'), style: 'cancel' },
     ]);
   };
 
   const mostrarOpciones = () => {
-    Alert.alert(label, 'Elegí la franja del día', [
+    Alert.alert(label, t('profesional.horarios.elegiFranjaDia'), [
       ...GRUPOS_HORARIOS.map((g) => ({
-        text: g.label,
+        text: t(g.labelKey),
         onPress: () => mostrarHorasDelGrupo(g.desde, g.hasta),
       })),
-      { text: 'Cancelar', style: 'cancel' },
+      { text: t('comun.cancelar'), style: 'cancel' },
     ]);
   };
 
@@ -132,13 +131,18 @@ const pickerStyles = StyleSheet.create({
 
 export default function HorariosScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { user } = useSession();
   const router = useRouter();
   const profesionalId = user?.id ?? '';
+  const nombresDias = t('comun.dias').split(',');
+  // comun.dias arranca en domingo (índice 0 = Dom)
+  const nombreDia = (valor: number) => nombresDias[valor];
 
   const [agenda, setAgenda] = useState<AgendaState>(buildInitialState);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [tieneServicios, setTieneServicios] = useState(true);
 
   // Cargar disponibilidad existente
   useEffect(() => {
@@ -152,6 +156,16 @@ export default function HorariosScreen() {
       }
       setLoading(false);
     });
+  }, [profesionalId]);
+
+  // Verificar si el profesional tiene al menos un servicio cargado.
+  // Sin servicios, los clientes no pueden reservar aunque la agenda esté abierta.
+  useEffect(() => {
+    if (!profesionalId) return;
+    serviciosService
+      .listar(profesionalId)
+      .then((items) => setTieneServicios(items.length > 0))
+      .catch(() => setTieneServicios(true));
   }, [profesionalId]);
 
   /* ── Handlers ── */
@@ -210,7 +224,7 @@ export default function HorariosScreen() {
 
   const validar = (): boolean => {
     if (diasActivos === 0) {
-      Alert.alert('Sin días', 'Activá al menos un día de la semana para guardar tu agenda.');
+      Alert.alert(t('profesional.horarios.sinDiasTitulo'), t('profesional.horarios.sinDiasMsg'));
       return false;
     }
     for (const d of DIAS_SEMANA) {
@@ -220,16 +234,16 @@ export default function HorariosScreen() {
         const f = config.franjas[i];
         if (f.horaInicio >= f.horaFin) {
           Alert.alert(
-            'Horario inválido',
-            `La franja ${i + 1} del ${d.nombre} tiene el cierre antes de la apertura.`,
+            t('profesional.horarios.horarioInvalidoTitulo'),
+            t('profesional.horarios.horarioInvalidoMsg', { num: i + 1, dia: nombreDia(d.valor) }),
           );
           return false;
         }
         // Verificar que no se solapen con la franja anterior
         if (i > 0 && f.horaInicio < config.franjas[i - 1].horaFin) {
           Alert.alert(
-            'Franjas solapadas',
-            `Las franjas ${i} y ${i + 1} del ${d.nombre} se superponen.`,
+            t('profesional.horarios.solapadasTitulo'),
+            t('profesional.horarios.solapadasMsg', { a: i, b: i + 1, dia: nombreDia(d.valor) }),
           );
           return false;
         }
@@ -249,8 +263,8 @@ export default function HorariosScreen() {
     }));
     await disponibilidadService.guardar(profesionalId, slots);
     setSaving(false);
-    Alert.alert('Agenda guardada', 'Tus horarios ya están disponibles para tus clientes.', [
-      { text: 'Genial', onPress: () => router.navigate('/(profesional)/perfil') },
+    Alert.alert(t('profesional.horarios.guardadaTitulo'), t('profesional.horarios.guardadaMsg'), [
+      { text: t('profesional.horarios.genial'), onPress: () => router.navigate('/(profesional)/perfil') },
     ]);
   };
 
@@ -276,10 +290,25 @@ export default function HorariosScreen() {
 
         <View style={styles.content}>
           <ScreenHeader
-            eyebrow="Configuración"
-            title="Horarios laborales"
-            subtitle="Elegí los días y franjas en los que atendés. Podés tener más de una franja por día."
+            eyebrow={t('profesional.horarios.eyebrow')}
+            title={t('profesional.horarios.titulo')}
+            subtitle={t('profesional.horarios.subtitulo')}
           />
+
+          {/* Aviso: sin servicios no se puede reservar */}
+          {!tieneServicios && (
+            <Pressable
+              style={styles.avisoCard}
+              onPress={() => router.navigate('/(profesional)/servicios')}
+            >
+              <Ionicons name="alert-circle" size={22} color={colors.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.avisoTitle}>{t('profesional.horarios.sinServiciosTitulo')}</Text>
+                <Text style={styles.avisoDesc}>{t('profesional.horarios.sinServiciosDesc')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            </Pressable>
+          )}
 
           {/* Resumen */}
           <View style={styles.summaryCard}>
@@ -287,13 +316,16 @@ export default function HorariosScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.summaryTitle}>
                 {diasActivos === 0
-                  ? 'Ningún día seleccionado'
-                  : `${diasActivos} ${diasActivos === 1 ? 'día' : 'días'} de atención`}
+                  ? t('profesional.horarios.ningunDia')
+                  : t('profesional.horarios.diasAtencion', {
+                      count: diasActivos,
+                      plural: diasActivos === 1 ? t('profesional.horarios.dia') : t('profesional.horarios.dias'),
+                    })}
               </Text>
               <Text style={styles.summaryDesc}>
                 {diasActivos === 0
-                  ? 'Activá los días en los que trabajás'
-                  : 'Tocá cada día para ajustar los horarios'}
+                  ? t('profesional.horarios.activaDias')
+                  : t('profesional.horarios.tocaCadaDia')}
               </Text>
             </View>
           </View>
@@ -331,11 +363,11 @@ export default function HorariosScreen() {
                         { color: config.activo ? colors.ink : colors.muted },
                       ]}
                     >
-                      {dia.nombre}
+                      {nombreDia(dia.valor)}
                     </Text>
                     {config.activo && (
                       <Text style={[styles.diaResumen, { color: colors.primary }]}>
-                        {config.franjas.length} {config.franjas.length === 1 ? 'franja' : 'franjas'}
+                        {config.franjas.length} {config.franjas.length === 1 ? t('profesional.horarios.franja') : t('profesional.horarios.franjas')}
                       </Text>
                     )}
                   </Pressable>
@@ -357,21 +389,23 @@ export default function HorariosScreen() {
                             <View style={styles.pickersRow}>
                               <View style={{ flex: 1 }}>
                                 <HoraPicker
-                                  label="Desde"
+                                  label={t('profesional.horarios.desde')}
                                   value={franja.horaInicio}
                                   opciones={HORAS_OPCIONES}
                                   onSelect={(h) => setFranja(dia.valor, idx, 'horaInicio', h)}
                                   colors={colors}
+                                  t={t}
                                 />
                               </View>
                               <Ionicons name="arrow-forward" size={16} color={colors.muted} />
                               <View style={{ flex: 1 }}>
                                 <HoraPicker
-                                  label="Hasta"
+                                  label={t('profesional.horarios.hasta')}
                                   value={franja.horaFin}
                                   opciones={HORAS_OPCIONES}
                                   onSelect={(h) => setFranja(dia.valor, idx, 'horaFin', h)}
                                   colors={colors}
+                                  t={t}
                                 />
                               </View>
                             </View>
@@ -397,7 +431,7 @@ export default function HorariosScreen() {
                       >
                         <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
                         <Text style={[styles.addFranjaTxt, { color: colors.primary }]}>
-                          Agregar franja
+                          {t('profesional.horarios.agregarFranja')}
                         </Text>
                       </Pressable>
                     </View>
@@ -410,9 +444,7 @@ export default function HorariosScreen() {
           {/* Tip */}
           <View style={styles.tip}>
             <Ionicons name="bulb-outline" size={18} color={colors.primary} />
-            <Text style={styles.tipText}>
-              Útil si hacés un descanso al mediodía. Podés agregar tantas franjas como necesites por día.
-            </Text>
+            <Text style={styles.tipText}>{t('profesional.horarios.tip')}</Text>
           </View>
         </View>
       </ScrollView>
@@ -420,7 +452,7 @@ export default function HorariosScreen() {
       {/* Botón guardar fijo abajo */}
       <View style={styles.bottomBar}>
         <Button
-          label={saving ? 'Guardando...' : 'Guardar agenda'}
+          label={saving ? t('profesional.horarios.guardando') : t('profesional.horarios.guardarAgenda')}
           onPress={guardar}
           loading={saving}
           disabled={diasActivos === 0}
@@ -458,6 +490,19 @@ const makeStyles = (c: ThemeColors) =>
     },
     summaryTitle: { fontSize: 16, fontWeight: '700', color: c.ink },
     summaryDesc: { fontSize: 13, color: c.muted, marginTop: 4 },
+    avisoCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      padding: spacing.xxl,
+      borderWidth: 1,
+      borderColor: c.warning,
+      marginBottom: spacing.xxl,
+    },
+    avisoTitle: { fontSize: 15, fontWeight: '700', color: c.ink },
+    avisoDesc: { fontSize: 13, color: c.muted, marginTop: 4 },
 
     diasContainer: { gap: spacing.md },
 
