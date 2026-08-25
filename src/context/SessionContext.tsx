@@ -14,6 +14,19 @@ interface SessionState {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /**
+   * true si la cuenta ya validó su email (o es una cuenta anterior a la
+   * validación / demo, que no traen el flag). El AuthGate lo usa para dejar
+   * pasar al flujo de la app.
+   */
+  emailValidado: boolean;
+  /** Reenvía el mail de verificación al usuario logueado. */
+  reenviarVerificacionEmail: () => Promise<void>;
+  /**
+   * Vuelve a consultar Firebase si el mail ya fue verificado. Si lo fue,
+   * persiste el flag, actualiza la sesión y devuelve true.
+   */
+  refrescarVerificacionEmail: () => Promise<boolean>;
+  /**
    * Cambia la vista activa (cliente ↔ profesional). No convierte la cuenta:
    * si todavía no está habilitada como profesional, lanza un error.
    */
@@ -89,6 +102,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (fresh) setUser(fresh);
   }, [user]);
 
+  /**
+   * Cuentas anteriores a la validación (y las demo) no traen el flag: se las
+   * considera validadas. Solo bloquea el paso un `isValidated === false`
+   * explícito.
+   */
+  const emailValidado = !user || user.isValidated !== false;
+
+  const reenviarVerificacionEmail = useCallback(async () => {
+    await authService.reenviarVerificacionEmail();
+  }, []);
+
+  const refrescarVerificacionEmail = useCallback(async () => {
+    const actualizado = await authService.refrescarVerificacionEmail();
+    if (!actualizado) return false;
+    setUser(actualizado);
+    return true;
+  }, []);
+
   const updateUser = useCallback(
     async (data: Partial<Pick<Usuario, 'nombre' | 'telefono' | 'avatarUrl'> & { perfil?: PerfilCliente | PerfilProfesionalSignup | PerfilProveedor; direcciones?: Direccion[]; preferencias?: PreferenciasNotificaciones }>) => {
       if (!user) return;
@@ -144,6 +175,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       sendPasswordReset,
       logout,
       refreshUser,
+      emailValidado,
+      reenviarVerificacionEmail,
+      refrescarVerificacionEmail,
       switchRole,
       esProfesional,
       habilitarProfesional,
@@ -152,6 +186,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [
       user,
       loading,
+      emailValidado,
+      reenviarVerificacionEmail,
+      refrescarVerificacionEmail,
       esProfesional,
       habilitarProfesional,
       loginWithEmail,

@@ -43,7 +43,10 @@ function AuthGate() {
     const inAuthRoute = segments[0] === '(auth)';
     const enVerificacion = inAuthRoute && segments[1] === 'verificar-email';
 
-    if (!user && !inAuthRoute) {
+    // Sin sesión: al login. "verificar-email" también necesita sesión, así que
+    // al cerrar sesión desde ahí hay que sacarlo igual (antes se quedaba
+    // trabado en la pantalla porque estaba dentro de (auth)).
+    if (!user && (!inAuthRoute || enVerificacion)) {
       router.replace('/(auth)/login');
       return;
     }
@@ -62,7 +65,7 @@ function AuthGate() {
           router.replace('/(proveedor)/inicio');
           break;
         default:
-          router.replace('/(cliente)/buscar');
+          router.replace('/(cliente)/(tabs)/buscar');
       }
     }
   }, [user, loading, emailValidado, segments, router]);

@@ -84,7 +84,7 @@ export default function RevisarTurnoScreen() {
     [p.fecha],
   );
 
-  const irAMisTurnos = () => router.replace('/(cliente)/turnos');
+  const irAMisTurnos = () => router.replace('/(cliente)/(tabs)/turnos');
 
   const confirmar = async () => {
     if (!user || !p.profesionalId || !p.servicioId) return;

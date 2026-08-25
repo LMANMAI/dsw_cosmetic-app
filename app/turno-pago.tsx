@@ -45,7 +45,7 @@ export default function TurnoPagoScreen() {
         <Text style={styles.sub}>{sub}</Text>
         <Button
           label={t('pagos.turno.verMisTurnos')}
-          onPress={() => router.replace('/(cliente)/turnos')}
+          onPress={() => router.replace('/(cliente)/(tabs)/turnos')}
           fullWidth
           style={{ marginTop: spacing.xxl }}
         />

@@ -8,5 +8,5 @@ import { Redirect } from 'expo-router';
  * app/(profesional)/insumos.tsx.
  */
 export default function TiendaClienteDeshabilitada() {
-  return <Redirect href="/(cliente)/buscar" />;
+  return <Redirect href="/(cliente)/(tabs)/buscar" />;
 }

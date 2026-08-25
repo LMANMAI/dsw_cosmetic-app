@@ -13,6 +13,6 @@ export default function Index() {
     case 'proveedor':
       return <Redirect href="/(proveedor)/inicio" />;
     default:
-      return <Redirect href="/(cliente)/buscar" />;
+      return <Redirect href="/(cliente)/(tabs)/buscar" />;
   }
 }

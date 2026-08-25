@@ -397,7 +397,15 @@ export const authService = {
           u = await marcarValidado(fbUser.uid);
         }
         cb(u);
-      } catch {
+      } catch (e: any) {
+        // Sin esto el error se tragaba entero: un permission-denied al crear o
+        // leer usuarios/{uid} terminaba en cb(null), o sea "no hay sesion", y
+        // el AuthGate mandaba al login sin explicar nada.
+        console.error(
+          '[auth] no se pudo resolver el usuario de Firestore:',
+          e?.code ?? '',
+          e?.message ?? e,
+        );
         cb(null);
       }
     });
